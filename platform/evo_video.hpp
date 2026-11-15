@@ -44,6 +44,14 @@ struct EvoVideoConfig {
     void setDisplay(uint32_t canvasWidth, uint32_t canvasHeight, uint32_t panelWidth, uint32_t panelHeight);
 };
 
+// What became of one frame handed to postVideoFrame.
+enum class FrameFate {
+    kDecoding,  // in the decoder
+    kLost,      // dropped (no free buffer in time, larger than a buffer) or refused by the decoder: the frames after it
+                // refer to a picture the decoder never had
+    kNoStream,  // the decoder is not running
+};
+
 class EvoVideo {
 public:
     EvoVideo();
@@ -62,8 +70,7 @@ public:
     // SPS/PPS (the Android Auto codec config): kept and prepended to the first IDR frame after each (re)start.
     void postCodecConfig(const uint8_t* data, size_t len);
     // One H.264 access unit, copied into a free dma-buf and handed to the decoder.
-    // False when no buffer frees up in time (frame dropped) or the stream is not started.
-    bool postVideoFrame(const uint8_t* data, size_t len, uint64_t pts);
+    FrameFate postVideoFrame(const uint8_t* data, size_t len, uint64_t pts);
 
 private:
     static void* eventStub(void* self);

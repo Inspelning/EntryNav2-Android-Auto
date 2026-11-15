@@ -42,6 +42,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `car_location.hpp` | Position de la voiture vers le capteur Android Auto |
 | `crash_handler` | Trace d'un plantage, puis le nettoyage enregistré par la plateforme |
 | `display_plan.hpp` | Image demandée au téléphone selon la taille de l'écran, et zone montrée |
+| `keyframe_request.hpp` | Image vidéo perdue : quand redemander une image complète au téléphone (pas dans les 5 premières secondes, au plus une fois par 10 s) |
 | `include/` | Modèle de description de la voiture, certificat de l'unité |
 
 ## `platform/` : l'EntryNav2

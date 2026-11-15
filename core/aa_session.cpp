@@ -37,6 +37,9 @@ const unsigned kFramesLoggedEvery = 300;
 const unsigned kKeysLogged = 200;  // evo_knob logs every key anyway
 const unsigned kMovesLogged = 40;
 const unsigned kMicrophoneLogEvery = 250;
+// Encrypted frames in a row that do not decrypt: the TLS stream is broken (a record lost or cut on the way), and no
+// later frame will decrypt either. The session ends rather than wait for the silence limit with a frozen picture.
+const unsigned kUnreadableLimit = 16;
 const int kTouchMove = 2;
 
 uint64_t monotonicUs() {
@@ -64,6 +67,8 @@ AASession::AASession()
       longestSilenceMs_(0),
       lastReceivedMs_(0),
       videoReady_(false),
+      projected_(false),
+      unreadableInARow_(0),
       mediaMessages_(0),
       microphoneChunks_(0) {
     pthread_mutex_init(&lifecycleLock_, nullptr);
@@ -123,6 +128,10 @@ void AASession::postRelativeEvent(uint32_t keycode, int delta) {
 
 void AASession::postVideoFocus(bool projected) {
     inbox_.postFocus(projected);
+}
+
+void AASession::postKeyframeRequest() {
+    inbox_.postKeyframeRequest();
 }
 
 void AASession::postNightMode(bool night) {
@@ -211,6 +220,9 @@ bool AASession::start(int client_fd) {
     assembler_.clear();
     inbox_.reset();
     videoReady_ = false;
+    projected_ = false;
+    keyframe_.reset();
+    unreadableInARow_ = 0;
     microphoneChunks_ = 0;
     mediaMessages_ = 0;
     memset(mediaSessions_, 0, sizeof(mediaSessions_));
@@ -441,7 +453,14 @@ AASession::Received AASession::receive(uint8_t& channel, Message& message) {
     } else if (!tls_.open(&payload[0], payload.size(), plain)) {
         printf("[AASession] Failed to decrypt encrypted frame (%u bytes).\n", header.length);
         assembler_.drop(channel);
+        if (++unreadableInARow_ >= kUnreadableLimit) {
+            printf("[AASession] %u encrypted frames in a row did not decrypt: the stream is broken, session ends.\n",
+                   unreadableInARow_);
+            return kLost;
+        }
         return kNothing;
+    } else {
+        unreadableInARow_ = 0;
     }
     switch (assembler_.add(header, plain, message)) {
         case MessageAssembler::kComplete:
@@ -496,6 +515,9 @@ void AASession::sendCarInput() {
         const bool sent = sendVideoFocus(projected, true);
         printf("[AASession] video focus -> phone: %s (unrequested) %s\n",
                projected ? "FOCUSED/projected" : "UNFOCUSED/native", sent ? "sent" : "SEND FAILED");
+    }
+    if (batch.keyframe) {
+        askKeyframe();
     }
     for (size_t i = 0; i < batch.keys.size(); ++i) {
         const CarKey& key = batch.keys[i];
@@ -566,10 +588,22 @@ bool AASession::sendSensorEvent(uint32_t type) {
 bool AASession::sendVideoFocus(bool projected, bool unrequested) {
     const bool sent = sendSealed(channel::kVideo, message::videoFocusIndication(projected, unrequested));
     if (sent) {
+        projected_ = projected;
         printf("[AASession] >>> Sent VideoFocusIndication (%s%s) on Channel %u!\n", projected ? "FOCUSED" : "UNFOCUSED",
                unrequested ? ", unrequested" : "", channel::kVideo);
     }
     return sent;
+}
+
+// A lost frame leaves the picture broken until the phone's next keyframe: the focus is taken away and given back at
+// once, which restarts the phone's encoder with one (keyframe_request.hpp). Only while the picture is projected.
+void AASession::askKeyframe() {
+    if (!videoReady_ || !projected_ || !keyframe_.allow(locationClockMs())) {
+        return;
+    }
+    const bool sent = sendVideoFocus(false, true) && sendVideoFocus(true, true);
+    printf("[AASession] video frame lost: keyframe asked of the phone (focus off and on) %s\n",
+           sent ? "sent" : "SEND FAILED");
 }
 
 }  // namespace aa

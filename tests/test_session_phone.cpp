@@ -1017,6 +1017,78 @@ std::string quietPhone() {
     return std::string();
 }
 
+// An encrypted frame the head unit cannot decrypt: a record header TLS would never write.
+void unreadable(Phone& phone) {
+    phone.raw("unreadable", bytes({0x00, kSealed, 0x00, 0x04, 0x01, 0x02, 0x03, 0x04}));
+}
+
+// The TLS stream breaks: 15 unreadable frames in a row are survived, the 16th ends the session.
+std::string brokenStream() {
+    std::vector<std::string> log;
+    Link link;
+    Phone phone(link.phoneFd, log);
+    phone.handshake();
+    phone.discover();
+    for (int i = 0; i < 15; ++i) {
+        unreadable(phone);
+    }
+    phone.settle();  // a plain ping, still answered
+    if (!link.session.isActive() || phone.lost()) {
+        return "15 unreadable frames ended the session";
+    }
+    unreadable(phone);
+    if (!waitEnded(link.session)) {
+        return "the 16th unreadable frame in a row did not end the session";
+    }
+    return std::string();
+}
+
+// The video focus indications the head unit sent, in order: "1" FOCUSED, "2" UNFOCUSED, each followed by 'u' when
+// unrequested.
+std::string focusTrail(const std::vector<std::string>& log, size_t from) {
+    std::string trail;
+    for (size_t i = from; i < log.size(); ++i) {
+        const size_t at = log[i].find("hu ch=6 fl=0b 8008 08");
+        if (at != std::string::npos && log[i].size() >= at + 27) {
+            trail += log[i][at + 22];
+            trail += log[i].compare(at + 23, 4, "1001") == 0 ? "u" : "";
+        }
+    }
+    return trail;
+}
+
+// A frame the decoder lost: no request during the video's first 5 s, then the focus off and on, once in 10 s.
+std::string keyframeAfterLoss() {
+    std::vector<std::string> log;
+    Link link;
+    Phone phone(link.phoneFd, log);
+    phone.handshake();
+    phone.discover();
+    phone.send(6, kSealedCtl, bytes({0x00, 0x07, 0x08, 0x00, 0x10, 0x06}));
+    phone.send(6, kSealed, bytes({0x80, 0x00, 0x08, 0x03}));  // video setup: FOCUSED at once
+    phone.settle();
+    size_t from = log.size();
+    link.session.postKeyframeRequest();
+    phone.settle();
+    if (!focusTrail(log, from).empty()) {
+        return "a keyframe was asked during the video's first seconds: " + focusTrail(log, from);
+    }
+    phone.headUnitPings(5200, true);
+    from = log.size();
+    link.session.postKeyframeRequest();
+    phone.settle();
+    if (focusTrail(log, from) != "2u1u") {
+        return "after 5 s, focus trail '" + focusTrail(log, from) + "' instead of off then on";
+    }
+    from = log.size();
+    link.session.postKeyframeRequest();
+    phone.settle();
+    if (!focusTrail(log, from).empty() || !link.session.isActive()) {
+        return "a second request within 10 s was not held back";
+    }
+    return std::string();
+}
+
 struct Scenario {
     const char* name;
     void (*run)(std::vector<std::string>&);
@@ -1097,6 +1169,10 @@ int main(int argc, char** argv) {
     }
     const std::string quiet = writing ? std::string() : quietPhone();
     takeEvents();
+    const std::string broken = writing ? std::string() : brokenStream();
+    takeEvents();
+    const std::string keyframe = writing ? std::string() : keyframeAfterLoss();
+    takeEvents();
     fflush(stdout);
     dup2(console, 1);
     close(sink);
@@ -1136,5 +1212,15 @@ int main(int argc, char** argv) {
         return 1;
     }
     puts("PASS session, quiet phone: answered pings keep it, unanswered ones end it within the silence limit");
+    if (!broken.empty()) {
+        printf("FAIL session, broken stream: %s\n", broken.c_str());
+        return 1;
+    }
+    puts("PASS session, broken stream: 16 encrypted frames in a row that do not decrypt end it, 15 do not");
+    if (!keyframe.empty()) {
+        printf("FAIL session, keyframe after a lost frame: %s\n", keyframe.c_str());
+        return 1;
+    }
+    puts("PASS session, keyframe after a lost frame: focus off and on, not in the first 5 s, once in 10 s");
     return 0;
 }

@@ -253,6 +253,7 @@ void AASession::onSetup(uint8_t channel) {
     if (channel == channel::kVideo) {
         sendVideoFocus(true, false);
         videoReady_ = true;
+        keyframe_.videoStarted(locationClockMs());
     }
 }
 

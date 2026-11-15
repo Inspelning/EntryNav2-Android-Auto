@@ -103,6 +103,7 @@ static bool configThenIdr() {
 }
 
 int main() {
+    typedef evo::FrameFate Fate;
     evo::EvoVideoConfig cfg;
     evo::EvoVideo video;
     assert(!video.isReady());
@@ -120,18 +121,18 @@ int main() {
 
     // SPS/PPS go in front of the first IDR; a frame the decoder refuses keeps them for the next IDR.
     video.postCodecConfig(kSpsPps, sizeof(kSpsPps));
-    assert(video.postVideoFrame(kSlice, sizeof(kSlice), 0) && decoded == sizeof(kSlice));
+    assert(video.postVideoFrame(kSlice, sizeof(kSlice), 0) == Fate::kDecoding && decoded == sizeof(kSlice));
     decodeFailures = 1;
-    assert(!video.postVideoFrame(kIdr, sizeof(kIdr), 0) && configThenIdr());
-    assert(video.postVideoFrame(kIdr, sizeof(kIdr), 0) && configThenIdr());
-    assert(video.postVideoFrame(kIdr, sizeof(kIdr), 0) && decoded == sizeof(kIdr));  // sent once
+    assert(video.postVideoFrame(kIdr, sizeof(kIdr), 0) == Fate::kLost && configThenIdr());
+    assert(video.postVideoFrame(kIdr, sizeof(kIdr), 0) == Fate::kDecoding && configThenIdr());
+    assert(video.postVideoFrame(kIdr, sizeof(kIdr), 0) == Fate::kDecoding && decoded == sizeof(kIdr));  // sent once
 
     video.stop();
     assert(!visible && !video.isVisible() && !video.isReady());
-    assert(!video.postVideoFrame(kIdr, sizeof(kIdr), 0));
+    assert(video.postVideoFrame(kIdr, sizeof(kIdr), 0) == Fate::kNoStream);  // stopped: nothing lost
     assert(video.init(cfg) && video.start() && video.isReady());
-    assert(opacity == 1.f && video.setOpacity(0.25f) && opacity == 0.25f);   // fresh surface, fresh cache
-    assert(video.postVideoFrame(kIdr, sizeof(kIdr), 0) && configThenIdr());  // the new decoder gets SPS/PPS again
+    assert(opacity == 1.f && video.setOpacity(0.25f) && opacity == 0.25f);  // fresh surface, fresh cache
+    assert(video.postVideoFrame(kIdr, sizeof(kIdr), 0) == Fate::kDecoding && configThenIdr());  // SPS/PPS again
     video.stop();
     puts("PASS video presentation: visibility, opacity cache, camera hide, SPS/PPS after a refused IDR, reconnect");
 }

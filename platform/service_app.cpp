@@ -153,7 +153,9 @@ void ServiceApp::frame(uint32_t, const uint8_t* data, size_t len, uint64_t pts, 
         // Phone frames never wait for mu: the main loop holds it while LayerManagerControl runs (show/hide,
         // opacity), which would stall the picture.
         ++a->videoFrames;
-        a->video.postVideoFrame(data, len, pts);
+        if (a->video.postVideoFrame(data, len, pts) == FrameFate::kLost) {
+            a->session.postKeyframeRequest();  // the session decides whether and when to ask the phone
+        }
     }
 }
 

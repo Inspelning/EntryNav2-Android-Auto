@@ -232,10 +232,10 @@ bool EvoVideo::isIdr(const uint8_t* d, size_t n) const {
     return false;
 }
 
-bool EvoVideo::postVideoFrame(const uint8_t* data, size_t len, uint64_t pts) {
+FrameFate EvoVideo::postVideoFrame(const uint8_t* data, size_t len, uint64_t pts) {
     (void)pts;
     if (!running_ || !started_) {
-        return false;
+        return FrameFate::kNoStream;
     }
 
     pthread_mutex_lock(&mu_);
@@ -269,7 +269,7 @@ bool EvoVideo::postVideoFrame(const uint8_t* data, size_t len, uint64_t pts) {
     if (bi < 0) {
         ++framesDropped_;
         pthread_mutex_unlock(&mu_);
-        return false;
+        return FrameFate::kLost;
     }
 
     DmaBufPool::Buf& b = pool_.at(bi);
@@ -277,7 +277,7 @@ bool EvoVideo::postVideoFrame(const uint8_t* data, size_t len, uint64_t pts) {
         ++framesDropped_;
         pthread_mutex_unlock(&mu_);
         ELOG("Video", "frame %zu B > buffer %u B", need, b.size);
-        return false;
+        return FrameFate::kLost;
     }
     size_t off = 0;
     if (prependCfg) {
@@ -300,9 +300,9 @@ bool EvoVideo::postVideoFrame(const uint8_t* data, size_t len, uint64_t pts) {
         }
         pthread_cond_signal(&cv_);
         pthread_mutex_unlock(&mu_);
-        return false;
+        return FrameFate::kLost;
     }
-    return true;
+    return FrameFate::kDecoding;
 }
 
 void* EvoVideo::eventStub(void* self) {
