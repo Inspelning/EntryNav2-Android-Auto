@@ -29,6 +29,7 @@
 #include "peek_timing.hpp"
 #include "tcp_server.hpp"
 #include "usb_loop.hpp"
+#include "volume_state.hpp"
 #include "wifi_link.hpp"
 #include "wireless_loop.hpp"
 #include "wireless_setup.hpp"
@@ -74,6 +75,7 @@ public:
     static void touchEvent(const aa::TouchEventOut& ev, void* user);
     static void volumeEvent(unsigned steps, void* user);
     static void volumeLevel(const VolumeLevel& level, void* user);
+    static void audioButton(void* user);
     static void hardKey(const char* name, void* user);
     static void knobEvent(const aa::CcsEvent& ev, void* user);
     static void appKey(const char* name, void* user);
@@ -124,6 +126,7 @@ public:
     bool asking;       // service: such a session, not shown yet
     int pendingFocus;  // service: 1 tell the phone FOCUSED, 2 NATIVE (sent from the main loop)
     PeekTiming peek;   // under mu
+    VolumeState volume;  // under mu
     EvoPill pill;
     WifiLinkLog wifiLink;  // the Wi-Fi link's quality, logged while a wireless session runs
     unsigned sppLinks, tcpLinks, usbLinks;

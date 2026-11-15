@@ -30,6 +30,7 @@
 #include "evo_ccs.hpp"
 #include "input_mode.hpp"
 #include "vmost_client.hpp"
+#include "volume_state.hpp"
 
 namespace evo {
 
@@ -64,15 +65,18 @@ const uint16_t kVolumeCsFkt = 0xC01, kVolumeMflFkt = 0x401;
 int decodeVolumeButton(const VmostMsgView& m, unsigned* steps);
 
 // Volume level, read where HmiMain3D's own volume bar reads it: CHmiVolumeIndicatorService watches CPxyAudioMaster
-// instance 0, whose init binds fkt 0xC08 (libhmil6services). Array property, record 0: Status = PosX, PosY, value,
-// min, max, one byte each (e.g. 01 00 LEVEL 00 MAX). Our copy needs vmostd's filter opened by one Get, as for E5:
-// nothing is ever set on the AudioMaster.
+// instance 0, whose init binds fkt 0xC08 (libhmil6services). Array property (volume_state.hpp): Status = PosX, PosY,
+// then records of value, min, max, one byte each (e.g. 01 00 LEVEL 00 MAX). Only the front display's record, the
+// first one (PosX 0: the whole array, its first record; PosX 1: that record alone). Our copy needs vmostd's filter
+// opened by one Get, as for E5: nothing is ever set on the AudioMaster.
 const uint8_t kAudioMasterFblock = 0x20, kAudioMasterInstance = 0x00;
 const uint16_t kVolumeLevelFkt = 0xC08;
-struct VolumeLevel {
-    unsigned value, min, max;
-};
 bool decodeVolumeLevel(const VmostMsgView& m, VolumeLevel& out);
+
+// The audio knob's push button (CECenterStack 0x15.0C, fkt 0xC04 PushButtonAudio, bound by CPxyCECenterStack::init):
+// Status = one enum byte, 1 pressed. iDrive mutes or unmutes on the press. Returns 1 for a press.
+const uint16_t kAudioButtonFkt = 0xC04;
+int decodeAudioButton(const VmostMsgView& m);
 
 class EvoKnob {
 public:
@@ -112,6 +116,12 @@ public:
     void setVolumeLevelCallback(VolumeLevelCallback cb, void* user) {
         levelCb_ = cb;
         levelUser_ = user;
+    }
+    // The audio knob pressed (iDrive mutes or unmutes). Called on the vMOST thread.
+    using AudioButtonCallback = void (*)(void*);
+    void setAudioButtonCallback(AudioButtonCallback cb, void* user) {
+        audioButtonCb_ = cb;
+        audioButtonUser_ = user;
     }
     // During a phone call (iDrive's call screen) COM and the steering wheel phone button stay with iDrive.
     void setPhoneToIdrive(bool v) { phoneToIdrive_ = v; }
@@ -154,6 +164,8 @@ private:
     VolumeCallback volCb_;
     VolumeLevelCallback levelCb_;
     void* levelUser_;
+    AudioButtonCallback audioButtonCb_;
+    void* audioButtonUser_;
     bool levelRegistered_;
     unsigned levels_;
     HardKeyCallback keyCb_;

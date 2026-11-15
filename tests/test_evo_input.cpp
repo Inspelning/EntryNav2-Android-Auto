@@ -433,6 +433,18 @@ int main() {
         lv.fkt = 0xC09;
         CHECK(!evo::decodeVolumeLevel(lv, level));
         lv.fkt = 0xC08;
+        // The whole array (PosX 0): its first record, the front display's. Another display's record is not ours.
+        uint8_t whole[8] = {0x00, 0x00, 21, 0, 40, 9, 0, 40}, second[5] = {0x02, 0x00, 9, 0, 40},
+                column[5] = {0x01, 0x01, 9, 0, 40};
+        lv.data = whole;
+        lv.len = 8;
+        CHECK(evo::decodeVolumeLevel(lv, level) && level.value == 21);
+        lv.len = 5;
+        lv.data = second;
+        CHECK(!evo::decodeVolumeLevel(lv, level));
+        lv.data = column;
+        CHECK(!evo::decodeVolumeLevel(lv, level));
+        lv.data = ok;
         static const uint8_t record[2] = {0x01, 0x00};
         evo::VmostMsgOut lg;
         evo::buildVmostGet(lg, 0x20, 0x00, 0xC08, record, 2);
@@ -488,6 +500,35 @@ int main() {
         CHECK(evo::decodeVolumeButton(vv, &st) == 1 && st == 1);
         vv.len = 2;
         CHECK(evo::decodeVolumeButton(vv, &st) == 0);  // short MFL frame
+        // The audio knob's push button, CECenterStack 15.0C.C04 [EPushButton]: 1 pressed, 0 released.
+        {
+            uint8_t pressed[1] = {1}, released[1] = {0};
+            evo::VmostMsgView ab = vv;
+            ab.inst = 0x0C;
+            ab.fkt = 0xC04;
+            ab.len = 1;
+            ab.data = pressed;
+            CHECK(evo::decodeAudioButton(ab) == 1 && evo::decodeVolumeButton(ab, &st) == 0);
+            ab.data = released;
+            CHECK(evo::decodeAudioButton(ab) == 0);
+            ab.data = pressed;
+            ab.inst = 0x02;
+            CHECK(evo::decodeAudioButton(ab) == 0);  // the steering wheel's instance
+            ab.inst = 0x0C;
+            ab.op = 0xF;
+            CHECK(evo::decodeAudioButton(ab) == 0);
+            ab.op = 0xC;
+            struct Presses {
+                static void cb(void* u) { ++*static_cast<unsigned*>(u); }
+            };
+            unsigned presses = 0;
+            evo::EvoKnob kb;
+            kb.setAudioButtonCallback(Presses::cb, &presses);
+            kb.onMessage(ab);
+            ab.data = released;
+            kb.onMessage(ab);
+            CHECK(presses == 1);
+        }
         struct Count {
             static void cb(unsigned s, void* u) { *static_cast<unsigned*>(u) += s; }
         };

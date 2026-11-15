@@ -23,6 +23,9 @@ bool decodeVolumeLevel(const VmostMsgView& m, VolumeLevel& out) {
     if (m.fblock != kAudioMasterFblock || m.fkt != kVolumeLevelFkt || m.op != 0xC || !m.data || m.len < 5) {
         return false;
     }
+    if (m.data[0] > 1 || m.data[1] != 0) {  // another display's record, or not a whole record
+        return false;
+    }
     const unsigned value = m.data[2], min = m.data[3], max = m.data[4];
     if (max <= min || value < min || value > max) {
         return false;
@@ -34,6 +37,13 @@ bool decodeVolumeLevel(const VmostMsgView& m, VolumeLevel& out) {
 }
 
 static const uint16_t kCcs35upFunctions[] = {0xC46, 0xC47, 0xC4F};  // RotaryEncoderState, PushButtonsState(2)
+
+int decodeAudioButton(const VmostMsgView& m) {
+    return m.fblock == kVolumeFblock && m.inst == kVolumeCsInstance && m.fkt == kAudioButtonFkt && m.op == 0xC &&
+                   m.data && m.len >= 1 && m.data[0] == 1
+               ? 1
+               : 0;
+}
 
 int decodeVolumeButton(const VmostMsgView& m, unsigned* steps) {
     if (m.fblock != kVolumeFblock || m.op != 0xC || !m.data) {
@@ -110,6 +120,8 @@ EvoKnob::EvoKnob()
       volCb_(nullptr),
       levelCb_(nullptr),
       levelUser_(nullptr),
+      audioButtonCb_(nullptr),
+      audioButtonUser_(nullptr),
       levelRegistered_(false),
       levels_(0),
       keyCb_(nullptr),
@@ -311,7 +323,8 @@ void EvoKnob::onMessage(const VmostMsgView& m) {
                 levelCb_(level, levelUser_);
             }
         } else if (levels_ < 50 && m.fkt == kVolumeLevelFkt) {
-            ELOG("Knob", "volume level message not recognised: operation 0x%x, %u byte(s)", m.op, m.len);
+            ELOG("Knob", "volume level message not recognised: operation 0x%x, %u byte(s), first 0x%02x", m.op, m.len,
+                 m.data && m.len ? m.data[0] : 0);
         }
         return;
     }
@@ -324,6 +337,12 @@ void EvoKnob::onMessage(const VmostMsgView& m) {
             }
             if (volCb_) {
                 volCb_(steps, volUser_);
+            }
+        }
+        if (decodeAudioButton(m)) {
+            ELOG("Knob", "audio knob pressed (iDrive mutes or unmutes)");
+            if (audioButtonCb_) {
+                audioButtonCb_(audioButtonUser_);
             }
         }
         const int tel = decodeTelephoneButton(m);
@@ -497,6 +516,13 @@ void EvoKnob::run() {
             ELOG("Knob", "volume %s 15.%02x function 0x%03x: shadow %s (%d), read (Get) %s (%d)",
                  i == 0 ? "centre console" : "steering wheel", volInst[i], volFkt[i], vr == 0 ? "OK" : "refused", vr,
                  gr == 0 ? "sent" : "not sent", gr);
+            if (volInst[i] == kVolumeCsInstance && vr == 0) {  // the audio knob's push button, same instance
+                VmostMsgOut bm;
+                buildVmostGet(bm, kVolumeFblock, kVolumeCsInstance, kAudioButtonFkt, dummy);
+                const int br = vmost_.send(&bm);
+                ELOG("Knob", "audio knob button 15.%02x function 0x%03x: read (Get) %s (%d)", kVolumeCsInstance,
+                     kAudioButtonFkt, br == 0 ? "sent" : "not sent", br);
+            }
             if (volInst[i] == kVolumeMflInstance && vr == 0) {  // steering wheel phone button, same instance
                 VmostMsgOut tm;
                 buildVmostGet(tm, kVolumeFblock, kVolumeMflInstance, kMflTelephoneFkt, dummy);

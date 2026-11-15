@@ -159,6 +159,8 @@ test-host: test-parsers test-spp-host test-kombi-host test-gps-host test-capture
 	./tests/test-evo-control
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_peek_timing.cpp platform/peek_timing.cpp -o tests/test-peek-timing
 	./tests/test-peek-timing
+	$(HOST_CXX) $(HOST_FLAGS) tests/test_volume_state.cpp -o tests/test-volume-state
+	./tests/test-volume-state
 	$(HOST_CXX) $(HOST_FLAGS) -Icore/include tests/test_sdr_g20.cpp core/sdr_builder.cpp platform/evo_sdr_sensors.cpp -o tests/test-sdr-g20
 	./tests/test-sdr-g20
 	$(HOST_CXX) $(HOST_FLAGS) -Icore/include tests/test_evo_sdr.cpp core/sdr_builder.cpp platform/evo_sdr_sensors.cpp -o tests/test-evo-sdr

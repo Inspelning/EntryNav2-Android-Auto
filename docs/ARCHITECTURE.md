@@ -58,6 +58,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `service_contract.hpp` | Chemins et nom du canal de commande partagés par l'appli iDrive, le superviseur et le service |
 | `evo_video`, `evo_ilm`, `omap_dmabuf` | Décodage et affichage de la vidéo, gestion de sa couche |
 | `evo_pill`, `volume_pill.hpp` | Pastille du volume au-dessus d'Android Auto : client Wayland, dessin |
+| `volume_state.hpp` | Ce que montre la pastille, comme la barre de l'iDrive : niveau de l'écran avant, changement ou touche de volume, sourdine par le bouton audio |
 | `evo_knob`, `evo_touch`, `input_mode.hpp` | Entrées : molette, touches, tactile |
 | `media_recall.hpp` | Double appui sur MEDIA : geste, conditions, demande à usage unique lue par l'appli de l'iDrive |
 | `vmost_client` | Accès au bus vMOST de la voiture (molette, touches, Wi-Fi), chargé à l'exécution |
@@ -116,6 +117,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `tests/test_wireless_phone.cpp` | Échange Bluetooth du Wi-Fi, octet par octet, comparé à un relevé figé |
 | `tests/test_kombi_golden.cpp` | Chaque trame envoyée au compteur, octet par octet, comparée à un relevé figé |
 | `tests/test_peek_timing.cpp`, `tests/test_wireless_lifecycle.cpp` | Effacement de l'image, cycle de vie Bluetooth puis Wi-Fi du service |
+| `tests/test_volume_state.cpp` | Pastille du volume : niveau d'une autre source ignoré, répétitions, touches, sourdine |
 | `tests/test_wifi_link.cpp` | Qualité du Wi-Fi : messages du noyau, ligne de journal, connexion rendue en fin de session |
 | `tests/test_pending_restart.cpp` | Redémarrage d'Android Auto quand la case du câble USB change en marche |
 | `tests/test_hold_machine.cpp` | Page vide de l'iDrive : ouverture, démarrage automatique, fenêtres, modes, appels, touches |

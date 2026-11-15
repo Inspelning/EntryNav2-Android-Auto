@@ -174,7 +174,9 @@ void ServiceApp::touchEvent(const aa::TouchEventOut& ev, void* user) {
 void ServiceApp::volumeEvent(unsigned steps, void* user) {
     ServiceApp* a = static_cast<ServiceApp*>(user);
     pthread_mutex_lock(&a->mu);
-    const bool start = a->peek.volumeKey(monoMs(), a->pill.ready());
+    const uint32_t now = monoMs();
+    a->volume.volumeKey(now);
+    const bool start = a->peek.volumeKey(now, a->pill.ready());
     const bool refused = a->peek.dimRefused();
     pthread_mutex_unlock(&a->mu);
     if (start) {
@@ -183,19 +185,35 @@ void ServiceApp::volumeEvent(unsigned steps, void* user) {
     }
 }
 
-// Volume level from the car (vMOST thread): the pill over Android Auto, which stays opaque.
+// Volume level from the car (vMOST thread): the pill over Android Auto, which stays opaque. Only a change, or a level
+// right after a volume key, shows; another source's level never does (volume_state.hpp).
 void ServiceApp::volumeLevel(const VolumeLevel& level, void* user) {
     ServiceApp* a = static_cast<ServiceApp*>(user);
     pthread_mutex_lock(&a->mu);
     const bool first = !a->peek.levelSeen();
     const bool ready = a->pill.ready();
-    if (a->peek.volumeLevel(ready)) {
-        a->pill.show(level.value, level.min, level.max);  // only takes the pill's own short lock
+    const VolumeState::Shown shown = a->volume.level(level, monoMs());
+    if (shown.show && a->peek.volumeLevel(ready)) {
+        a->pill.show(shown.level.value, shown.level.min, shown.level.max);  // only takes the pill's own short lock
     }
+    const bool seen = a->peek.levelSeen();
     pthread_mutex_unlock(&a->mu);
-    if (first) {
+    if (first && seen) {
         ELOG("ServiceApp", "volume level received from the car: pill %s", ready ? "on" : "unavailable");
     }
+}
+
+// The audio knob pressed (vMOST thread): iDrive mutes or unmutes, the pill shows the speaker crossed out or not.
+void ServiceApp::audioButton(void* user) {
+    ServiceApp* a = static_cast<ServiceApp*>(user);
+    pthread_mutex_lock(&a->mu);
+    const VolumeState::Shown shown = a->volume.audioButton(monoMs());
+    if (shown.show && a->peek.volumeLevel(a->pill.ready())) {
+        a->pill.show(shown.level.value, shown.level.min, shown.level.max);
+    }
+    const bool muted = a->volume.muted();
+    pthread_mutex_unlock(&a->mu);
+    ELOG("ServiceApp", "audio knob: %s, as iDrive", muted ? "muted" : "sound back");
 }
 
 // Hard key iDrive acts on (MENU, MEDIA, NAV, MAP, COM; not forwarded to the phone): the picture steps aside at

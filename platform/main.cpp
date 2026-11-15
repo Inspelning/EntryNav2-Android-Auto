@@ -345,6 +345,7 @@ int main(int argc, char** argv) {
         }
         knob.setVolumeCallback(evo::ServiceApp::volumeEvent, &app);
         knob.setVolumeLevelCallback(evo::ServiceApp::volumeLevel, &app);
+        knob.setAudioButtonCallback(evo::ServiceApp::audioButton, &app);
         knob.setHardKeyCallback(evo::ServiceApp::hardKey, &app);
         knob.setAppKeyCallback(evo::ServiceApp::appKey, &app);
         knob.setMediaCallback(evo::ServiceApp::mediaKey, &app);
