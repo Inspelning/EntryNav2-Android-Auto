@@ -64,6 +64,7 @@ AASession::AASession()
       thread_(0),
       vehicleFile_(nullptr),
       softwareVersion_(nullptr),
+      carMake_(nullptr),
       longestSilenceMs_(0),
       lastReceivedMs_(0),
       videoReady_(false),

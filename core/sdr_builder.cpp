@@ -128,9 +128,9 @@ bool tuneVideoConfig(const pb::Field& config, Bytes& out, const DisplayPlan& dis
         return false;
     }
     Bytes insets;
-    pb::appendUint(insets, 1, 0);
+    pb::appendUint(insets, 1, 0);  // top
     pb::appendUint(insets, 2, display.bottomInset());
-    pb::appendUint(insets, 3, 0);
+    pb::appendUint(insets, 3, display.leftInset());
     pb::appendUint(insets, 4, display.rightInset());
     Bytes rebuilt;
     pb::appendMessage(rebuilt, kInsetsField, insets);
@@ -318,10 +318,14 @@ void setDiscoveryTrim(DiscoveryTrim trim) {
 }
 
 std::vector<uint8_t> buildCarServiceDiscovery(const uint8_t* base, size_t baseLen, const char* vehicleFile,
-                                              const char* softwareVersion, const DisplayPlan& display) {
+                                              const char* softwareVersion, const DisplayPlan& display,
+                                              const char* make) {
     SdrIdentity identity;
     if (vehicleFile) {
         identity.loadVehicleFile(vehicleFile);
+    }
+    if (make && *make) {
+        identity.carMake = identity.huMake = make;
     }
     if (softwareVersion && *softwareVersion) {
         identity.swVersion = softwareVersion;

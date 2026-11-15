@@ -66,6 +66,8 @@ public:
     void setSoftwareVersion(const char* version) { softwareVersion_ = version; }
     // The panel and the canvas asked of the phone for it (display_plan.hpp). The reference car's by default.
     void setDisplay(const DisplayPlan& display) { display_ = display; }
+    // The maker announced to the phone, as iDrive is coded ("MINI"); kept by the caller. Null: "BMW".
+    void setCarMake(const char* make) { carMake_ = make; }
 
     // Car input for the phone, from any thread: queued, then sent by the session thread.
     void postTouchEvent(const TouchEventOut& ev);
@@ -154,6 +156,7 @@ private:
     Callback<NavStatusCallback> navigation_;
     const char* vehicleFile_;
     const char* softwareVersion_;
+    const char* carMake_;
     DisplayPlan display_;
 
     CarInbox inbox_;

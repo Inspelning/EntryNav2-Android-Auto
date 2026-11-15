@@ -37,8 +37,8 @@
 #include "app_log.hpp"
 #include "bmw_framework.hpp"
 #include "car_signals.hpp"
-#include "controller_coding.hpp"
 #include "hold_machine.hpp"
+#include "idrive_coding.hpp"
 #include "mono_clock.hpp"
 #include "pending_restart.hpp"
 #include "rhmi_ids.hpp"
@@ -355,7 +355,7 @@ bool appOnInit(bmw::PluginApp* self) {
     addStateHandler(self, kAaState, kHandlerVisible, &onAaVisible);
     g_initTime = time(nullptr);
     bool ok = self->onInit();
-    writeControllerCoding();  // which key each controller button is on this car, for the service
+    writeIdriveCoding();  // the car's keys and brand, for the service
     alog("onInit: handlers registered, base onInit -> %d, start automatically %s, USB cable %s", static_cast<int>(ok),
          autostartOn() ? "on" : "off", usbCableOn() ? "on" : "off");
     g_runApp = self;

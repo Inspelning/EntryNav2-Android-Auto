@@ -6,6 +6,8 @@
 // asked for; the phone is told to keep its UI in the top-left part the panel shows (insets, core/sdr_builder.cpp),
 // and the video surface shows that part only (platform/evo_video.cpp). The reference car is one case of the rule: a
 // 1280x480 panel in the 1280x720 canvas, its top 480 rows shown.
+// A panel partly hidden by its surround (the MINI's round one, platform/car_brand.hpp) keeps the whole picture; the
+// phone is only told to keep its UI away from the hidden sides.
 #ifndef ENTRY_AAD_CORE_DISPLAY_PLAN_HPP
 #define ENTRY_AAD_CORE_DISPLAY_PLAN_HPP
 
@@ -17,10 +19,12 @@ struct DisplayPlan {
     uint32_t width, height;              // the panel, and the part of the canvas that is shown
     uint32_t canvasWidth, canvasHeight;  // what the phone streams
     uint32_t resolution;                 // the canvas as the protocol numbers it: 1, 2 or 3
+    uint32_t hiddenSide;                 // panel columns hidden on each side by the surround
     // The reference car.
-    DisplayPlan() : width(1280), height(480), canvasWidth(1280), canvasHeight(720), resolution(2) {}
+    DisplayPlan() : width(1280), height(480), canvasWidth(1280), canvasHeight(720), resolution(2), hiddenSide(0) {}
     uint32_t bottomInset() const { return canvasHeight - height; }
-    uint32_t rightInset() const { return canvasWidth - width; }
+    uint32_t leftInset() const { return hiddenSide; }
+    uint32_t rightInset() const { return canvasWidth - width + hiddenSide; }
     bool reference() const { return width == 1280 && height == 480; }
 };
 
@@ -37,6 +41,7 @@ inline bool planDisplay(uint32_t panelWidth, uint32_t panelHeight, DisplayPlan& 
             out.canvasWidth = kCanvas[i][0];
             out.canvasHeight = kCanvas[i][1];
             out.resolution = i + 1;
+            out.hiddenSide = 0;
             return true;
         }
     }

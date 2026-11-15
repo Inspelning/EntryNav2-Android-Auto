@@ -11,6 +11,7 @@
 #include <map>
 #include <vector>
 
+#include "car_brand.hpp"
 #include "dhu_sdp.h"
 #include "evo_gps.hpp"
 #include "evo_sdr_sensors.hpp"
@@ -260,6 +261,34 @@ int main() {
         aa::buildCarServiceDiscovery(kDhuSdpProtobuf, kDhuSdpProtobufLen, nullptr, nullptr, wide);
     CHECK(shown(forWide, s) && s.resolution == 3 && s.marginW == 0 && s.marginH == 0 && s.bottom == 540 &&
           s.right == 480 && s.top == 0 && s.left == 0 && s.touchW == 1920 && s.touchH == 1080);
+    // The brand file the iDrive app writes: "MINI" or "BMW", nothing else.
+    aa::CarBrand brand = aa::CarBrand::kBmw;
+    CHECK(aa::parseCarBrand("MINI\n", brand) && brand == aa::CarBrand::kMini && !strcmp(aa::brandName(brand), "MINI"));
+    CHECK(aa::parseCarBrand("BMW", brand) && brand == aa::CarBrand::kBmw && !strcmp(aa::brandName(brand), "BMW"));
+    CHECK(!aa::parseCarBrand("MINIS", brand) && !aa::parseCarBrand("mini", brand) && !aa::parseCarBrand("", brand) &&
+          !aa::parseCarBrand(nullptr, brand) && brand == aa::CarBrand::kBmw);
+    CHECK(aa::surroundSide(aa::CarBrand::kBmw, 1280) == 0 && aa::surroundSide(aa::CarBrand::kMini, 1280) == 40 &&
+          aa::surroundSide(aa::CarBrand::kMini, 800) == 25);
+    // A MINI: its round surround hides 40 columns on each side of the 1280x480 panel (25 of an 800x480 one). The
+    // phone keeps its UI away from them; the canvas, the touchscreen and the bottom inset stay.
+    aa::DisplayPlan mini = same, smallMini = small;
+    mini.hiddenSide = aa::surroundSide(aa::CarBrand::kMini, mini.width);
+    smallMini.hiddenSide = aa::surroundSide(aa::CarBrand::kMini, smallMini.width);
+    const std::vector<uint8_t> forMini =
+        aa::buildCarServiceDiscovery(kDhuSdpProtobuf, kDhuSdpProtobufLen, nullptr, nullptr, mini, "MINI");
+    CHECK(shown(forMini, s) && s.resolution == 2 && s.bottom == 240 && s.left == 40 && s.right == 40 &&
+          s.touchW == 1280 && s.touchH == 720);
+    CHECK(shown(aa::buildCarServiceDiscovery(kDhuSdpProtobuf, kDhuSdpProtobufLen, nullptr, nullptr, smallMini), s) &&
+          s.left == 25 && s.right == 25 && s.bottom == 0 && s.touchW == 800);
+    // The maker: "MINI" for the car and the head unit, at the top level and in the head unit info; "BMW" otherwise.
+    const std::string miniText(forMini.begin(), forMini.end());
+    CHECK(plain.find("MINI") == std::string::npos && miniText.find("BMW") == std::string::npos);
+    size_t makes = 0;
+    for (size_t at = miniText.find("MINI"); at != std::string::npos; at = miniText.find("MINI", at + 1)) {
+        ++makes;
+    }
+    CHECK(makes == 4);  // car make and head unit make, twice each
+    CHECK(aa::buildCarServiceDiscovery(kDhuSdpProtobuf, kDhuSdpProtobufLen, nullptr, nullptr, same, "") == unversioned);
     // Nothing but the picture and the touchscreen differs: every other channel is the reference car's.
     std::vector<uint64_t> sensorsA, sensorsB;
     std::map<uint64_t, std::vector<uint8_t>> reference = channels(unversioned, sensorsA),

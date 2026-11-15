@@ -8,6 +8,7 @@
 // the USB half of a wired one in usb_loop.
 // clang-format off
 #include "alps_spp.hpp"
+#include "car_brand.hpp"
 #include "evo_ap.hpp"
 #include "evo_video.hpp"
 #include "evo_touch.hpp"
@@ -127,6 +128,21 @@ void usage(const char* argv0) {
         "  --alps-pid P --alps-start S --uuid-pair HEX   Alps state saved by aa-supervisor, checked before each step\n",
         argv0);
 }
+
+// The brand the iDrive app read in the car's coding (car_brand.hpp). Without the file (an older app), a BMW.
+aa::CarBrand readCarBrand() {
+    aa::CarBrand brand = aa::CarBrand::kBmw;
+    FILE* f = fopen(evo::contract::kBrandFile, "r");
+    char line[16] = {0};
+    const bool read = f && fgets(line, sizeof(line), f) && aa::parseCarBrand(line, brand);
+    if (f) {
+        fclose(f);
+    }
+    if (!read) {
+        ELOG("Main", "brand not read from %s: BMW", evo::contract::kBrandFile);
+    }
+    return brand;
+}
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -242,9 +258,16 @@ int main(int argc, char** argv) {
         ELOG("Main", "screen %ux%u: the phone is asked for %ux%u%s", display.width, display.height, display.canvasWidth,
              display.canvasHeight, display.reference() ? "" : " (a size not tried on the reference car)");
     }
+    const aa::CarBrand brand = readCarBrand();
+    display.hiddenSide = aa::surroundSide(brand, display.width);
+    if (display.hiddenSide) {
+        ELOG("Main", "%s: the round surround hides %u columns on each side, the phone keeps its UI inside",
+             aa::brandName(brand), display.hiddenSide);
+    }
     evo::ServiceApp app(kAaPort, video, &quit);
     app.videoConfig.setDisplay(display.canvasWidth, display.canvasHeight, display.width, display.height);
     app.session.setDisplay(display);
+    app.session.setCarMake(aa::brandName(brand));
     app.usbPort = usbPort ? usbPort : "";
     app.session.setTouchForwarding(input == evo::INPUT_FORWARD);
     app.session.setVehicleFile(evo::contract::kVehicle);  // the car's model and year, written at installation

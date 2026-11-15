@@ -43,6 +43,7 @@ constexpr char kStateFile[] = "/tmp/entry-aad-state";             // "state pid 
 constexpr char kAppKeyFile[] = "/tmp/entry-aad-appkey";           // NAV/MEDIA/COM/BACK kept Android Auto up
 constexpr char kDayNightFile[] = "/tmp/entry-aad-daynight";       // day or night, written by the app
 constexpr char kControllerFile[] = "/tmp/entry-aad-controller";   // the car's key coding, written by the app
+constexpr char kBrandFile[] = "/tmp/entry-aad-brand";             // "BMW" or "MINI", as iDrive is coded
 constexpr char kWirelessLock[] = "/tmp/entry-aad-wireless.lock";  // one wireless start at a time
 // One-shot double-MEDIA recall request: process id and monotonic timestamp, checked by the iDrive app.
 constexpr char kMediaRecallFile[] = "/tmp/entry-aad-media-recall";
