@@ -216,14 +216,14 @@ void ServiceApp::audioButton(void* user) {
     ELOG("ServiceApp", "audio knob: %s, as iDrive", muted ? "muted" : "sound back");
 }
 
-// Hard key iDrive acts on (MENU, MEDIA, NAV, MAP, COM; not forwarded to the phone): the picture steps aside at
+// Hard key iDrive acts on (MENU and OPTION, COM during a call; not forwarded to the phone): the picture steps aside at
 // once, so the result does not depend on timing (observed on the car otherwise: iDrive sometimes came back,
 // sometimes not). If iDrive stays on the blank Android Auto page the iDrive app opens its main menu. The Android
 // Auto row brings the phone back.
 void ServiceApp::hardKey(const char* name, void* user) {
     // OPTION opens the Android Auto menu of the iDrive app (Stop, start automatically): see the app's hold logic.
-    // NAV and MEDIA always go to Android Auto (appKey); COM reaches here only during a call.
-    static const char* const leave[] = {"MENU", "MAP", "COM", "OPTIONS"};
+    // NAV, MAP and MEDIA always go to Android Auto (appKey); COM reaches here only during a call.
+    static const char* const leave[] = {"MENU", "COM", "OPTIONS"};
     bool match = false;
     for (unsigned i = 0; i < sizeof(leave) / sizeof(leave[0]); ++i) {
         if (!strcmp(name, leave[i])) {

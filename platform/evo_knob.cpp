@@ -147,20 +147,21 @@ EvoKnob::EvoKnob()
 }
 
 // Controller keys while Android Auto is on screen, as iDrive does for CarPlay (CCarPlayActivity::handleControllerInput:
-// NAV -> CarPlay "maps:", COM -> "mobilephone:", MEDIA -> CarPlay, MENU -> leave CarPlay).
-//   NAV / MEDIA / COM  Android Auto's navigation / media / phone app (AA keys NAVIGATION 65538, MEDIA 65537,
-//                      TEL 65540; not KEYCODE_CALL, which made the phone redial on the car). iDrive switches screens
-//                      too (it gets every key): the service keeps Android Auto up and the iDrive app brings iDrive
-//                      back at once.
-//   MENU / MAP         iDrive (Android Auto steps aside). OPTION: the Android Auto menu of the iDrive app.
+// NAV and the map key -> CarPlay "maps:", COM -> "mobilephone:", MEDIA -> CarPlay, MENU -> leave CarPlay).
+//   NAV / MAP / MEDIA / COM  Android Auto's navigation (both NAV and MAP) / media / phone app (AA keys NAVIGATION
+//                      65538, MEDIA 65537, TEL 65540; not KEYCODE_CALL, which made the phone redial on the car). iDrive
+//                      switches screens too (it gets every key): the service keeps Android Auto up and the iDrive app
+//                      brings iDrive back at once.
+//   MENU               iDrive (Android Auto steps aside). OPTION: the Android Auto menu of the iDrive app.
 //   BACK               Android Auto's back.
 void configureHardKeys(aa::CcsDecoder& d) {
-    static const char* const local[] = {"MENU", "OPTIONS", "MAP"};
+    static const char* const local[] = {"MENU", "OPTIONS"};
     for (size_t i = 0; i < sizeof(local) / sizeof(local[0]); ++i) {
         d.setSlotKey(aa::CcsDecoder::slotByName(local[i]), 0);
     }
     d.setSlotKey(aa::CcsDecoder::slotByName("COM"), aa::AAK_TEL);
     d.setSlotKey(aa::CcsDecoder::slotByName("NAV"), aa::AAK_NAVIGATION);
+    d.setSlotKey(aa::CcsDecoder::slotByName("MAP"), aa::AAK_NAVIGATION);  // #1
     d.setSlotKey(aa::CcsDecoder::slotByName("MEDIA"), aa::AAK_MEDIA);
 }
 

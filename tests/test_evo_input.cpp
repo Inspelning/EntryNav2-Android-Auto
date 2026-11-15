@@ -205,8 +205,8 @@ int main() {
         aa::CcsDecoder hk;
         evo::configureHardKeys(hk);
         CHECK(hk.slotKey(aa::CcsDecoder::slotByName("MENU")) == 0 &&
-              hk.slotKey(aa::CcsDecoder::slotByName("OPTIONS")) == 0 &&
-              hk.slotKey(aa::CcsDecoder::slotByName("MAP")) == 0);            // iDrive's
+              hk.slotKey(aa::CcsDecoder::slotByName("OPTIONS")) == 0);               // iDrive's
+        CHECK(hk.slotKey(aa::CcsDecoder::slotByName("MAP")) == aa::AAK_NAVIGATION);  // as CarPlay's "maps:" (#1)
         CHECK(hk.slotKey(aa::CcsDecoder::slotByName("COM")) == aa::AAK_TEL);  // not KEYCODE_CALL (phone redialled)
         CHECK(hk.slotKey(aa::CcsDecoder::slotByName("NAV")) == aa::AAK_NAVIGATION);
         CHECK(hk.slotKey(aa::CcsDecoder::slotByName("MEDIA")) == aa::AAK_MEDIA);

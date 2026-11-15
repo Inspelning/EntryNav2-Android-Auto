@@ -124,11 +124,11 @@ void HoldMachine::requestShow() {
 }
 
 // ---- Keys that keep Android Auto on screen ------------------------------------------------------------------------
-// NAV / MEDIA / COM / steering wheel phone opened an Android Auto app, or BACK / tilt left went to it (service file,
-// written within the last 2 s). iDrive switched to its own navigation / media / phone screen underneath Android Auto,
-// or walked back its history to the screen one of those keys opened (F30, #43: Android Auto stepped aside after BACK
-// in its map); put it back on our blank state at once, so the knob does not act on that hidden screen. A key that
-// leaves Android Auto (MENU, MAP, OPTION) removes the file in the service first.
+// NAV / MAP / MEDIA / COM / steering wheel phone opened an Android Auto app, or BACK / tilt left went to it (service
+// file, written within the last 2 s). iDrive switched to its own navigation / media / phone screen underneath Android
+// Auto, or walked back its history to the screen one of those keys opened (F30, #43: Android Auto stepped aside after
+// BACK in its map); put it back on our blank state at once, so the knob does not act on that hidden screen. A key that
+// leaves Android Auto (MENU, OPTION) removes the file in the service first.
 bool HoldMachine::appKeyRecent() {
     long age = 0;
     return io_.appKeyAge(&age) && age <= kAppKeyS;

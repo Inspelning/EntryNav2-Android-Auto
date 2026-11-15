@@ -337,7 +337,7 @@ int main(int argc, char** argv) {
         }
         ELOG("Main",
              "volume: pill over AA from the first level received (before that: picture dimmed %u ms); driving mode: "
-             "picture aside %u ms after %u ms; NAV/MEDIA/COM = AA apps, MENU/MAP/OPTION = iDrive",
+             "picture aside %u ms after %u ms; NAV/MAP/MEDIA/COM = AA apps, MENU/OPTION = iDrive",
              evo::kVolumePeekMs, evo::kDriveModeShowMs, evo::kDriveModeDelayMs);
         if (video && !app.pill.start(evo::kPillSurfaceId, app.videoConfig.layerId, app.videoConfig.displayWidth,
                                      app.videoConfig.displayHeight)) {
