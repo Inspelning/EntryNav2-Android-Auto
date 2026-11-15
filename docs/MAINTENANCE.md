@@ -86,15 +86,15 @@ Journaux activés, le service écrit une ligne `[WifiLink]` quand le téléphone
 les 10 secondes jusqu'à la fin de la session :
 
 ```text
-[WifiLink] 5180 MHz; signal -52 dBm (average -51); to the phone 150.0 Mbit/s; from the phone 135.0 Mbit/s;
+[WifiLink] 5180 MHz; signal -52 dBm (average -51); from the phone 135.0 Mbit/s;
 in 10 s: 812 frames sent, 35 retried, 0 lost; on the Wi-Fi for 135 s; TCP round trip 4.2 ms, 0 segment(s) sent again
 ```
 
 | Partie | Sens |
 |---|---|
 | `5180 MHz` | Fréquence du Wi-Fi de la voiture : vers 2400, la bande 2,4 GHz, partagée avec le Bluetooth ; vers 5000, la bande 5 GHz |
-| `signal` | Niveau reçu du téléphone, et sa moyenne. Plus le nombre est bas, plus la liaison est fragile (-50 : bon, -80 : faible) |
-| `to the phone`, `from the phone` | Débit radio choisi dans chaque sens |
+| `signal` | Niveau reçu du téléphone, et sa moyenne. Plus le nombre est bas, plus la liaison est fragile (-50 : bon, -80 : faible). Quand la puce n'a pas mesuré la dernière trame, seule la moyenne est écrite (`average signal`) |
+| `from the phone` | Débit radio choisi par le téléphone. Le débit vers le téléphone n'est pas écrit : la puce Wi-Fi le choisit seule et le pilote ne le connaît pas |
 | `frames sent, retried, lost` | Trames envoyées au téléphone depuis la ligne précédente, réémises, puis abandonnées |
 | `on the Wi-Fi for` | Temps depuis que le téléphone a rejoint le Wi-Fi. S'il repart de zéro, le téléphone l'a quitté puis rejoint |
 | `TCP round trip`, `sent again` | Temps d'aller-retour de la connexion Android Auto, et morceaux qu'il a fallu renvoyer |

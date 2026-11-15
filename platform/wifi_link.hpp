@@ -4,8 +4,10 @@
 
 // Everything here only reads. Two sources, both the kernel's own figures:
 //   - nl80211 (generic netlink), the interface `iw` uses: the phone's station entry on the car's access point (signal,
-//     bitrates, frames sent, retried and lost) and the access point's frequency;
+//     bitrate from the phone, frames sent, retried and lost) and the access point's frequency;
 //     https://www.kernel.org/doc/html/latest/userspace-api/netlink/intro.html, include/uapi/linux/nl80211.h
+//     The rate towards the phone is left out: the WL18xx firmware chooses it, and the driver (wlcore) reported
+//     1 Mbit/s on every car, the reference G20 included, whatever was sent.
 //   - TCP_INFO on the Android Auto connection: round trip time and segments sent again.
 // Nothing identifies the phone in the log: no address is written.
 #ifndef ENTRY_AAD_PLATFORM_WIFI_LINK_HPP
@@ -25,8 +27,8 @@ const int64_t kNoFigure = -0x7fffffffffffffffLL - 1;  // a figure the driver did
 // One phone on the access point, as nl80211 reports it.
 struct WifiStation {
     uint8_t mac[6];
-    int64_t signalDbm, signalAvgDbm;
-    int64_t txRate, rxRate;                 // in 100 kbit/s
+    int64_t signalDbm, signalAvgDbm;        // signalDbm: the last frame received, when the chip measured it
+    int64_t rxRate;                         // in 100 kbit/s
     int64_t txFrames, txRetries, txFailed;  // since the phone joined
     int64_t connectedS;                     // how long ago that was
     WifiStation();

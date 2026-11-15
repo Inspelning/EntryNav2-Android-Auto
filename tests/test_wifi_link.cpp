@@ -86,7 +86,7 @@ evo::WifiStation station(uint32_t frames, uint32_t retries, uint32_t failed, uin
 void stationMessages() {
     const evo::WifiStation s = station(5000, 300, 2, 125);
     CHECK(!memcmp(s.mac, kPhone, sizeof(kPhone)));
-    CHECK(s.signalDbm == -52 && s.signalAvgDbm == -51 && s.txRate == 1500 && s.rxRate == 1350);
+    CHECK(s.signalDbm == -52 && s.signalAvgDbm == -51 && s.rxRate == 1350);
     CHECK(s.txFrames == 5000 && s.txRetries == 300 && s.txFailed == 2 && s.connectedS == 125);
 
     // A driver that gives little: what is missing stays "no figure".
@@ -98,8 +98,18 @@ void stationMessages() {
     bare.nested(NL80211_ATTR_STA_INFO, info);
     evo::WifiStation little;
     CHECK(evo::parseWifiStation(&bare.bytes[0], bare.bytes.size(), little));
-    CHECK(little.signalDbm == -70 && little.signalAvgDbm == evo::kNoFigure && little.txRate == evo::kNoFigure &&
+    CHECK(little.signalDbm == -70 && little.signalAvgDbm == evo::kNoFigure && little.rxRate == evo::kNoFigure &&
           little.txFrames == evo::kNoFigure && little.connectedS == evo::kNoFigure);
+
+    // A level of 0 dBm is the WL18xx's "not measured" (seen in every car log): no figure.
+    Attrs zero;
+    Attrs zeroInfo;
+    zeroInfo.u8(NL80211_STA_INFO_SIGNAL, 0);
+    zeroInfo.u8(NL80211_STA_INFO_SIGNAL_AVG, static_cast<uint8_t>(-68));
+    zero.put(NL80211_ATTR_MAC, kPhone, sizeof(kPhone));
+    zero.nested(NL80211_ATTR_STA_INFO, zeroInfo);
+    CHECK(evo::parseWifiStation(&zero.bytes[0], zero.bytes.size(), little));
+    CHECK(little.signalDbm == evo::kNoFigure && little.signalAvgDbm == -68);
 
     // No station address: not a station.
     Attrs anonymous;
@@ -150,13 +160,13 @@ evo::WifiSample sample(uint32_t atMs, uint32_t frames, uint32_t retries, uint32_
 void logLines() {
     const evo::WifiSample first = sample(1000, 5000, 300, 2, 125, 4250, 3);
     CHECK(evo::describeWifiLink(first, nullptr) ==
-          "5180 MHz; signal -52 dBm (average -51); to the phone 150.0 Mbit/s; from the phone 135.0 Mbit/s; "
+          "5180 MHz; signal -52 dBm (average -51); from the phone 135.0 Mbit/s; "
           "since it joined: 5000 frames sent, 300 retried, 2 lost; on the Wi-Fi for 125 s; "
           "TCP round trip 4.2 ms, 3 segment(s) sent again since it opened");
     // Ten seconds later: what happened in between.
     const evo::WifiSample second = sample(11040, 5812, 335, 2, 135, 38900, 9);
     CHECK(evo::describeWifiLink(second, &first) ==
-          "5180 MHz; signal -52 dBm (average -51); to the phone 150.0 Mbit/s; from the phone 135.0 Mbit/s; "
+          "5180 MHz; signal -52 dBm (average -51); from the phone 135.0 Mbit/s; "
           "in 10 s: 812 frames sent, 35 retried, 0 lost; on the Wi-Fi for 135 s; "
           "TCP round trip 38.9 ms, 6 segment(s) sent again");
     // The phone left the Wi-Fi and came back: its counters started again, nothing is subtracted.
@@ -189,7 +199,12 @@ void logLines() {
     bare.station.txFrames = bare.station.txRetries = bare.station.txFailed = bare.station.connectedS = evo::kNoFigure;
     bare.station.signalAvgDbm = bare.station.rxRate = evo::kNoFigure;
     bare.hasTcp = false;
-    CHECK(evo::describeWifiLink(bare, nullptr) == "5180 MHz; signal -52 dBm; to the phone 150.0 Mbit/s");
+    CHECK(evo::describeWifiLink(bare, nullptr) == "5180 MHz; signal -52 dBm");
+    // The chip did not measure the last frame: the average alone.
+    evo::WifiSample unmeasured = first;
+    unmeasured.station.signalDbm = evo::kNoFigure;
+    unmeasured.hasTcp = false;
+    CHECK(evo::describeWifiLink(unmeasured, nullptr).find("5180 MHz; average signal -51 dBm; from the phone") == 0);
 }
 
 // A TCP connection on loopback: the car's end in car, the phone's in phone.

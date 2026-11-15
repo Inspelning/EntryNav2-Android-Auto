@@ -78,9 +78,14 @@ int64_t number(const Attr& a) {
     return kNoFigure;
 }
 
-// A signal level: one signed byte, in dBm.
+// A signal level: one signed byte, in dBm. mac80211 copies the level the chip gave with the last frame received, and
+// the WL18xx leaves it at 0 for frames it did not measure: 0 dBm is never a level received from a phone.
 int64_t level(const Attr& a) {
-    return a.len == 1 ? static_cast<int8_t>(a.data[0]) : kNoFigure;
+    if (a.len != 1) {
+        return kNoFigure;
+    }
+    const int8_t dbm = static_cast<int8_t>(a.data[0]);
+    return dbm < 0 ? dbm : kNoFigure;
 }
 
 int64_t bitrate(const Attr& nested) {
@@ -106,9 +111,6 @@ void stationFigures(const Attr& nested, WifiStation& out) {
                 break;
             case NL80211_STA_INFO_SIGNAL_AVG:
                 out.signalAvgDbm = level(a);
-                break;
-            case NL80211_STA_INFO_TX_BITRATE:
-                out.txRate = bitrate(a);
                 break;
             case NL80211_STA_INFO_RX_BITRATE:
                 out.rxRate = bitrate(a);
@@ -330,7 +332,6 @@ bool continues(const WifiStation& now, const WifiStation& before) {
 WifiStation::WifiStation()
     : signalDbm(kNoFigure),
       signalAvgDbm(kNoFigure),
-      txRate(kNoFigure),
       rxRate(kNoFigure),
       txFrames(kNoFigure),
       txRetries(kNoFigure),
@@ -396,9 +397,8 @@ std::string describeWifiLink(const WifiSample& now, const WifiSample* before) {
             add(line, "; ", "signal %lld dBm (average %lld)", phone.signalDbm, phone.signalAvgDbm);
         } else if (phone.signalDbm != kNoFigure) {
             add(line, "; ", "signal %lld dBm", phone.signalDbm);
-        }
-        if (phone.txRate != kNoFigure) {
-            add(line, "; ", "to the phone %lld.%lld Mbit/s", phone.txRate / 10, phone.txRate % 10);
+        } else if (phone.signalAvgDbm != kNoFigure) {
+            add(line, "; ", "average signal %lld dBm", phone.signalAvgDbm);
         }
         if (phone.rxRate != kNoFigure) {
             add(line, "; ", "from the phone %lld.%lld Mbit/s", phone.rxRate / 10, phone.rxRate % 10);
