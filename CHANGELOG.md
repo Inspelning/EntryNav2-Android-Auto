@@ -8,6 +8,36 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+## [0.13.0-rc.1] - 2026-11-15 · PC
+
+Version candidate : la touche MAP vers la navigation d'Android Auto, les MINI reconnues (marque et écran rond), le
+volume et la sourdine comme l'iDrive, en plus des corrections des 0.12.1-rc.1 à rc.4. Testée sur PC et sous QEMU,
+**pas encore essayée en voiture** ; une BMW reçoit la même description de voiture qu'avant.
+
+### Ajouté
+
+- La touche MAP ouvre la navigation d'Android Auto quand il est à l'écran, comme NAV, au lieu de rendre l'écran à la
+  carte BMW ; c'est ce que fait l'iDrive avec CarPlay. Seules MENU et OPTION quittent Android Auto
+  ([#1](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/1)).
+- MINI : la marque codée dans l'iDrive est lue au démarrage ; une MINI s'annonce « MINI » au téléphone et non plus
+  « BMW ». Son écran est encadré par un rond qui en cache les bords : le téléphone garde ses boutons hors de 40 colonnes
+  de chaque côté sur un écran de 1280 de large, 25 sur 800 ([#56](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/56),
+  [#64](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/64), [#78](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/78)).
+- Sourdine sur la pastille du volume : l'appui sur le bouton du volume la bascule dans l'iDrive, un cran de volume la
+  lève ; la pastille montre le haut-parleur barré.
+- Image cassée après une image vidéo perdue : la session redemande une image complète au téléphone, pas dans les
+  5 premières secondes de la vidéo et au plus une fois par 10 s.
+
+### Corrigé
+
+- Pastille du volume ouverte seule à la connexion, barre vide : la voiture envoie aussi le niveau d'une autre source
+  (minimum au-dessus de 0), et le même niveau plusieurs fois. Seul le volume de la molette ouvre la pastille, sur un
+  changement ou juste après une touche de volume, comme la barre de l'iDrive ([#56](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/56)).
+- Flux chiffré cassé : après 16 trames d'affilée qui ne se déchiffrent pas, la session se termine au lieu de garder
+  une image figée jusqu'à la limite de silence.
+- Journal `[WifiLink]` : plus de faux « signal 0 dBm » (niveau non mesuré par la puce) ni de débit vers le téléphone,
+  que le pilote ne connaît pas (il donnait 1 Mbit/s partout).
+
 ## [0.12.1-rc.4] - 2026-11-14 · PC
 
 Version candidate, pour faire essayer le double appui sur MEDIA après une autre touche sur l'ancien contrôleur (F20
@@ -291,7 +321,8 @@ Première version publique. Essayée sur une BMW G20 de 2019, logiciel iDrive `2
   encore suivie sur une voiture.
 - Voir les [limites connues](ROADMAP.md#limites-connues).
 
-[Non publié]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/compare/v0.12.1-rc.4...HEAD
+[Non publié]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/compare/v0.13.0-rc.1...HEAD
+[0.13.0-rc.1]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.1
 [0.12.1-rc.4]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.12.1-rc.4
 [0.12.1-rc.3]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.12.1-rc.3
 [0.12.1-rc.2]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.12.1-rc.2
