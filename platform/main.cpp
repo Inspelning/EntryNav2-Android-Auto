@@ -261,8 +261,11 @@ int main(int argc, char** argv) {
     const aa::CarBrand brand = readCarBrand();
     display.hiddenSide = aa::surroundSide(brand, display.width);
     if (display.hiddenSide) {
-        ELOG("Main", "%s: the round surround hides %u columns on each side, the phone keeps its UI inside",
-             aa::brandName(brand), display.hiddenSide);
+        ELOG("Main",
+             "%s: the round surround hides %u columns on each side, the phone keeps its UI inside (%ux%u, touches "
+             "shifted by %u)",
+             aa::brandName(brand), display.hiddenSide, display.phoneWidth(), display.phoneHeight(),
+             display.leftInset());
     }
     evo::ServiceApp app(kAaPort, video, &quit);
     app.videoConfig.setDisplay(display.canvasWidth, display.canvasHeight, display.width, display.height);
@@ -274,7 +277,7 @@ int main(int argc, char** argv) {
     app.session.setSoftwareVersion(ENTRY_AAD_VERSION);    // the file VERSION, given by the Makefile
     // Declared after app: destroyed (and joined) before the session their callbacks post to.
     evo::EvoTouch touch;
-    touch.setCanvas(display.canvasWidth, display.canvasHeight);
+    touch.setPhoneDisplay(display.leftInset(), display.phoneWidth(), display.phoneHeight());
     evo::EvoKnob knob;
     evo::EvoControl control;
     const bool logsKept = access(evo::contract::kMaintenance, F_OK) == 0;

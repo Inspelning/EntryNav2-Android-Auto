@@ -7,7 +7,9 @@
 // and the video surface shows that part only (platform/evo_video.cpp). The reference car is one case of the rule: a
 // 1280x480 panel in the 1280x720 canvas, its top 480 rows shown.
 // A panel partly hidden by its surround (the MINI's round one, platform/car_brand.hpp) keeps the whole picture; the
-// phone is only told to keep its UI away from the hidden sides.
+// phone is told to keep its UI away from the hidden sides.
+// The insets are the phone's margins: its own display is the canvas less them, and it takes touches in that display's
+// pixels. A panel pixel x is the phone's x - leftInset() (platform/evo_touch.hpp); without a left margin, the same.
 #ifndef ENTRY_AAD_CORE_DISPLAY_PLAN_HPP
 #define ENTRY_AAD_CORE_DISPLAY_PLAN_HPP
 
@@ -25,6 +27,9 @@ struct DisplayPlan {
     uint32_t bottomInset() const { return canvasHeight - height; }
     uint32_t leftInset() const { return hiddenSide; }
     uint32_t rightInset() const { return canvasWidth - width + hiddenSide; }
+    // The phone's own display, the canvas less its margins: the area its touches are given in.
+    uint32_t phoneWidth() const { return canvasWidth - leftInset() - rightInset(); }
+    uint32_t phoneHeight() const { return canvasHeight - bottomInset(); }
     bool reference() const { return width == 1280 && height == 480; }
 };
 

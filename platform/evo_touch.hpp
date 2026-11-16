@@ -50,10 +50,15 @@ public:
     void reset();
     // False until the Android Auto picture has started (true by default).
     void setPictureStarted(bool started) { pictureStarted_ = started; }
-    // The last pixel of the phone's canvas: no coordinate is sent past it.
+    // The last pixel of the phone's display: no coordinate is sent past it.
     void setLimits(int maxX, int maxY) {
         maxX_ = maxX;
         maxY_ = maxY;
+    }
+    // Added to every panel coordinate before the limits.
+    void setOffset(double ox, double oy) {
+        ox_ = ox;
+        oy_ = oy;
     }
 
 private:
@@ -78,8 +83,10 @@ public:
     using Callback = void (*)(const aa::TouchEventOut&, void*);
     EvoTouch();
     ~EvoTouch();
-    // Before start(): the size of the phone's canvas, 1280x720 by default.
-    void setCanvas(uint32_t width, uint32_t height) {
+    // Before start(): the phone's display (core/display_plan.hpp), which begins originX panel columns from the left
+    // (its left margin) and is width x height; 1280x720 at 0 by default. Touches are sent in its pixels.
+    void setPhoneDisplay(uint32_t originX, uint32_t width, uint32_t height) {
+        tracker_.setOffset(-static_cast<double>(originX), 0.0);
         tracker_.setLimits(static_cast<int>(width) - 1, static_cast<int>(height) - 1);
     }
     bool start(InputMode mode, Callback cb, void* user);

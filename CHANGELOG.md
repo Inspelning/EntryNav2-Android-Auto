@@ -8,6 +8,13 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+### Corrigé
+
+- MINI : le toucher tombait 40 pixels à droite du doigt depuis la 0.13.0-rc.1. Les bords cachés par le rond sont des
+  marges pour le téléphone, dont l'affichage commence alors 40 colonnes plus loin, et il lit le toucher dans ses propres
+  pixels : chaque point lui est désormais donné dans ce repère ([#78](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/78),
+  [#88](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/88)). Rien ne change sur une BMW.
+
 ## [0.13.0-rc.1] - 2026-11-15 · PC
 
 Version candidate : la touche MAP vers la navigation d'Android Auto, les MINI reconnues (marque et écran rond), le

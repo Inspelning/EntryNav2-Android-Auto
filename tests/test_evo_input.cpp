@@ -125,6 +125,15 @@ int main() {
               aa::parseTouchStream(msg[0], got, 2, &declared) == 1 && declared == 1 && got[0].state == 2 &&
               got[0].id == 2 && got[0].x == 640 && got[0].y == 240);
     }
+    // A MINI: the phone's display starts 40 columns into the panel (its left margin) and is 1200x480. A finger is sent
+    // in the phone's pixels: 40 less, kept inside its display. Before, it landed 40 pixels right of it (#78, #88).
+    evo::TouchTracker mini;
+    mini.setOffset(-40, 0);
+    mini.setLimits(1199, 479);
+    CHECK(frame(mini, 100, 200, 1, 0, ev) == 1 && ev[0].action == 0 && ev[0].p[0].x == 60 && ev[0].p[0].y == 200);
+    CHECK(frame(mini, 20, 210, 2, 12, ev) == 1 && ev[0].p[0].x == 0);  // under the surround: the edge
+    CHECK(frame(mini, 1270, 479, 2, 24, ev) == 1 && ev[0].p[0].x == 1199 && ev[0].p[0].y == 479);
+    CHECK(frame(mini, 1270, 479, 3, 36, ev) == 1 && ev[0].action == 1 && mini.activeCount() == 0);
     // Before the picture: a finger that touches down is ignored until it lifts, even once the picture is up.
     evo::TouchTracker early;
     early.setPictureStarted(false);

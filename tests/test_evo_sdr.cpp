@@ -280,6 +280,11 @@ int main() {
           s.touchW == 1280 && s.touchH == 720);
     CHECK(shown(aa::buildCarServiceDiscovery(kDhuSdpProtobuf, kDhuSdpProtobufLen, nullptr, nullptr, smallMini), s) &&
           s.left == 25 && s.right == 25 && s.bottom == 0 && s.touchW == 800);
+    // The phone's own display, in whose pixels touches are sent: the canvas less the margins.
+    CHECK(same.phoneWidth() == 1280 && same.phoneHeight() == 480 && same.leftInset() == 0);
+    CHECK(mini.phoneWidth() == 1200 && mini.phoneHeight() == 480 && mini.leftInset() == 40);
+    CHECK(smallMini.phoneWidth() == 750 && smallMini.phoneHeight() == 480 && small.phoneWidth() == 800);
+    CHECK(wide.phoneWidth() == 1440 && wide.phoneHeight() == 540);
     // The maker: "MINI" for the car and the head unit, at the top level and in the head unit info; "BMW" otherwise.
     const std::string miniText(forMini.begin(), forMini.end());
     CHECK(plain.find("MINI") == std::string::npos && miniText.find("BMW") == std::string::npos);
