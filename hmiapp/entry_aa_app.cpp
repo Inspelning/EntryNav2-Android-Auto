@@ -55,7 +55,7 @@ const unsigned kSpinMs = 200;
 
 bmw::PluginApp* g_app = nullptr;     // created by HmiMain3D, until destroyed
 bmw::PluginApp* g_runApp = nullptr;  // initialized, until finalized: the posted tasks run while it is set
-time_t g_initTime = 0;
+long g_initTime = 0;                 // monoSeconds() when onInit ran
 
 // ---- the hold (hmiapp/hold_machine.hpp): iDrive's focus in, iDrive events and control messages out ------------------
 class AppHoldIo : public HoldIo {
@@ -353,7 +353,7 @@ bool appOnInit(bmw::PluginApp* self) {
     addStateHandler(self, kHelpState, kHandlerFocus, &onHelpFocus);
     addStateHandler(self, kAaState, kHandlerFocus, &onAaFocus);
     addStateHandler(self, kAaState, kHandlerVisible, &onAaVisible);
-    g_initTime = time(nullptr);
+    g_initTime = monoSeconds();
     bool ok = self->onInit();
     writeIdriveCoding();  // the car's keys and brand, for the service
     alog("onInit: handlers registered, base onInit -> %d, start automatically %s, USB cable %s", static_cast<int>(ok),

@@ -11,8 +11,6 @@
 #ifndef ENTRY_AAD_HMIAPP_APP_GUARDS_HPP
 #define ENTRY_AAD_HMIAPP_APP_GUARDS_HPP
 
-#include <time.h>
-
 namespace evo {
 namespace app {
 
@@ -20,9 +18,10 @@ namespace app {
 bool appDisabled();       // app.disable is present
 bool crashGuardAllows();  // counts this load; false after 3 loads without 2 minutes of uptime
 
-// Once per status poll, initTime being when onInit ran.
-void resetGuardsWhenStable(time_t initTime);  // 2 minutes up: not a crash loop
-void serviceAutostart(time_t initTime);       // the automatic start, once, 30 s after onInit
+// Once per status poll, initTime being when onInit ran on the monotonic clock (mono_clock.hpp), 0 before: the car's
+// date can move back hours after iDrive starts, which held these delays back as long (#86).
+void resetGuardsWhenStable(long initTime);  // 2 minutes up: not a crash loop
+void serviceAutostart(long initTime);       // the automatic start, once, 30 s after onInit
 
 void forgetBootGuard();  // a start by hand
 bool autostartOn();

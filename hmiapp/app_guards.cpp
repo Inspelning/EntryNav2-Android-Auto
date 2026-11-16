@@ -8,10 +8,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "../platform/service_contract.hpp"
 #include "app_log.hpp"
+#include "mono_clock.hpp"
 #include "service_link.hpp"
 
 namespace evo {
@@ -123,8 +125,8 @@ bool crashGuardAllows() {
     return true;
 }
 
-void resetGuardsWhenStable(time_t initTime) {
-    if (!g_stableMarked && initTime && time(nullptr) - initTime >= kStableAfterS) {
+void resetGuardsWhenStable(long initTime) {
+    if (!g_stableMarked && initTime && monoSeconds() - initTime >= kStableAfterS) {
         g_stableMarked = true;
         unlink(contract::kAppGuard);  // the HMI has been up 2 min with us: not a crash loop
         unlink(contract::kBootGuard);
@@ -133,8 +135,8 @@ void resetGuardsWhenStable(time_t initTime) {
 }
 
 // ---- start automatically (with a bootloop guard) --------------------------------------------------------------------
-void serviceAutostart(time_t initTime) {
-    if (g_autostartDone || !initTime || time(nullptr) - initTime < kAutostartDelayS) {
+void serviceAutostart(long initTime) {
+    if (g_autostartDone || !initTime || monoSeconds() - initTime < kAutostartDelayS) {
         return;
     }
     g_autostartDone = true;

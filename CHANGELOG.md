@@ -14,6 +14,11 @@ QEMU avec les bibliothèques de la voiture).
   marges pour le téléphone, dont l'affichage commence alors 40 colonnes plus loin, et il lit le toucher dans ses propres
   pixels : chaque point lui est désormais donné dans ce repère ([#78](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/78),
   [#88](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/88)). Rien ne change sur une BMW.
+- Start refusé (« pressed again within 3 s ») après un arrêt, tant que l'heure de l'unité, reculée de quelques heures
+  après le démarrage, n'avait pas rattrapé celle du lancement précédent. Les délais de l'appli iDrive (anti-rebond de
+  Start, arrêt du service, démarrage automatique 30 s après l'iDrive, remise à zéro des gardes) se mesurent désormais
+  sur l'horloge monotone de l'unité, que l'heure ne touche pas ; avant, le démarrage automatique pouvait attendre aussi
+  longtemps ([#86](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/86)).
 
 ## [0.13.0-rc.1] - 2026-11-15 · PC
 

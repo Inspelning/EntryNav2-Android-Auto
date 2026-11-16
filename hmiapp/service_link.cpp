@@ -22,6 +22,7 @@
 #include "../platform/service_contract.hpp"
 #include "app_log.hpp"
 #include "log_profile.hpp"
+#include "mono_clock.hpp"
 #include "spawn_attr.hpp"
 
 namespace evo {
@@ -29,10 +30,12 @@ namespace app {
 
 namespace {
 
-time_t g_lastLaunch = 0;
+// Delays on the monotonic clock: the car's date can move back hours while the app runs, and a launch then
+// stayed "pressed again within 3 s" until the date caught up (#86).
+long g_lastLaunch = 0;
 pid_t g_launchPid = 0;
 pid_t g_stopPid = 0;
-time_t g_stopTime = 0;
+long g_stopTime = 0;
 int g_stopStage = 0;
 
 bool pidAlive(int pid) {
@@ -71,7 +74,7 @@ bool controlPortBusy() {
 
 // ---- launching the service ------------------------------------------------------------------------------------------
 void launchService() {
-    time_t now = time(nullptr);
+    const long now = monoSeconds();
     if (g_lastLaunch && now - g_lastLaunch < 3) {
         alog("launch ignored (pressed again within 3 s)");
         return;
@@ -199,7 +202,7 @@ void beginStop() {
         return;
     }
     g_stopPid = d.pid > 0 ? static_cast<pid_t>(d.pid) : -1;
-    g_stopTime = time(nullptr);
+    g_stopTime = monoSeconds();
     g_stopStage = 0;
     sendToService("quit");
     int fd = open(contract::kServiceStop, O_WRONLY | O_CREAT | O_CLOEXEC, 0600);  // the supervisor stops its child too
@@ -220,7 +223,7 @@ void serviceStop() {
         g_stopPid = 0;
         return;
     }
-    long waited = static_cast<long>(time(nullptr) - g_stopTime);
+    const long waited = monoSeconds() - g_stopTime;
     if (g_stopPid < 0) {
         if (waited >= 20) {
             alog("service (pid unknown) still running 20 s after stop: giving up");
