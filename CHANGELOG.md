@@ -8,6 +8,12 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+## [0.13.0-rc.2] - 2026-11-16 · PC
+
+Version candidate : deux corrections de la 0.13.0-rc.1, le toucher des MINI et Start refusé après un recul de l'heure.
+Testée sur PC et sous QEMU, **pas encore essayée en voiture** ; une BMW reçoit la même description de voiture et le
+même toucher qu'avant.
+
 ### Corrigé
 
 - MINI : le toucher tombait 40 pixels à droite du doigt depuis la 0.13.0-rc.1. Les bords cachés par le rond sont des
@@ -333,7 +339,8 @@ Première version publique. Essayée sur une BMW G20 de 2019, logiciel iDrive `2
   encore suivie sur une voiture.
 - Voir les [limites connues](ROADMAP.md#limites-connues).
 
-[Non publié]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/compare/v0.13.0-rc.1...HEAD
+[Non publié]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/compare/v0.13.0-rc.2...HEAD
+[0.13.0-rc.2]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.2
 [0.13.0-rc.1]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.1
 [0.12.1-rc.4]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.12.1-rc.4
 [0.12.1-rc.3]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.12.1-rc.3
