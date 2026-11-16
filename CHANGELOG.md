@@ -8,6 +8,11 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+### Corrigé
+
+- Journal du service : la ligne `[SDR] main VideoConfig` affichait toujours 0 pour la marge gauche ; elle donne
+  maintenant celle envoyée au téléphone (40 sur une MINI). Le téléphone recevait déjà la bonne valeur.
+
 ## [0.13.0-rc.3] - 2026-11-16 · PC
 
 Version candidate : Android Auto en retrait pendant l'aide au stationnement ouverte par son bouton. Testée sur PC et
