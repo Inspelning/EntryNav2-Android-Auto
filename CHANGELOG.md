@@ -8,6 +8,16 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+### Ajouté
+
+- Aide au stationnement ouverte par son bouton, sans marche arrière : Android Auto restait par-dessus la caméra. L'appli
+  iDrive suit `sensors.PDCStatus` : quand l'aide au stationnement s'allume, Android Auto se met en retrait comme en
+  marche arrière et revient à la fin. Comme elle reste allumée un moment après la marche arrière, choisir Android Auto
+  pendant ce temps (Ouvrir, bouton d'entrée, double MEDIA) le garde à l'écran jusqu'à son prochain changement
+  ([#26](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/26)).
+- Journal de l'appli : l'écran affiché par l'iDrive (`hmi.graphicalContext`), à chaque changement, pour connaître les
+  numéros des écrans caméra et panorama de chaque voiture.
+
 ## [0.13.0-rc.2] - 2026-11-16 · PC
 
 Version candidate : deux corrections de la 0.13.0-rc.1, le toucher des MINI et Start refusé après un recul de l'heure.

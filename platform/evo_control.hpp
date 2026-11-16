@@ -5,7 +5,7 @@
 // Protocol: a Unix datagram socket with an abstract name (evo::contract::kControlName, control_address.hpp: no file,
 // no port another program could be given by chance), one text command per datagram:
 //   ping (answered "pong"), show, hide, await, quit, gear <n>, daynight <n>, call <0|1>, popup <0|1>,
-//   drivemode [<n>], pdc <n> (accepted, not used by the service).
+//   drivemode [<n>], pdc 0|1 (park assist owns the screen).
 // await: from then on a phone that connects is served with its picture aside, until "show" (the app brings iDrive to
 // its blank page first) or "hide" (the app gave up).
 // State file (evo::contract::kStateFile), read every second by the app: "<connecting|connected> <pid> <overlay>",

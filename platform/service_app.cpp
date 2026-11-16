@@ -27,6 +27,7 @@ ServiceApp::ServiceApp(uint16_t p, bool v, volatile sig_atomic_t* quit)
       ready(false),
       tcpPreparing(false),
       reverse(false),
+      parkAssist(false),
       inCall(false),
       awaitShow(false),
       asking(false),
@@ -102,7 +103,7 @@ ServiceApp::Turn ServiceApp::turn(bool service) {
     pthread_mutex_lock(&mu);
     t.failed = wirelessDone;
     t.active = session.isActive();
-    t.onScreen = videoEnabled && t.active && focus && !reverse;  // what the iDrive app is told
+    t.onScreen = videoEnabled && t.active && focus && !reverse && !parkAssist;  // what the iDrive app is told
     t.asks = t.active && asking && !focus;
     const uint32_t nowMs = monoMs();
     const PeekTiming::Picture picture = peek.turn(nowMs, t.onScreen);
@@ -291,7 +292,7 @@ void ServiceApp::mediaKey(unsigned state, void* user) {
     pthread_mutex_unlock(&a->mu);
 }
 
-// Commands from the iDrive app (service mode): show, hide, await, drivemode, popup, gear, call, daynight, quit.
+// Commands from the iDrive app (service mode): show, hide, await, drivemode, popup, gear, pdc, call, daynight, quit.
 void ServiceApp::command(const ControlCommand& c, void* user) {
     ServiceApp* a = static_cast<ServiceApp*>(user);
     pthread_mutex_lock(&a->mu);
@@ -335,6 +336,13 @@ void ServiceApp::command(const ControlCommand& c, void* user) {
             ELOG("ServiceApp", "reverse gear %s: AA picture %s", r ? "engaged" : "left", r ? "hidden" : "back");
         }
         a->reverse = r;
+    } else if (c.verb == "pdc") {
+        // The iDrive app decides: park assist on, and the driver has not chosen Android Auto over it.
+        const bool owns = c.arg != 0;
+        if (owns != a->parkAssist) {
+            ELOG("ServiceApp", "park assist %s: AA picture %s", owns ? "on" : "off", owns ? "hidden" : "back");
+        }
+        a->parkAssist = owns;
     } else if (c.verb == "call") {  // iDrive app (CDS communication.callStatus): phone keys go to iDrive's call screen
         a->inCall = c.arg != 0;
         if (a->knob) {

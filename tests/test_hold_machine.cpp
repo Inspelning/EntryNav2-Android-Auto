@@ -546,6 +546,61 @@ void reverseGear() {
     }
 }
 
+// Park assist (sensors.PDCStatus), opened by its button without reverse (#26): like the camera in reverse.
+void parkAssist() {
+    {  // its view: Android Auto steps aside, iDrive is not moved; back by itself when it ends
+        Car c;
+        heldOnBlank(c);
+        c.hold.pdcChanged(evo::app::kParkAssistOn);
+        CHECK_OUT(c, "pdc 1");
+        CHECK(c.hold.cameraWins());
+        c.blankLeft();  // iDrive shows the park assist view
+        c.overlay(0);
+        c.poll();
+        CHECK_OUT(c, "");  // neither the menu nor the main menu over it
+        CHECK(!c.hold.holding());
+        c.polls(5);
+        CHECK_OUT(c, "");  // no hard key step aside: it is not a key
+        c.hold.pdcChanged(0);
+        CHECK_OUT(c, "pdc 0");
+        c.overlay(1);    // the service shows the picture again at once
+        c.blankShown();  // iDrive back where it was
+        c.poll();
+        CHECK_OUT(c, "");
+        CHECK(c.hold.holding());
+    }
+    {  // still on after reverse: the driver who picks Android Auto gets it until park assist changes
+        Car c;
+        heldOnBlank(c);
+        c.hold.pdcChanged(evo::app::kParkAssistOn);
+        c.overlay(0);
+        c.blankLeft();
+        c.poll();
+        CHECK_OUT(c, "pdc 1");
+        c.hold.pdcChanged(evo::app::kParkAssistOn);  // the same value again changes nothing
+        CHECK_OUT(c, "");
+        c.hold.showAndHold("Open row", c.now);
+        CHECK_OUT(c, "pdc 0, show, event 52");
+        CHECK(!c.hold.cameraWins() && c.logged("Android Auto chosen over it"));
+        c.blankShown();
+        c.overlay(1);
+        c.poll();
+        CHECK_OUT(c, "");
+        c.hold.pdcChanged(0);  // it ends: nothing to tell, Android Auto is already up
+        CHECK_OUT(c, "");
+        c.hold.pdcChanged(evo::app::kParkAssistOn);  // a new one: it owns the screen again
+        CHECK_OUT(c, "pdc 1");
+    }
+    {  // a service started meanwhile is told, with the call
+        Car c;
+        c.hold.pdcChanged(evo::app::kParkAssistOn);
+        CHECK_OUT(c, "pdc 1");
+        c.service("running", 42, 0);
+        c.poll();
+        CHECK_OUT(c, "await, call 0, pdc 1");
+    }
+}
+
 void calls() {
     {  // Android Auto comes up during a call, over iDrive's call screen: event 52 directly, the call screen not fought
         Car c;
@@ -894,6 +949,7 @@ int main() {
     popupOverBlank();
     drivingModeThenBack();
     reverseGear();
+    parkAssist();
     calls();
     appKeys();
     hardKeys();
@@ -908,6 +964,6 @@ int main() {
     puts(
         "PASS hold machine: manual open, automatic start through the menu, refusals, waiting aside, recall over an "
         "iDrive screen, BACK, popups, driving mode, "
-        "reverse, calls, app keys, hard keys, stepping aside, service restart");
+        "reverse, park assist, calls, app keys, hard keys, stepping aside, service restart");
     return 0;
 }

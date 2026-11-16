@@ -120,6 +120,7 @@ public:
     pthread_mutex_t mu, connectMu, videoMu;
     bool stopping, wirelessDone, focus, ready, tcpPreparing;
     bool reverse;                 // service: reverse gear from the iDrive app hides the picture (camera)
+    bool parkAssist;              // service: park assist owns the screen (iDrive app, "pdc 1"): picture hidden
     bool inCall;                  // MEDIA recall never covers iDrive's call screen
     MediaDoublePress mediaPress;  // under mu, fed by the existing vMOST reader
     bool awaitShow;    // service: the iDrive app asked ("await") that a phone that connects waits aside for its "show"

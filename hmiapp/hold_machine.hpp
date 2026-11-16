@@ -45,9 +45,12 @@
 //   CarPlay.
 // - Reverse gear: the camera wins. No popup peek, no "show", no hard key step aside, no app key hold, no event 52
 //   for a lost focus.
+// - Park assist (sensors.PDCStatus 1, also opened by its button without reverse): the same, the service told
+//   "pdc 1" hides the picture, "pdc 0" when it ends brings it back. It stays on a while after reverse: the
+//   driver choosing Android Auto meanwhile (Open row, entry button) keeps it until park assist changes (#26).
 // - Phone call: iDrive's call screen is not fought; when the call ends, event 52 within 10 s.
-// - Service (re)started, or phone connected: it is told the call and the gear again (started in reverse, Android Auto
-//   would come up over the camera).
+// - Service (re)started, or phone connected: it is told the call, the gear and park assist again (started in
+//   reverse, Android Auto would come up over the camera).
 //
 // Pure: no BMW call, no file, no clock. Events and the time come in; iDrive events, control messages and log lines go
 // out through HoldIo. Every time is in seconds since the head unit started (hmiapp/mono_clock.hpp), never the date:
@@ -64,6 +67,8 @@ namespace app {
 
 const int kReverseGear = 2;      // driving.gear
 const int kGearUnknown = -1000;  // no driving.gear value received yet
+const int kParkAssistOn = 1;     // sensors.PDCStatus
+const int kPdcUnknown = -1000;   // no sensors.PDCStatus value received yet
 
 // What the machine does and reads: the app (iDrive, the service's control port, files, app.log), a recorder in tests.
 class HoldIo {
@@ -99,6 +104,7 @@ public:
     // ---- the car (CDS properties) ----
     void callChanged(bool inCall, long now);  // after each update of either phone line
     void gearChanged(int gear);
+    void pdcChanged(int status);      // sensors.PDCStatus
     void driveModeChanged(long now);  // a real change between two valid driving modes
 
     // ---- the app's own requests ----
@@ -121,6 +127,10 @@ public:
     // so a notification that never came for the other one cannot leave a stale flag behind.
     bool blankShown() const { return aaVisible_ && !menuFocused_; }
     bool popupPeek() const { return popup_.active(); }
+    // Park assist shows its view, and the driver has not chosen Android Auto over it.
+    bool parkAssistOwns() const { return pdc_ == kParkAssistOn && !parkDismissed_; }
+    // The reverse camera or the park assist view is up: nothing is done over it.
+    bool cameraWins() const { return gear_ == kReverseGear || parkAssistOwns(); }
 
 private:
     void fireHold(const char* why, long now);
@@ -169,7 +179,9 @@ private:
     bool inCall_;
     long callEnd_;  // when the last call ended, 0: handled
     int gear_;
-    long driveModeAt_;  // last driving mode change, 0: none
+    int pdc_;             // sensors.PDCStatus, kPdcUnknown before the first value
+    bool parkDismissed_;  // the driver chose Android Auto during this park assist
+    long driveModeAt_;    // last driving mode change, 0: none
 
     // The service, as told about the car
     bool serviceReachable_;
