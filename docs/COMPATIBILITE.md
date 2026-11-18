@@ -54,7 +54,7 @@ programmes restent dans `/tmp`, en mémoire.
 | `vmost` | Fonctions de la molette et des touches, chargées à l'exécution | Bloquant |
 | `mic` | Fonctions du micro | Douteux |
 | `video`, `order` | **Démarrage à blanc :** taille de l'écran, emplacement de l'image, superposition des couches | Bloquant |
-| `screen` | Écran d'une autre taille que 1280x480 : accepté, mais jamais essayé en voiture | Douteux |
+| `screen` | Écran d'une autre taille que 1280x480 et 800x480 : accepté, mais jamais essayé en voiture | Douteux |
 | `alps`, `uuid`, `spp` | **Démarrage à blanc :** bibliothèque Bluetooth de même structure, profil reconnu, état lisible | Bloquant ; Bluetooth occupé : douteux |
 | `running` | Android Auto tourne déjà : l'écran et le Bluetooth ne sont pas contrôlés | Information |
 | `hotspot`, `gps` | Wi-Fi de la voiture disponible, GPS de la voiture reconnu | Information |

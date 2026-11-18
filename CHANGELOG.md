@@ -12,6 +12,8 @@ QEMU avec les bibliothèques de la voiture).
 
 - Journal du service : la ligne `[SDR] main VideoConfig` affichait toujours 0 pour la marge gauche ; elle donne
   maintenant celle envoyée au téléphone (40 sur une MINI). Le téléphone recevait déjà la bonne valeur.
+- Contrôle de compatibilité : un écran 800x480 n'est plus signalé `@warn|screen|` comme jamais essayé en voiture. Il a
+  marché sur une i3, une F20, une X1 F48 et une MINI F57 ; l'avertissement reste pour les autres tailles.
 
 ## [0.13.0-rc.3] - 2026-11-16 · PC
 
