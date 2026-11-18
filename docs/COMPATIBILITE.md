@@ -32,7 +32,7 @@ rapports de leurs propriétaires : elles disent ce qu'ils ont vu, avec la versio
 | i3 | `202012141616` | 800x480 | USB ; sans fil par un adaptateur Android Auto sur l'USB | 0.13.0-alpha.2 | marche, ancien contrôleur ([#19](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/19)) |
 | MINI Clubman F54 de 2019 | `202111011321` | 1280x480 | sans fil | 0.13.0-rc.2 | marche ; écran rond : marges et toucher justes en 0.13.0-rc.2 ([#78](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/78)) |
 | MINI Clubman F54 de 2023 | `202402191339` | non relevé (8,8 pouces) | USB | non indiquée | marche ; l'écran rond cache la colonne de gauche ([#64](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/64)) |
-| MINI F56 JCW de 2022 | non indiqué | non relevé | non indiquée | 0.13.0-rc.3 | marche, toucher et image justes ; pas de pastille du volume pendant un appel, corrigé dans `main` ([#88](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/88)) |
+| MINI F56 JCW de 2022 | non indiqué | non relevé | non indiquée | 0.13.0-rc.3 | marche, toucher et image justes ; pas de pastille du volume pendant un appel, corrigé en 0.13.0-rc.4 ([#88](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/88)) |
 | MINI F57 de 2018 | `201910092124` | 800x480 | sans fil | 0.12.1-rc.4 | marche ; plus de pastille du volume au toucher en 0.12.1-rc.4 ; l'écran rond cache les côtés ([#56](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/56)) |
 
 Un adaptateur Android Auto sans fil branché sur la prise USB, en [mode USB](USB.md), donne aussi le sans-fil : essayé
