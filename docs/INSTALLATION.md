@@ -69,6 +69,8 @@ LD_LIBRARY_PATH=$L XDG_RUNTIME_DIR=/run/system/0 WAYLAND_DISPLAY=wayland-0 HOME=
 - La boucle ne doit **rien** afficher : chaque ligne montre une fonction ou une bibliothèque absente de cette voiture.
 - `aa-supervisor --compat` répond une ligne par point : `@ok|…` réussi, `@warn|…` douteux, `@block|…` **bloquant**. Une seule
   ligne `@block` : ne pas installer. Le sens de chaque point est dans [compatibilité](COMPATIBILITE.md).
+- Exception : un `@block` sur `alps`, `uuid` ou `spp` (détail `wireless only`) n'empêche que le sans-fil. L'installation
+  reste possible en mode [USB](USB.md), à choisir avant le premier *Démarrer*.
 
 Ce résultat, avec la première ligne de `/etc/version`, fait un bon
 [rapport de compatibilité](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/new/choose) pour une voiture pas encore listée.

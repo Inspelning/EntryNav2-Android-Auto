@@ -55,7 +55,8 @@ programmes restent dans `/tmp`, en mémoire.
 | `mic` | Fonctions du micro | Douteux |
 | `video`, `order` | **Démarrage à blanc :** taille de l'écran, emplacement de l'image, superposition des couches | Bloquant |
 | `screen` | Écran d'une autre taille que 1280x480 et 800x480 : accepté, mais jamais essayé en voiture | Douteux |
-| `alps`, `uuid`, `spp` | **Démarrage à blanc :** bibliothèque Bluetooth de même structure, profil reconnu, état lisible | Bloquant ; Bluetooth occupé : douteux |
+| `alps`, `uuid`, `spp` | **Démarrage à blanc :** bibliothèque Bluetooth de même structure, profil reconnu, état lisible | Bloquant pour le sans-fil seulement ; Bluetooth occupé : douteux. En mode USB : information |
+| `usb` | Mode USB choisi : fichier `/var/local/data/AA/usb` présent ([USB](USB.md)) | Information ; fichier qui contient autre chose qu'un nom de prise : bloquant |
 | `running` | Android Auto tourne déjà : l'écran et le Bluetooth ne sont pas contrôlés | Information |
 | `hotspot`, `gps` | Wi-Fi de la voiture disponible, GPS de la voiture reconnu | Information |
 
@@ -73,10 +74,15 @@ Deux mécanismes font ce travail :
 |---|---|---|
 | Aucune ligne `@block`, logiciel `202111011321` | Même logiciel que la voiture de référence | Possible |
 | Aucune ligne `@block`, autre logiciel ou lignes `@warn` | Même type d'unité, mais rien ne prouve que tout se comporte à l'identique | Possible, et réversible |
-| Au moins une ligne `@block`, ou une fonction absente | Il manque quelque chose sur cette voiture | À ne pas faire |
+| `@block` seulement sur `alps`, `uuid` ou `spp` | Le Bluetooth de cette voiture n'est pas pris en charge : le sans-fil ne peut pas marcher | Possible en mode USB seulement |
+| Au moins une autre ligne `@block`, ou une fonction absente | Il manque quelque chose sur cette voiture | À ne pas faire |
 
 « Possible, et réversible » sera le cas le plus fréquent sur une autre voiture : toutes les fonctions appelées existent et
 le démarrage à blanc passe, mais le contrôle ne peut pas prouver qu'Android Auto marchera jusqu'au bout.
+
+Le Bluetooth ne sert qu'au sans-fil : en mode USB, le service n'y touche pas. Le détail d'un `@block` sur `alps`, `uuid`
+ou `spp` le rappelle (`wireless only`). Avec le fichier `/var/local/data/AA/usb` posé avant le contrôle, ces points
+sortent en `@info` : le contrôle suit alors le mode USB.
 
 ## Autres tailles d'écran
 
@@ -112,8 +118,8 @@ avant : My BMW ne trouve alors plus la voiture tant qu'Android Auto tourne. Le j
 Pour vérifier cet emplacement, Android Auto lit les tables de la pile en mémoire. Sur une autre voiture :
 
 1. Les tables sont trouvées dans la bibliothèque de cette voiture, par leurs noms exportés.
-2. Leurs trois tailles doivent être celles de la voiture de référence. Sinon, la voiture est refusée, et le rapport donne
-   ces tailles.
+2. Leurs trois tailles doivent être celles de la voiture de référence. Sinon, le sans-fil est refusé et le rapport donne
+   ces tailles ; le mode USB, qui ne touche pas au Bluetooth, reste possible.
 3. Chaque lecture recoupe deux copies de chaque identifiant. Au moindre désaccord, rien n'est modifié.
 4. Après l'emprunt, Android Auto relit la table pour y retrouver son propre identifiant. Sinon, il s'arrête et rend
    l'emplacement.

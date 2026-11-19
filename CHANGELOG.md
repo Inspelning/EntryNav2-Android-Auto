@@ -8,6 +8,14 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+### Corrigé
+
+- Contrôle de compatibilité : un point Bluetooth raté (`alps`, `uuid`, `spp`) sortait `@block` comme s'il empêchait
+  toute installation, alors que seul le sans-fil s'en sert. Son détail le dit maintenant (`wireless only`), et avec le
+  fichier `/var/local/data/AA/usb` il sort en `@info`. Une ligne `@info|usb|` montre le mode USB choisi
+  ([#106](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/106) : F20 de 2017 en USB, bibliothèque Bluetooth
+  d'une autre construction). Testé sur PC.
+
 ## [0.13.0-rc.4] - 2026-11-18 · PC
 
 Version candidate : pastille du volume pendant un appel, contrôle de compatibilité à jour pour les écrans 800x480.
