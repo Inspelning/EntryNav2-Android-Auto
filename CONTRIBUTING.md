@@ -59,6 +59,7 @@ fermeture.
 | Niveau | Commande | Il faut |
 |---|---|---|
 | PC, comme la CI | `make check` | `g++`, `libssl-dev`, `libdbus-1-dev`, `protobuf-compiler`, `python3-protobuf`, clang-format 18.1.8 et ruff 0.6.9 (`pip install -r requirements-dev.txt`) |
+| PC, mémoire et UB | `make test-host-sanitizers` | `g++` avec ASan/UBSan, `libssl-dev` ; tests des trames et de la session, détection des fuites active |
 | ARM | `bash toolchain/tc.sh make -j4 all hmiapp test-arm-all` | Docker, la copie du système de la voiture |
 | ARM sous QEMU | `python3 -I tests/run_qemu.py` | `qemu-user`, la copie du système |
 | Programmes validés | `make verify_binary verify_wireless` | idem |
