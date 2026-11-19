@@ -8,6 +8,12 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+## [0.13.0-rc.5] - 2026-11-19 · PC
+
+Version candidate : pas d'écran noir au changement de mode de conduite quand l'iDrive n'en affiche pas la fenêtre,
+contrôle de compatibilité juste pour les voitures en USB, lien BMW Apps dans le journal du sans-fil. Testée sur PC et
+sous QEMU, **pas encore essayée en voiture**.
+
 ### Ajouté
 
 - Journal du sans-fil : chaque ligne `[WifiLink]` dit si un téléphone tient le lien Bluetooth des BMW Apps (My BMW,
@@ -392,7 +398,8 @@ Première version publique. Essayée sur une BMW G20 de 2019, logiciel iDrive `2
   encore suivie sur une voiture.
 - Voir les [limites connues](ROADMAP.md#limites-connues).
 
-[Non publié]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/compare/v0.13.0-rc.4...HEAD
+[Non publié]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/compare/v0.13.0-rc.5...HEAD
+[0.13.0-rc.5]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.5
 [0.13.0-rc.4]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.4
 [0.13.0-rc.3]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.3
 [0.13.0-rc.2]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.2
