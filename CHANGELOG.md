@@ -23,6 +23,11 @@ QEMU avec les bibliothèques de la voiture).
   fichier `/var/local/data/AA/usb` il sort en `@info`. Une ligne `@info|usb|` montre le mode USB choisi
   ([#106](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/106) : F20 de 2017 en USB, bibliothèque Bluetooth
   d'une autre construction). Testé sur PC.
+- Changement de mode de conduite : Android Auto s'effaçait 3,5 s pour laisser voir la fenêtre du mode, même quand
+  l'affichage du mode était désactivé dans l'iDrive : écran noir à chaque changement
+  ([discussion #28](https://github.com/Jiraiya43/EntryNav2-Android-Auto/discussions/28)). L'appli lit maintenant ce
+  réglage de l'iDrive, et Android Auto reste à l'écran quand il est coupé. Si le réglage ne peut pas être lu, rien ne
+  change. Lu dans le système de la voiture de référence et testé sur PC, pas encore essayé en voiture.
 
 ## [0.13.0-rc.4] - 2026-11-18 · PC
 
