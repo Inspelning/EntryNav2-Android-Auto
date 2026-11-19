@@ -40,6 +40,9 @@ HoldMachine::HoldMachine(HoldIo& io)
       inCall_(false),
       callEnd_(0),
       gear_(kGearUnknown),
+      reverseHeld_(false),
+      gearPending_(false),
+      gearPendingSince_(0),
       pdc_(kPdcUnknown),
       parkDismissed_(false),
       driveModeAt_(0),
@@ -65,8 +68,32 @@ void HoldMachine::callChanged(bool inCall, long now) {
     inCall_ = inCall;
 }
 
-void HoldMachine::gearChanged(int gear) {
+bool HoldMachine::gearChanged(int gear, long now) {
+    const bool wasInReverse = gear_ == kReverseGear;
     gear_ = gear;
+    if (gear == kReverseGear) {
+        if (!wasInReverse) {
+            reverseHeld_ = holding_ || gearPending_;
+        }
+        gearPending_ = false;
+        return true;
+    }
+    if (wasInReverse && reverseHeld_ && !aaFocused_) {
+        gearPending_ = true;
+        gearPendingSince_ = now;
+        say("hold: out of reverse, waiting for camera focus to return");
+    }
+    return !gearPending_;
+}
+
+void HoldMachine::flushGear(const char* why) {
+    if (gearPending_) {
+        gearPending_ = false;
+        char msg[32];
+        snprintf(msg, sizeof(msg), "gear %d", gear_);
+        io_.send(msg);
+        say("hold: %s: service told \"%s\"", why, msg);
+    }
 }
 
 // Park assist starting or ending is a new episode: a choice of Android Auto made during the previous one is
@@ -118,6 +145,7 @@ void HoldMachine::holdViaMenu(const char* why, long now) {
 // Android Auto comes to the front: iDrive goes to the blank state at once, not at the next status poll, so the knob
 // never reaches the screen underneath (entry button and the menu's Open row).
 void HoldMachine::showAndHold(const char* why, long now) {
+    flushGear(why);
     if (parkAssistOwns()) {
         // Park assist stays on a while after reverse: the driver who picks Android Auto over it gets it.
         parkDismissed_ = true;
@@ -186,6 +214,7 @@ void HoldMachine::aaFocus(bool focused) {
         popupTried_ = false;
         holdGaveUp_ = false;
         underPopup_ = false;
+        flushGear("blank state regained focus");
     }
     say("hold: state %u focus -> %d", kAaState, static_cast<int>(focused));
 }
@@ -217,6 +246,7 @@ void HoldMachine::menuFocus(unsigned state, bool focused, long now, long nowMs) 
     menuFocused_ = focused;
     if (focused) {
         aaFocused_ = false;
+        flushGear("our menu has the focus");
     }
     say("menu state %u focus -> %d", state, static_cast<int>(focused));
     if (focused && unheld_ && !waiting_) {
@@ -253,7 +283,7 @@ void HoldMachine::tellService(const ServiceState& service) {
         io_.send(inCall_ ? "call 1" : "call 0");
         if (gear_ != kGearUnknown) {
             char msg[32];
-            snprintf(msg, sizeof(msg), "gear %d", gear_);
+            snprintf(msg, sizeof(msg), "gear %d", gearPending_ ? kReverseGear : gear_);
             io_.send(msg);
         }
         if (pdc_ != kPdcUnknown) {
@@ -362,6 +392,9 @@ void HoldMachine::askWithoutHold(long now) {
 
 // Status poll (1 s). service.onScreen(): Android Auto is on screen (knob and touch go to the phone).
 void HoldMachine::poll(const ServiceState& service, long now) {
+    if (gearPending_ && now - gearPendingSince_ >= kCameraWaitS) {
+        flushGear("camera focus wait timed out");
+    }
     const bool overlay = service.onScreen();
     const bool rose = overlay && !prevOverlay_, fell = !overlay && prevOverlay_;
     prevOverlay_ = overlay;
