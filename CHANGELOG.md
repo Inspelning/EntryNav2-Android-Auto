@@ -8,6 +8,14 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+### Ajouté
+
+- Journal du sans-fil : chaque ligne `[WifiLink]` dit si un téléphone tient le lien Bluetooth des BMW Apps (My BMW,
+  AAIdrive, option *Apps* du téléphone dans la voiture), qui passe par la même puce que le Wi-Fi. Avec l'option *Apps*
+  activée, Android Auto sans fil démarrait mal sur une F40
+  ([#71](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/71)) : les journaux diront si ce lien tourne pendant
+  les lenteurs. Lecture seule, journaux activés seulement. Testé sur PC.
+
 ### Corrigé
 
 - Contrôle de compatibilité : un point Bluetooth raté (`alps`, `uuid`, `spp`) sortait `@block` comme s'il empêchait
