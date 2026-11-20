@@ -10,6 +10,14 @@ QEMU avec les bibliothèques de la voiture).
 
 ### Modifié
 
+- Sans-fil : la connexion Android Auto passe en priorité Wi-Fi « vidéo », comme le CarPlay de la voiture pour son
+  image (code d'Apple dans le CarPlay de BMW : `IP_TOS` 0x80, catégorie Wi-Fi vidéo). Ce que la voiture envoie au
+  téléphone (accusés d'image, toucher, touches, accusés TCP) passe alors avant le trafic ordinaire ; jusqu'ici, rien
+  n'était marqué. Essai contre les lenteurs du sans-fil
+  ([discussion #30](https://github.com/Jiraiya43/EntryNav2-Android-Auto/discussions/30),
+  [#101](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/101),
+  [#129](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/129)) : l'effet reste à mesurer en voiture. Le
+  mode USB ne change pas. Testé sur PC.
 - Réception Android Auto : réutilise les tampons pendant chaque connexion, sans changer les limites du protocole.
   Les tampons de messages assemblés de plus de 1 Mio sont libérés après usage. Testé sur PC.
 
