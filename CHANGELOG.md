@@ -8,6 +8,11 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+## [0.13.0-rc.7] - 2026-11-20 · PC
+
+Version candidate : après une coupure du sans-fil, Android Auto revient tout seul quand le téléphone garde son lien
+Bluetooth, au lieu d'attendre Arrêter puis Démarrer. Testée sur PC et sous QEMU, **pas encore essayée en voiture**.
+
 ### Corrigé
 
 - Sans-fil : après une coupure, Android Auto ne revenait pas tout seul quand le téléphone gardait son lien Bluetooth
@@ -437,7 +442,8 @@ Première version publique. Essayée sur une BMW G20 de 2019, logiciel iDrive `2
   encore suivie sur une voiture.
 - Voir les [limites connues](ROADMAP.md#limites-connues).
 
-[Non publié]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/compare/v0.13.0-rc.6...HEAD
+[Non publié]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/compare/v0.13.0-rc.7...HEAD
+[0.13.0-rc.7]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.7
 [0.13.0-rc.6]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.6
 [0.13.0-rc.5]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.5
 [0.13.0-rc.4]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.4
