@@ -8,6 +8,15 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+### Corrigé
+
+- Sans-fil : après une coupure, Android Auto ne revenait pas tout seul quand le téléphone gardait son lien Bluetooth
+  ouvert. Le service répondait à ce lien sans jamais redemander au téléphone de revenir, et il fallait faire Arrêter
+  puis Démarrer ([#88](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/88) : MINI F56, Galaxy Z Fold, de
+  retour en 2 s après le redémarrage manuel). Une séance perdue (téléphone muet 5 s, connexion rompue) ferme désormais
+  ce lien : le téléphone le rouvre et reçoit une nouvelle demande, comme après un redémarrage. Quitter Android Auto
+  sur le téléphone n'est pas une coupure, et le mode USB ne change pas. Testé sur PC.
+
 ## [0.13.0-rc.6] - 2026-11-20 · PC
 
 Version candidate pour les lenteurs du sans-fil : la connexion Android Auto passe en priorité Wi-Fi « vidéo », comme le
