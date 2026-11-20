@@ -8,6 +8,12 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+## [0.13.0-rc.6] - 2026-11-20 · PC
+
+Version candidate pour les lenteurs du sans-fil : la connexion Android Auto passe en priorité Wi-Fi « vidéo », comme le
+CarPlay de la voiture. Aussi : la caméra après une marche arrière, les messages Android Auto incomplets. Testée sur PC
+et sous QEMU, **pas encore essayée en voiture**.
+
 ### Modifié
 
 - Sans-fil : la connexion Android Auto passe en priorité Wi-Fi « vidéo », comme le CarPlay de la voiture pour son
@@ -20,6 +26,17 @@ QEMU avec les bibliothèques de la voiture).
   mode USB ne change pas. Testé sur PC.
 - Réception Android Auto : réutilise les tampons pendant chaque connexion, sans changer les limites du protocole.
   Les tampons de messages assemblés de plus de 1 Mio sont libérés après usage. Testé sur PC.
+
+### Corrigé
+
+- Marche arrière : la sortie de marche arrière arrive parfois avant la fermeture de la caméra, et Android Auto pouvait
+  revenir trop tôt. L'appli attend maintenant que l'iDrive revienne sur une page de l'appli, ou que le conducteur
+  choisisse Android Auto (Ouvrir, entrée), 15 s au plus
+  ([#114](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/114), adapté du travail d'AramayisAntonyan). Testé
+  sur PC, pas encore essayé en voiture.
+- Réception Android Auto : un morceau de message (MIDDLE ou LAST) arrivé sans son début est rejeté, au lieu de donner
+  une image ou un accusé de trop ([#115](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/115), adapté de
+  Sq00ky). Testé sur PC.
 
 ## [0.13.0-rc.5] - 2026-11-19 · PC
 
@@ -411,7 +428,8 @@ Première version publique. Essayée sur une BMW G20 de 2019, logiciel iDrive `2
   encore suivie sur une voiture.
 - Voir les [limites connues](ROADMAP.md#limites-connues).
 
-[Non publié]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/compare/v0.13.0-rc.5...HEAD
+[Non publié]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/compare/v0.13.0-rc.6...HEAD
+[0.13.0-rc.6]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.6
 [0.13.0-rc.5]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.5
 [0.13.0-rc.4]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.4
 [0.13.0-rc.3]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.3
