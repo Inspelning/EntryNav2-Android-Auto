@@ -399,6 +399,11 @@ void HoldMachine::poll(const ServiceState& service, long now) {
     const bool rose = overlay && !prevOverlay_, fell = !overlay && prevOverlay_;
     prevOverlay_ = overlay;
     const bool blank = blankShown();
+    if (blank) {
+        // iDrive is back on the blank state: an earlier departure was not a hard key. The next one needs its own
+        // second poll, or two short departures within 3 s would add up to a "hide" with no key pressed.
+        leftSeen_ = 0;
+    }
     // Covered: the blank state is still shown but none of our states has the focus (an iDrive popup over it).
     // Not while the blank state, taken under our own popup, has not had the focus yet: what refused our pages is
     // still on top of it, and it is not a popup the driver can see.

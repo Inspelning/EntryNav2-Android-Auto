@@ -70,6 +70,10 @@ QEMU avec les bibliothèques de la voiture).
   Pendant un appel, COM est laissé à l'écran d'appel de l'iDrive, et cette règle retenait aussi le relâché d'un appui
   déjà envoyé à Android Auto. Le relâché suit désormais toujours son appui ; un COM appuyé pendant l'appel reste à
   l'iDrive, comme avant. Testé sur PC.
+- Appli iDrive : Android Auto pouvait se retirer sans qu'aucune touche soit appuyée. Quand l'iDrive quittait la page
+  vide le temps d'un relevé, y revenait, puis la quittait encore le temps d'un relevé moins de 3 s plus tard, l'appli
+  prenait ces deux départs pour une touche de l'iDrive confirmée (MENU, MEDIA…). Le premier départ est désormais
+  oublié dès que la page vide revient ; une vraie touche est toujours confirmée au relevé suivant. Testé sur PC.
 
 ## [0.13.0-rc.7] - 2026-11-20 · PC
 

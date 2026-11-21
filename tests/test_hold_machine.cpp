@@ -836,6 +836,20 @@ void hardKeys() {
         c.poll();
         CHECK_OUT(c, "hide");
     }
+    {  // away for one poll, back, then away for one poll again within 3 s: two short departures are not a hard key
+        Car c;
+        heldOnBlank(c);
+        c.blankLeft();
+        c.poll();  // first sighting
+        c.blankShown();
+        c.poll();  // back on the blank state: that sighting is forgotten
+        c.blankLeft();
+        c.poll();  // a new first sighting, not the confirmation of the old one
+        CHECK_OUT(c, "");
+        CHECK(c.hold.holding());
+        c.poll();  // still away a second later: a hard key
+        CHECK_OUT(c, "hide");
+    }
     {  // iDrive back on the blank state before the service stepped aside: still no main menu, it was asked to go
         Car c;
         heldOnBlank(c);
