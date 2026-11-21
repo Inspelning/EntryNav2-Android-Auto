@@ -66,6 +66,10 @@ QEMU avec les bibliothèques de la voiture).
   le départ de l'image n'était pas envoyé, et le service oubliait ce doigt sans plus rien avoir à relâcher. Le relâché
   d'un doigt que le téléphone a vu se poser lui est désormais toujours envoyé ; rien d'autre ne part une fois l'image
   partie. Testé sur PC.
+- Touches : COM appuyé juste avant le début d'un appel restait enfoncé sur le téléphone jusqu'au départ de l'image.
+  Pendant un appel, COM est laissé à l'écran d'appel de l'iDrive, et cette règle retenait aussi le relâché d'un appui
+  déjà envoyé à Android Auto. Le relâché suit désormais toujours son appui ; un COM appuyé pendant l'appel reste à
+  l'iDrive, comme avant. Testé sur PC.
 
 ## [0.13.0-rc.7] - 2026-11-20 · PC
 

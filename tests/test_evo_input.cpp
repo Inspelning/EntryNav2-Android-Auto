@@ -378,6 +378,32 @@ int main() {
             rec.n = beforeHold;  // the recorder keeps 16 events
             rec.apps = appsBefore;
         }
+        // COM held when a call starts: its press went to Android Auto, so its release goes there too instead of
+        // iDrive's call screen, or the phone keeps the key down. A COM pressed during the call stays iDrive's.
+        {
+            const int beforeCall = rec.n, appsBefore = rec.apps, localsBefore = rec.locals;
+            pv.data = kCom;
+            kk.onMessage(pv);
+            CHECK(rec.n == beforeCall + 1 && rec.e[beforeCall].keycode == aa::AAK_TEL && rec.e[beforeCall].down == 1);
+            kk.setPhoneToIdrive(true);  // the call starts while COM is held
+            pv.data = k0;
+            kk.onMessage(pv);
+            CHECK(rec.n == beforeCall + 2 && rec.e[beforeCall + 1].keycode == aa::AAK_TEL &&
+                  rec.e[beforeCall + 1].down == 0 && rec.locals == localsBefore);
+            kk.setOwned(false);
+            kk.pollTurnForTest();  // nothing is left held: no second release when the picture goes
+            CHECK(rec.n == beforeCall + 2);
+            kk.setOwned(true);
+            pv.data = kCom;
+            kk.onMessage(pv);
+            pv.data = k0;
+            kk.onMessage(pv);
+            CHECK(rec.n == beforeCall + 2 && rec.locals == localsBefore + 1 && !strcmp(rec.localKey, "COM"));
+            kk.setPhoneToIdrive(false);
+            rec.n = beforeCall;
+            rec.apps = appsBefore;
+            rec.locals = localsBefore;
+        }
         // An ignored controller instance must not change the state retained for status 7 (no information).
         const int beforeForeign = rec.n;
         pv.inst = 5;
@@ -780,7 +806,8 @@ int main() {
         "relache, doublon, trame fragmentee, relache forcee, rien avant l'image, relache d'un doigt vu par le "
         "telephone apres le depart de l'image), message vMOST -> decodeur molette ; "
         "touches comme CarPlay (effleurement ignore, NAV/MEDIA/COM et bouton telephone du volant -> applis AA, COM a "
-        "l iDrive pendant un appel) ; touches selon le codage de la voiture, comme l iDrive (controleur G ou F, F20 "
-        "ZBE3 #55, double MEDIA) ; boutons de volume console/volant decodes ; niveau du volume (20.00.C08)");
+        "l iDrive pendant un appel, sauf le relache d'un COM appuye avant) ; touches selon le codage de la voiture, "
+        "comme l iDrive (controleur G ou F, F20 ZBE3 #55, double MEDIA) ; boutons de volume console/volant decodes ; "
+        "niveau du volume (20.00.C08)");
     return 0;
 }

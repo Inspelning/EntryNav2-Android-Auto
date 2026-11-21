@@ -413,9 +413,12 @@ void EvoKnob::onMessage(const VmostMsgView& m) {
             mediaCb_(MediaDoublePress::kOtherInput, mediaUser_);
         }
         const char* what = ev[i].what ? ev[i].what : "?";
+        // A release whose press reached Android Auto follows it there, before anything else is decided: COM pressed
+        // just before a call started must come up on the phone, not on iDrive's call screen.
+        const bool releaseToPhone = ev[i].kind == 1 && !ev[i].down && takeHeld(ev[i].keycode);
         // During a call, COM stays with iDrive's call screen (CarPlay does the same: ICallManager check).
-        const bool localKey =
-            ev[i].kind == 1 && (ev[i].keycode == 0 || (ev[i].keycode == aa::AAK_TEL && phoneToIdrive_));
+        const bool localKey = !releaseToPhone && ev[i].kind == 1 &&
+                              (ev[i].keycode == 0 || (ev[i].keycode == aa::AAK_TEL && phoneToIdrive_));
         if (localKey) {  // hard key left to iDrive (configureHardKeys)
             if (ev[i].down) {
                 ELOG("Knob", "key %s left to iDrive (not sent to AA)", what);
@@ -432,7 +435,7 @@ void EvoKnob::onMessage(const VmostMsgView& m) {
         bool forward = send;
         if (ev[i].kind == 1) {
             if (!ev[i].down) {
-                forward = takeHeld(ev[i].keycode);
+                forward = releaseToPhone;
             } else if (send) {
                 takeHeld(ev[i].keycode);  // pressed again without a release: still held once
                 if (nHeld_ < static_cast<int>(sizeof(held_) / sizeof(held_[0]))) {
