@@ -163,8 +163,15 @@ void ServiceApp::frame(uint32_t, const uint8_t* data, size_t len, uint64_t pts, 
         // Phone frames never wait for mu: the main loop holds it while LayerManagerControl runs (show/hide,
         // opacity), which would stall the picture.
         ++a->videoFrames;
-        if (a->video.postVideoFrame(data, len, pts) == FrameFate::kLost) {
+        const FrameFate fate = a->video.postVideoFrame(data, len, pts);
+        if (fate == FrameFate::kLost) {
             a->session.postKeyframeRequest();  // the session decides whether and when to ask the phone
+        } else if (fate == FrameFate::kStalled) {
+            // Only a new decoder takes frames again, and the next connection starts one. The session ends as lost:
+            // over Wi-Fi the phone's Bluetooth link is then closed for a fresh start (wireless_loop.cpp), over USB
+            // the phone is asked again (usb_loop.cpp).
+            ELOG("ServiceApp", "decoder stalled: the session ends so that the phone comes back to a new decoder");
+            a->session.giveUp();
         }
     }
 }

@@ -120,6 +120,7 @@ bool EvoVideo::start() {
     started_ = true;
     configSent_ = false;
     framesAtStart_ = framesIn_;
+    stall_.restart();  // a new decoder; no frame is posted before start() returns
     if (pthread_create(&evThread_, nullptr, eventStub, this) == 0) {
         evStarted_ = true;
     } else {
@@ -248,11 +249,13 @@ FrameFate EvoVideo::postVideoFrame(const uint8_t* data, size_t len, uint64_t pts
     size_t need = len + (prependCfg ? codecCfg_.size() : 0);
 
     int bi = pool_.acquireFree();
-    // Bounded wait for a free buffer (the event thread releases one on each DMABUF_COMPLETE).
+    // Bounded wait for a free buffer (the event thread releases one on each DMABUF_COMPLETE); none once the decoder
+    // has stalled, so that the session thread no longer loses 20 ms on every frame.
+    const bool wait = bi < 0 && !stall_.stuck(monoMs());
     struct timespec ts;
     ts.tv_sec = 0;
     ts.tv_nsec = 0;
-    while (bi < 0 && running_) {
+    while (bi < 0 && wait && running_) {
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);  // the clock cv_ was created with
         ts = now;
@@ -268,9 +271,16 @@ FrameFate EvoVideo::postVideoFrame(const uint8_t* data, size_t len, uint64_t pts
     }
     if (bi < 0) {
         ++framesDropped_;
+        const bool stalled = stall_.starved(monoMs(), visible_);
         pthread_mutex_unlock(&mu_);
+        if (stalled) {
+            ELOG("Video", "no buffer back from the decoder for %u ms, all %u out: decoder stalled",
+                 DecoderStall::kLimitMs, cfg_.bufCount);
+            return FrameFate::kStalled;
+        }
         return FrameFate::kLost;
     }
+    stall_.bufferBack();
 
     DmaBufPool::Buf& b = pool_.at(bi);
     if (need > b.size) {
@@ -341,6 +351,7 @@ void EvoVideo::eventLoop() {
                 int bi = pool_.find(evt[1]);
                 if (bi >= 0) {
                     pool_.at(bi).inFlight = false;
+                    stall_.bufferBack();
                     pthread_cond_signal(&cv_);
                 }
                 pthread_mutex_unlock(&mu_);

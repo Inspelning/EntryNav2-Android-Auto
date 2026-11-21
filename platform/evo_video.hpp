@@ -50,6 +50,47 @@ enum class FrameFate {
     kLost,      // dropped (no free buffer in time, larger than a buffer) or refused by the decoder: the frames after it
                 // refer to a picture the decoder never had
     kNoStream,  // the decoder is not running
+    kStalled,   // dropped, and the decoder gives no buffer back any more (DecoderStall): only a new one shows the
+                // phone again. Once per start().
+};
+
+// Whether libxsvideo has stopped giving the dma-bufs back. Each buffer returns with DMABUF_COMPLETE; after a decoding
+// error, its watchdog or an abort, none may come back. Every buffer then stays out, each later frame waits for one in
+// vain and is dropped, and the picture stays frozen while the phone goes on streaming.
+// Counted only while our surface is shown: whether libxsvideo still takes frames for a hidden surface was never seen
+// (park assist hides it while the phone keeps streaming), and a hidden picture freezes nothing.
+// Under EvoVideo's lock; monotonic milliseconds from the caller, compared with wrap-around.
+class DecoderStall {
+public:
+    static const uint32_t kLimitMs = 3000;  // no buffer free for that long, on screen: stalled
+
+    DecoderStall() : sinceMs_(0), starving_(false), reported_(false) {}
+    // A new decoder.
+    void restart() { starving_ = reported_ = false; }
+    // A buffer came back, or a frame found one free.
+    void bufferBack() { starving_ = false; }
+    // A frame found no free buffer. True once per decoder: when it has been so for kLimitMs on screen.
+    bool starved(uint32_t nowMs, bool shown) {
+        if (!shown) {
+            starving_ = false;  // starts again once shown
+            return false;
+        }
+        if (!starving_) {
+            starving_ = true;
+            sinceMs_ = nowMs;
+        }
+        if (reported_ || !stuck(nowMs)) {
+            return false;
+        }
+        reported_ = true;
+        return true;
+    }
+    // Stalled: a frame is dropped at once instead of waiting for a buffer that will not come.
+    bool stuck(uint32_t nowMs) const { return starving_ && nowMs - sinceMs_ >= kLimitMs; }
+
+private:
+    uint32_t sinceMs_;  // the first frame that found no buffer, while starving_
+    bool starving_, reported_;
 };
 
 class EvoVideo {
@@ -92,6 +133,7 @@ private:
     pthread_mutex_t mu_;
     pthread_cond_t cv_;              // signalled when a dma-buf is released; waits use CLOCK_MONOTONIC
     std::vector<uint8_t> codecCfg_;  // cached SPS/PPS
+    DecoderStall stall_;
     bool seenFirstFrame_;
     uint64_t framesIn_, framesDropped_, idrSeen_, framesAtStart_;
 };

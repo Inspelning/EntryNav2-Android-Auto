@@ -68,6 +68,7 @@ AASession::AASession()
       longestSilenceMs_(0),
       goodbye_(false),
       lastReceivedMs_(0),
+      givenUp_(false),
       videoReady_(false),
       projected_(false),
       unreadableInARow_(0),
@@ -232,6 +233,7 @@ bool AASession::start(int client_fd) {
     memset(mediaSessions_, 0, sizeof(mediaSessions_));
     audioMessages_[0] = audioMessages_[1] = 0;
     lastReceivedMs_ = 0;  // the previous thread is joined
+    givenUp_ = false;
     longestSilenceMs_.store(0);
     goodbye_.store(false);  // after the ended callback of a session replaced above
     resetCounters();
@@ -282,6 +284,10 @@ void AASession::run() {
             Message().swap(message);
         }
         if (received == kLost || !keepRunning || sendBroken_) {
+            break;
+        }
+        if (givenUp_) {
+            printf("[AASession] The car gave the session up.\n");
             break;
         }
     }

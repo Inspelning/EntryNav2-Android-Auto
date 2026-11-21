@@ -52,6 +52,10 @@ public:
     // The phone ended this session with ByeBye (the user left Android Auto), rather than going silent or breaking the
     // connection. Read by the ended callback; reset by start().
     bool phoneSaidGoodbye() const { return goodbye_.load(); }
+    // The car gives the session up, as when the phone is gone (its video decoder stalled). From a callback on the
+    // session thread only: the session ends once that callback returns, its ended callback runs, and
+    // phoneSaidGoodbye() stays false.
+    void giveUp() { givenUp_ = true; }
 
     // Set before start().
     void setDisconnectCallback(SessionEndedCallback cb, void* user_data = nullptr);
@@ -168,6 +172,7 @@ private:
     std::atomic<bool> goodbye_;  // set on the session thread, read by the ended callback
     // Session thread only.
     uint64_t lastReceivedMs_;  // when the phone last sent anything, 0 before its first byte
+    bool givenUp_;             // giveUp() was called
     TlsClient tls_;
     MessageAssembler assembler_;
     bool videoReady_;  // the phone set the video channel up: a focus can go

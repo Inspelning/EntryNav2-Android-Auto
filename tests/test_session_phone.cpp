@@ -25,6 +25,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <initializer_list>
 #include <string>
 #include <vector>
@@ -1176,6 +1177,55 @@ std::string keyframeAfterLoss() {
     return std::string();
 }
 
+void giveUpOnVideo(uint32_t, const uint8_t*, size_t, uint64_t, void* user) {
+    static_cast<aa::AASession*>(user)->giveUp();
+}
+
+// The car gives the session up from its video callback (a stalled decoder): the session closes the phone's
+// connection at once, long before its silence limit would, and ends as when the phone is gone, its ended callback
+// included, not as a goodbye.
+std::string carGivesUp() {
+    aa::AASession session;
+    watch(session, true);
+    session.setVideoFrameCallback(giveUpOnVideo, &session);
+    int fds[2];
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds) != 0) {
+        return "socketpair";
+    }
+    if (!session.start(fds[0])) {
+        close(fds[1]);
+        return "session start";
+    }
+    std::vector<std::string> log;
+    Phone phone(fds[1], log);
+    phone.handshake();
+    phone.discover();
+    phone.send(6, kSealed, bytes({0x80, 0x00}));
+    phone.send(6, kSealed, bytes({0x80, 0x01, 0x08, 0x03}));
+    phone.settle();
+    takeEvents();
+    const bool before = session.isActive();
+    const long long since = monotonicMs();
+    phone.send(6, kSealed, bytes({0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0x01, 0x65}));
+    phone.untilClosed();
+    const long long closedAfter = monotonicMs() - since;
+    const bool ended = waitEnded(session);
+    const bool goodbye = session.phoneSaidGoodbye();
+    session.stop();  // joins the thread: its ended callback has run
+    close(fds[1]);
+    const std::vector<std::string> events = takeEvents();
+    const bool endedCallback = std::find(events.begin(), events.end(), "ended") != events.end();
+    // Under the 2 s after which a silent phone gets pings, and far under the 5 s that would end the session anyway.
+    if (!before || !ended || log.empty() || log.back() != "hu <closed>" || closedAfter >= 1500) {
+        return format("active before=%d, ended=%d, connection closed=%d after %lld ms", before ? 1 : 0, ended ? 1 : 0,
+                      !log.empty() && log.back() == "hu <closed>" ? 1 : 0, closedAfter);
+    }
+    if (!endedCallback || goodbye) {
+        return format("ended callback=%d, counted as a goodbye=%d", endedCallback ? 1 : 0, goodbye ? 1 : 0);
+    }
+    return std::string();
+}
+
 struct Scenario {
     const char* name;
     void (*run)(std::vector<std::string>&);
@@ -1331,6 +1381,8 @@ int main(int argc, char** argv) {
     const std::string stalled = writing ? std::string() : stalledSend();
     const std::string keyframe = writing ? std::string() : keyframeAfterLoss();
     takeEvents();
+    const std::string givenUp = writing ? std::string() : carGivesUp();
+    takeEvents();
     const bool oversized = writing || streamVideo(2);
     fflush(stdout);
     dup2(console, 1);
@@ -1386,6 +1438,11 @@ int main(int argc, char** argv) {
         return 1;
     }
     puts("PASS session, keyframe after a lost frame: focus off and on, not in the first 5 s, once in 10 s");
+    if (!givenUp.empty()) {
+        printf("FAIL session, given up by the car: %s\n", givenUp.c_str());
+        return 1;
+    }
+    puts("PASS session, given up by the car from its video callback: connection closed, ended, not a goodbye");
     if (!oversized) {
         fprintf(stderr, "FAIL session, oversized fragmented video followed by small video\n");
         return 1;

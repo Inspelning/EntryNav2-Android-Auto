@@ -29,6 +29,12 @@ QEMU avec les bibliothèques de la voiture).
   arrivés incomplets, morceau illisible) n'était jamais accusé et gardait une de ces places pour de bon, et au dixième
   le flux s'arrêtait. Chaque message écarté est désormais accusé une fois, et le reste d'un message perdu en route est
   ignoré sans bruit jusqu'à son dernier morceau. Testé sur PC.
+- Image : si le décodeur vidéo de la voiture cessait de rendre ses tampons (après une erreur de décodage, son chien de
+  garde ou un abandon), l'image d'Android Auto restait figée jusqu'à la fin de la séance, le téléphone continuant
+  d'envoyer des images qui ne trouvaient plus de place. Quand aucun tampon n'est revenu depuis 3 s alors que l'image
+  est à l'écran, le service le note une fois et met fin à la séance comme à une coupure : le téléphone revient sur un
+  décodeur neuf (sans fil : son lien Bluetooth est fermé pour repartir ; USB : il est redemandé). Les images suivantes
+  n'attendent plus 20 ms chacune un tampon qui ne viendra pas. Testé sur PC.
 
 ## [0.13.0-rc.7] - 2026-11-20 · PC
 
