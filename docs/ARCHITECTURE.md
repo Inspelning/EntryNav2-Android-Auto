@@ -66,7 +66,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `controller_layout.hpp` | Quelle touche est chaque bouton, selon le codage de la voiture, comme l'iDrive (contrôleur type G ou F) |
 | `car_brand.hpp` | Marque codée dans l'iDrive (BMW ou MINI) : marque annoncée au téléphone, bords de l'écran cachés par le rond des MINI |
 | `evo_gps` | Lecture passive du GPS de la voiture |
-| `evo_mic` | Micro de la voiture pour l'Assistant |
+| `evo_mic` | Micro de la voiture pour l'Assistant, lu sans blocage ; réouvert au plus une fois par seconde après un échec |
 | `evo_wlan`, `evo_ap` | Wi-Fi de la voiture, allumé comme le fait CarPlay |
 | `wifi_link` | Qualité de la liaison Wi-Fi avec le téléphone, lue dans le noyau pour les journaux, avec l'état du lien Bluetooth des BMW Apps (testé sur PC) |
 | `alps_spp`, `evo_spp_snapshot` | Pile Bluetooth de la voiture : commandes, et lecture de son état en mémoire |
@@ -118,6 +118,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `tests/test_kombi_golden.cpp` | Chaque trame envoyée au compteur, octet par octet, comparée à un relevé figé |
 | `tests/test_peek_timing.cpp`, `tests/test_wireless_lifecycle.cpp` | Effacement de l'image, cycle de vie Bluetooth puis Wi-Fi du service |
 | `tests/test_volume_state.cpp` | Pastille du volume : niveau d'une autre source ignoré, répétitions, touches, sourdine |
+| `tests/test_evo_mic.cpp` | Micro de la voiture sur une fausse libasound (`tests/fake_libasound.c`) : son transmis, arrêt immédiat avec un micro muet ou en panne, réouverture espacée |
 | `tests/test_wifi_link.cpp` | Qualité du Wi-Fi : messages du noyau, ligne de journal, connexion rendue en fin de session |
 | `tests/test_pending_restart.cpp` | Redémarrage d'Android Auto quand la case du câble USB change en marche |
 | `tests/test_hold_machine.cpp` | Page vide de l'iDrive : ouverture, démarrage automatique, fenêtres, modes, appels, touches |

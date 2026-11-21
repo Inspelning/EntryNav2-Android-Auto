@@ -169,6 +169,10 @@ test-host: test-parsers test-spp-host test-kombi-host test-gps-host test-capture
 	gcc -std=c99 -Wall -Wextra -Werror -shared -fPIC tests/fake_vmostclient.c -o tests/fake-vmostclient.so
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_evo_wlan.cpp platform/evo_wlan.cpp platform/vmost_client.cpp -ldl -o tests/test-evo-wlan
 	./tests/test-evo-wlan $(CURDIR)/tests/fake-vmostclient.so
+	gcc -std=c99 -Wall -Wextra -Werror -shared -fPIC -Wl,-soname,libasound.so.2 tests/fake_libasound.c -pthread \
+	    -o tests/fake-libasound.so
+	$(HOST_CXX) $(HOST_FLAGS) tests/test_evo_mic.cpp platform/evo_mic.cpp -ldl -o tests/test-evo-mic
+	./tests/test-evo-mic $(CURDIR)/tests/fake-libasound.so
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_spawn_attr.cpp -o tests/test-spawn-attr
 	./tests/test-spawn-attr
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_popup_peek.cpp -o tests/test-popup-peek
