@@ -107,6 +107,22 @@ Apps est lu dans la mémoire de la pile Bluetooth BMW, comme au démarrage, sans
 Auto occupe lui-même l'emplacement des BMW Apps (`takes SPP 0` dans le journal du superviseur). Par câble USB, il n'y a
 pas de ligne `[WifiLink]`.
 
+### Silences du téléphone et espacement des images
+
+Journaux activés, le service écrit aussi une ligne `[Session]` toutes les 10 secondes d'une session, sans fil ou USB :
+
+```text
+[Session] in 10 s: the phone's longest silence 120 ms; video: 298 frames, 41 within 25 ms of the previous one,
+38 held (longest 23 ms)
+```
+
+| Partie | Sens |
+|---|---|
+| `longest silence` | Plus long moment sans rien recevoir du téléphone. Plusieurs secondes : la liaison s'est bloquée |
+| `frames` | Images reçues du téléphone |
+| `within 25 ms of the previous one` | Images arrivées moins de 25 ms après la précédente : des images par paires, dont l'écran ne dessine que la seconde |
+| `held`, `longest` | Sans fil seulement : images retenues jusqu'à 25 ms après la précédente, et la plus longue attente. Toujours 0 en USB |
+
 ### Effacer les journaux
 
 Pour revenir à zéro journal :

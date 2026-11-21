@@ -8,6 +8,16 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+### Modifié
+
+- Sans-fil : une image qui arrive moins de 25 ms après la précédente attend le reste de ce délai avant d'aller au
+  décodeur. Par le Wi-Fi, des images peuvent arriver par paires, à quelques millisecondes d'écart : l'écran ne dessine
+  que la dernière reçue à chaque rafraîchissement, la première de la paire n'est jamais affichée, et l'image saccade
+  sans que rien ne soit perdu sur le réseau. L'image qui suit une image retenue n'attend jamais : le retard ajouté reste
+  de 25 ms au plus et ne s'accumule pas, et les images bien espacées passent tout de suite. Le mode USB ne change pas.
+  La ligne du journal de maintenance écrite toutes les 10 s compte les images arrivées trop près de la précédente,
+  celles retenues et la plus longue attente, pour voir si nos voitures ont ce défaut. Testé sur PC.
+
 ### Corrigé
 
 - Sans-fil : à l'arrêt, le Bluetooth pouvait ne pas être rendu quand le téléphone cherchait encore la voiture, et

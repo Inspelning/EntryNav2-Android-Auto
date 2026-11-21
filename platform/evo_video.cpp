@@ -3,6 +3,8 @@
 // Android Auto video: libxsvideo decoder, dma-buf feeding and surface visibility (see evo_video.hpp).
 #include "evo_video.hpp"
 
+#include <unistd.h>
+
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
@@ -25,7 +27,8 @@ EvoVideoConfig::EvoVideoConfig()
       surfaceId(kAaSurfaceId),
       layerId(kAaLayerId),
       bufCount(8),
-      bufSize(1u << 20) {}
+      bufSize(1u << 20),
+      holdCloseFrames(false) {}
 
 EvoVideo::EvoVideo()
     : h_(nullptr),
@@ -121,6 +124,9 @@ bool EvoVideo::start() {
     configSent_ = false;
     framesAtStart_ = framesIn_;
     stall_.restart();  // a new decoder; no frame is posted before start() returns
+    pthread_mutex_lock(&mu_);
+    gap_.restart(cfg_.holdCloseFrames);  // its counts are taken by the main loop
+    pthread_mutex_unlock(&mu_);
     if (pthread_create(&evThread_, nullptr, eventStub, this) == 0) {
         evStarted_ = true;
     } else {
@@ -240,6 +246,17 @@ FrameFate EvoVideo::postVideoFrame(const uint8_t* data, size_t len, uint64_t pts
     }
 
     pthread_mutex_lock(&mu_);
+    // A frame right behind the previous one waits for the rest of kFrameGapMs, without the lock (FrameGap).
+    const uint32_t holdMs = gap_.arrive(monoMs());
+    if (holdMs) {
+        pthread_mutex_unlock(&mu_);
+        usleep(holdMs * 1000);
+        pthread_mutex_lock(&mu_);
+        if (!running_) {
+            pthread_mutex_unlock(&mu_);
+            return FrameFate::kNoStream;
+        }
+    }
     bool idr = isIdr(data, len);
     if (idr) {
         ++idrSeen_;
@@ -313,6 +330,13 @@ FrameFate EvoVideo::postVideoFrame(const uint8_t* data, size_t len, uint64_t pts
         return FrameFate::kLost;
     }
     return FrameFate::kDecoding;
+}
+
+FrameGapStats EvoVideo::takeFrameGaps() {
+    pthread_mutex_lock(&mu_);
+    const FrameGapStats taken = gap_.take();
+    pthread_mutex_unlock(&mu_);
+    return taken;
 }
 
 void* EvoVideo::eventStub(void* self) {

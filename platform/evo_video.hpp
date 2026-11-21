@@ -39,9 +39,69 @@ struct EvoVideoConfig {
     uint32_t layerId;                      // kAaLayerId, already visible
     unsigned bufCount;                     // 8 dma-bufs
     uint32_t bufSize;                      // 1 MiB each
-    EvoVideoConfig();                      // the reference car's values
+    bool holdCloseFrames;                  // the phone on Wi-Fi: frames that come in pairs are spread (FrameGap)
+    EvoVideoConfig();                      // the reference car's values; frames never held (USB)
     // The stream and its shown part for a panel. A 1920x1080 stream gets larger buffers for its keyframes.
     void setDisplay(uint32_t canvasWidth, uint32_t canvasHeight, uint32_t panelWidth, uint32_t panelHeight);
+};
+
+// Frames that come too close together. Over Wi-Fi, frames can arrive in pairs a few milliseconds apart: the compositor
+// draws only the latest buffer at each refresh, so the first of a pair never reaches the screen and the picture
+// stutters although nothing is lost on the network.
+// A frame that comes less than kFrameGapMs after the previous one is held for the rest of that time before it goes to
+// the decoder. The frame after a held one is never held: holds never add up, no frame waits more than kFrameGapMs,
+// and evenly spaced frames go through at once. Without holding (USB) early frames are only counted, for the log.
+// Under EvoVideo's lock; monotonic milliseconds from the caller, compared with wrap-around.
+const uint32_t kFrameGapMs = 25;  // under the 33 ms between two frames at 30 frames/s
+
+// What FrameGap saw since its counts were last taken.
+struct FrameGapStats {
+    unsigned frames;         // that arrived
+    unsigned early;          // less than kFrameGapMs after the previous one
+    unsigned held;           // of those, held back
+    uint32_t longestHoldMs;  // 0: none held
+    FrameGapStats() : frames(0), early(0), held(0), longestHoldMs(0) {}
+};
+
+class FrameGap {
+public:
+    FrameGap() : lastMs_(0), hold_(false), seen_(false), lastHeld_(false) {}
+    // A new stream. hold: early frames are held back (Wi-Fi), else only counted.
+    void restart(bool hold) {
+        hold_ = hold;
+        seen_ = lastHeld_ = false;
+        stats_ = FrameGapStats();
+    }
+    // A frame arrived at nowMs: how long to hold it before it goes to the decoder, 0 for at once.
+    uint32_t arrive(uint32_t nowMs) {
+        uint32_t holdMs = 0;
+        const uint32_t sinceMs = nowMs - lastMs_;
+        ++stats_.frames;
+        if (seen_ && sinceMs < kFrameGapMs) {
+            ++stats_.early;
+            if (hold_ && !lastHeld_) {
+                holdMs = kFrameGapMs - sinceMs;
+                ++stats_.held;
+                stats_.longestHoldMs = holdMs > stats_.longestHoldMs ? holdMs : stats_.longestHoldMs;
+            }
+        }
+        // The previous frame went to the decoder when it arrived, unless held: then this one is not.
+        seen_ = true;
+        lastHeld_ = holdMs != 0;
+        lastMs_ = nowMs;
+        return holdMs;
+    }
+    // The counts since the previous call; they start over.
+    FrameGapStats take() {
+        const FrameGapStats taken = stats_;
+        stats_ = FrameGapStats();
+        return taken;
+    }
+
+private:
+    uint32_t lastMs_;  // when the previous frame arrived
+    bool hold_, seen_, lastHeld_;
+    FrameGapStats stats_;
 };
 
 // What became of one frame handed to postVideoFrame.
@@ -110,8 +170,11 @@ public:
 
     // SPS/PPS (the Android Auto codec config): kept and prepended to the first IDR frame after each (re)start.
     void postCodecConfig(const uint8_t* data, size_t len);
-    // One H.264 access unit, copied into a free dma-buf and handed to the decoder.
+    // One H.264 access unit, copied into a free dma-buf and handed to the decoder. On Wi-Fi a frame that comes right
+    // after the previous one waits up to kFrameGapMs first, on the calling thread (FrameGap).
     FrameFate postVideoFrame(const uint8_t* data, size_t len, uint64_t pts);
+    // What FrameGap saw since the previous call (the periodic log line); any thread.
+    FrameGapStats takeFrameGaps();
 
 private:
     static void* eventStub(void* self);
@@ -134,6 +197,7 @@ private:
     pthread_cond_t cv_;              // signalled when a dma-buf is released; waits use CLOCK_MONOTONIC
     std::vector<uint8_t> codecCfg_;  // cached SPS/PPS
     DecoderStall stall_;
+    FrameGap gap_;
     bool seenFirstFrame_;
     uint64_t framesIn_, framesDropped_, idrSeen_, framesAtStart_;
 };

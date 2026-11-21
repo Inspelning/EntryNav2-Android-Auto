@@ -167,6 +167,74 @@ static void stalledDecoder(evo::EvoVideo& video, const evo::EvoVideoConfig& cfg)
     video.stop();
 }
 
+// Which frames FrameGap holds, and for how long, on a clock of our own.
+static void frameGapRule() {
+    const uint32_t gap = evo::kFrameGapMs;
+    evo::FrameGap frames;
+    frames.restart(true);
+    const uint32_t t = 0xffffff80u;             // wraps around between t + 103 and t + 150
+    assert(frames.arrive(t) == 0);              // the first frame of a stream
+    assert(frames.arrive(t + 33) == 0);         // evenly spaced
+    assert(frames.arrive(t + 33 + gap) == 0);   // exactly the gap
+    assert(frames.arrive(t + 100) == 0);        // a pair: the first goes at once,
+    assert(frames.arrive(t + 102) == gap - 2);  // the second waits for the rest of the gap
+    assert(frames.arrive(t + 103) == 0);        // never the frame after a held one
+    assert(frames.arrive(t + 103) == gap);      // the longest hold: no time at all since the previous frame
+    assert(frames.arrive(t + 150) == 0);
+    assert(frames.arrive(t + 150 + gap - 1) == 1);
+    evo::FrameGapStats seen = frames.take();
+    assert(seen.frames == 9 && seen.early == 4 && seen.held == 3 && seen.longestHoldMs == gap);
+    seen = frames.take();  // counted again from zero
+    assert(seen.frames == 0 && seen.early == 0 && seen.held == 0 && seen.longestHoldMs == 0);
+    // Whatever the arrivals, no hold exceeds the gap and two holds never follow each other.
+    uint32_t now = 5, seed = 12345;
+    bool heldBefore = false;
+    for (int i = 0; i < 2000; ++i) {
+        seed = seed * 1103515245u + 12345u;
+        now += (seed >> 16) % 60;  // 0 to 59 ms apart
+        const uint32_t hold = frames.arrive(now);
+        assert(hold <= gap && !(hold && heldBefore));
+        heldBefore = hold != 0;
+    }
+    // Without holding (USB): early frames are counted, none held.
+    frames.restart(false);
+    assert(frames.arrive(10) == 0 && frames.arrive(11) == 0 && frames.arrive(12) == 0);
+    seen = frames.take();
+    assert(seen.frames == 3 && seen.early == 2 && seen.held == 0 && seen.longestHoldMs == 0);
+    // A new stream has no previous frame.
+    frames.restart(true);
+    assert(frames.arrive(12) == 0);
+}
+
+// The hold runs in postVideoFrame over Wi-Fi only; its counts reach the caller.
+static void framesSpread(evo::EvoVideo& video, evo::EvoVideoConfig cfg) {
+    typedef evo::FrameFate Fate;
+    cfg.holdCloseFrames = true;
+    assert(video.init(cfg) && video.start());
+    long long since = nowMs();
+    assert(video.postVideoFrame(kIdr, sizeof(kIdr), 0) == Fate::kDecoding);
+    assert(video.postVideoFrame(kSlice, sizeof(kSlice), 0) == Fate::kDecoding);  // held
+    const long long pair = nowMs() - since;
+    since = nowMs();
+    // Queued behind the held frame: it arrives a gap after it, and would not be held anyway.
+    assert(video.postVideoFrame(kSlice, sizeof(kSlice), 0) == Fate::kDecoding);
+    const long long afterHeld = nowMs() - since;
+    assert(pair >= evo::kFrameGapMs - 5 && afterHeld < 15);
+    evo::FrameGapStats seen = video.takeFrameGaps();
+    assert(seen.frames == 3 && seen.early == 1 && seen.held == 1 && seen.longestHoldMs >= evo::kFrameGapMs - 5);
+    video.stop();
+    // Over the cable: at once, only counted.
+    cfg.holdCloseFrames = false;
+    assert(video.init(cfg) && video.start());
+    since = nowMs();
+    assert(video.postVideoFrame(kIdr, sizeof(kIdr), 0) == Fate::kDecoding);
+    assert(video.postVideoFrame(kSlice, sizeof(kSlice), 0) == Fate::kDecoding);
+    assert(nowMs() - since < 15);
+    seen = video.takeFrameGaps();
+    assert(seen.frames == 2 && seen.early == 1 && seen.held == 0);
+    video.stop();
+}
+
 int main() {
     typedef evo::FrameFate Fate;
     evo::EvoVideoConfig cfg;
@@ -204,4 +272,9 @@ int main() {
     decoderStallRule();
     stalledDecoder(video, cfg);
     puts("PASS video presentation: a decoder that keeps every buffer 3 s on screen is reported once, then no waiting");
+    frameGapRule();
+    framesSpread(video, cfg);
+    puts(
+        "PASS video presentation: over Wi-Fi a frame within 25 ms of the previous one waits the rest, never two in a "
+        "row; USB at once");
 }

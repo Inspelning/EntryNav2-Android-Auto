@@ -281,6 +281,7 @@ int main(int argc, char** argv) {
     }
     evo::ServiceApp app(kAaPort, video, &quit);
     app.videoConfig.setDisplay(display.canvasWidth, display.canvasHeight, display.width, display.height);
+    app.videoConfig.holdCloseFrames = !usb;  // pairs come from the Wi-Fi's bursts, not the cable
     app.session.setDisplay(display);
     app.session.setCarMake(aa::brandName(brand));
     app.usbPort = usbPort ? usbPort : "";
@@ -405,7 +406,7 @@ int main(int argc, char** argv) {
     }
     bool failed = false;
     const uint32_t startedMs = evo::monoMs();
-    bool paceRunning = false;  // logs kept: the phone's longest silence, every 10 s of a session
+    bool paceRunning = false;  // logs kept: the phone's longest silence and the frame gaps, every 10 s of a session
     uint32_t paceMs = 0;
     evo::AdvertisementSchedule advertisement(service ? 60000 : 0);
     while (!quit) {
@@ -427,6 +428,8 @@ int main(int argc, char** argv) {
         if (logsKept) {
             // Wireless or USB: how long the phone went without sending anything. It pings and reports its media
             // every second while it projects, so several seconds here are a link that stalled, whatever the cause.
+            // Then the video frames that came right behind the previous one, and how many were held (Wi-Fi only):
+            // whether this car gets them in pairs (FrameGap).
             const uint32_t nowMs = evo::monoMs();
             if (!turn.active) {
                 paceRunning = false;
@@ -434,9 +437,14 @@ int main(int argc, char** argv) {
                 paceRunning = true;
                 paceMs = nowMs;
                 app.session.takeLongestSilenceMs();  // the start of the session is not a silence
+                app.video.takeFrameGaps();
             } else if (nowMs - paceMs >= 10000) {
-                ELOG("Session", "in %u s: the phone's longest silence %u ms", (nowMs - paceMs + 500) / 1000,
-                     app.session.takeLongestSilenceMs());
+                const evo::FrameGapStats gaps = app.video.takeFrameGaps();
+                ELOG("Session",
+                     "in %u s: the phone's longest silence %u ms; video: %u frames, %u within %u ms of the previous "
+                     "one, %u held (longest %u ms)",
+                     (nowMs - paceMs + 500) / 1000, app.session.takeLongestSilenceMs(), gaps.frames, gaps.early,
+                     evo::kFrameGapMs, gaps.held, gaps.longestHoldMs);
                 paceMs = nowMs;
             }
         }
