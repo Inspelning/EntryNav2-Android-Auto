@@ -146,6 +146,31 @@ int main() {
     early.setPictureStarted(false);  // picture gone mid-gesture: released where it was
     CHECK(frame(early, 100, 410, 2, 60, ev) == 1 && ev[0].action == 1 && ev[0].p[0].y == 400 &&
           early.activeCount() == 0);
+    // The picture steps aside (volume, popup, reverse, MENU) with a finger down on the phone, and its lift is decoded
+    // before the touch thread's next turn: the lift still goes to the phone, which would otherwise keep the finger
+    // down. Nothing else goes once the picture has left: no new touch, no drag, no lift of a finger it never saw.
+    {
+        evo::TouchTracker tr;
+        evo::PhoneFingers phone;
+        CHECK(frame(tr, 200, 100, 1, 0, ev) == 1 && phone.admit(ev[0], true) && phone.any());
+        CHECK(frame(tr, 210, 100, 2, 12, ev) == 1 && phone.admit(ev[0], true));
+        CHECK(frame(tr, 210, 100, 3, 24, ev) == 1 && ev[0].action == 1);
+        CHECK(phone.admit(ev[0], false) && !phone.any());  // the picture has gone: this lift goes all the same
+        CHECK(frame(tr, 300, 100, 1, 36, ev) == 1 && !phone.admit(ev[0], false));  // a new touch is iDrive's
+        CHECK(frame(tr, 300, 100, 3, 48, ev) == 1 && !phone.admit(ev[0], false) && !phone.any());  // so is its lift
+        CHECK(frame(tr, 400, 100, 1, 60, ev) == 1 && phone.admit(ev[0], true));  // the picture is back
+        CHECK(frame(tr, 420, 100, 2, 72, ev) == 1 && ev[0].action == 2 && !phone.admit(ev[0], false));
+        // Two fingers: the phone saw the first one go down, not the second one, which came after the picture left.
+        aa::TouchContact two[2] = {{0, 2, 420, 100, 9}, {1, 1, 600, 300, 9}};
+        unsigned char f2[112];
+        aa::buildTouchFrame(f2, two, 2, 0, 84);
+        CHECK(tr.feed(f2, sizeof(f2), ev, 16) == 1 && ev[0].action == 5 && !phone.admit(ev[0], false));
+        aa::buildTouchFrame(f2, two, 1, 0, 96);  // the second finger lifts
+        CHECK(tr.feed(f2, sizeof(f2), ev, 16) == 1 && ev[0].action == 6 && !phone.admit(ev[0], false));
+        two[0].state = 3;  // then the first one
+        aa::buildTouchFrame(f2, two, 1, 0, 108);
+        CHECK(tr.feed(f2, sizeof(f2), ev, 16) == 1 && ev[0].action == 1 && phone.admit(ev[0], false) && !phone.any());
+    }
     // The same message split over three datagrams.
     evo::TouchTracker s;
     unsigned char whole[112], parts[3 * 112];
@@ -752,7 +777,8 @@ int main() {
         "PASS ancienne molette BMW (C10/C20), lue seulement si la CCS35up reste muette, un seul protocole par voiture "
         "; "
         "entrees : IPv4/UDP de la copie, machine tactile (appui, glisse, "
-        "relache, doublon, trame fragmentee, relache forcee, rien avant l'image), message vMOST -> decodeur molette ; "
+        "relache, doublon, trame fragmentee, relache forcee, rien avant l'image, relache d'un doigt vu par le "
+        "telephone apres le depart de l'image), message vMOST -> decodeur molette ; "
         "touches comme CarPlay (effleurement ignore, NAV/MEDIA/COM et bouton telephone du volant -> applis AA, COM a "
         "l iDrive pendant un appel) ; touches selon le codage de la voiture, comme l iDrive (controleur G ou F, F20 "
         "ZBE3 #55, double MEDIA) ; boutons de volume console/volant decodes ; niveau du volume (20.00.C08)");

@@ -61,6 +61,11 @@ QEMU avec les bibliothèques de la voiture).
   `vehicle` accepte maintenant `side=left` ou `side=right` et `fuel=petrol` ou `fuel=diesel` (sans eux : conduite à
   gauche, essence) ; le téléphone reçoit le côté du conducteur, un seul carburant et aucune prise de recharge
   ([installation](docs/INSTALLATION.md)). Testé sur PC.
+- Toucher : quand l'image d'Android Auto s'effaçait (volume, fenêtre de l'iDrive, marche arrière, MENU) au moment où
+  le doigt se levait, le téléphone pouvait garder ce doigt posé jusqu'au toucher suivant. Le relâché arrivé juste après
+  le départ de l'image n'était pas envoyé, et le service oubliait ce doigt sans plus rien avoir à relâcher. Le relâché
+  d'un doigt que le téléphone a vu se poser lui est désormais toujours envoyé ; rien d'autre ne part une fois l'image
+  partie. Testé sur PC.
 
 ## [0.13.0-rc.7] - 2026-11-20 · PC
 

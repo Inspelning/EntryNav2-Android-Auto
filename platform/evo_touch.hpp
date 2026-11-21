@@ -78,6 +78,22 @@ private:
     int lastN_;
 };
 
+// Which decoded events reach the phone (forward mode), no I/O. Everything while the picture is ours. Once it has gone,
+// only the lift of a finger the phone saw go down: a lift decoded between the picture stepping aside (volume, popup,
+// reverse, MENU) and the touch thread's next turn was dropped, the tracker forgot the finger, and the phone kept it
+// down until the next touch.
+class PhoneFingers {
+public:
+    PhoneFingers() : down_(0) {}
+    // Whether ev goes to the phone, owned: the picture is on screen. Keeps track of the fingers down on the phone.
+    bool admit(const aa::TouchEventOut& ev, bool owned);
+    bool any() const { return down_ != 0; }
+    void clear() { down_ = 0; }
+
+private:
+    unsigned down_;  // bit k: finger k went down on the phone and has not been lifted there yet
+};
+
 class EvoTouch {
 public:
     using Callback = void (*)(const aa::TouchEventOut&, void*);
@@ -116,7 +132,7 @@ private:
     uint32_t lastFrameMs_;
     TouchTracker tracker_;
     unsigned tapped_, touchPdus_, otherPdus_, events_, sent_, stolen_, rawLogged_, eventsLogged_;
-    bool fingerSent_;  // a finger went down on the phone and has not been lifted there yet (touch thread)
+    PhoneFingers phone_;  // touch thread only
 };
 
 }  // namespace evo
