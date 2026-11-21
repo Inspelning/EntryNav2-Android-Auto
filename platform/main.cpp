@@ -286,7 +286,7 @@ int main(int argc, char** argv) {
     app.session.setCarMake(aa::brandName(brand));
     app.usbPort = usbPort ? usbPort : "";
     app.session.setTouchForwarding(input == evo::INPUT_FORWARD);
-    app.session.setVehicleFile(evo::contract::kVehicle);  // the car's model and year, written at installation
+    app.session.setVehicleFile(evo::contract::kVehicle);  // the car's model, year, side, fuel; written at installation
     app.session.setSoftwareVersion(ENTRY_AAD_VERSION);    // the file VERSION, given by the Makefile
     // Declared after app: destroyed (and joined) before the session their callbacks post to.
     evo::EvoTouch touch;

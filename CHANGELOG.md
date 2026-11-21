@@ -55,6 +55,12 @@ QEMU avec les bibliothèques de la voiture).
   calculée entre deux positions pouvait dépasser 70 m/s quand une position arrivait en retard. Toute vitesse envoyée
   reste maintenant sous 70 m/s : une position plus rapide part sans sa vitesse, et une vitesse calculée trop grande
   n'est pas envoyée, ni la direction qui va avec. Testé sur PC.
+- Description de la voiture : le téléphone recevait toujours celle du modèle de Google (le Desktop Head Unit), soit
+  une conduite à gauche, l'essence plus l'électrique et une prise de recharge Tesla Supercharger. Une voiture à volant
+  à droite était donc annoncée à gauche, et Android Auto disposait son écran pour le mauvais côté. Le fichier
+  `vehicle` accepte maintenant `side=left` ou `side=right` et `fuel=petrol` ou `fuel=diesel` (sans eux : conduite à
+  gauche, essence) ; le téléphone reçoit le côté du conducteur, un seul carburant et aucune prise de recharge
+  ([installation](docs/INSTALLATION.md)). Testé sur PC.
 
 ## [0.13.0-rc.7] - 2026-11-20 · PC
 

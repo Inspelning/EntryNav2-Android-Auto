@@ -4,7 +4,7 @@
 
 // Linked with platform/evo_sdr_sensors.cpp: channel 9 is still dropped by the core, the sensor channel is
 // reduced to NIGHT_MODE (10) + DRIVING_STATUS (13) (plus LOCATION with the car's GNSS ring), and every other channel
-// stays byte-identical. Also checks the vehicle file read by SdrIdentity.
+// stays byte-identical. Also checks the vehicle file read by SdrIdentity, and the side and fuel told to the phone.
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -15,6 +15,7 @@
 #include "dhu_sdp.h"
 #include "evo_gps.hpp"
 #include "evo_sdr_sensors.hpp"
+#include "pb.hpp"
 #include "sdr_builder.hpp"
 
 #define CHECK(c)                                                 \
@@ -119,6 +120,17 @@ static bool sub(const std::vector<uint8_t>& b, int num, std::vector<uint8_t>& ou
     }
     return false;
 }
+// Every varint field `num` of a message, in order.
+static std::vector<uint64_t> values(const std::vector<uint8_t>& b, int num) {
+    std::vector<uint64_t> out;
+    const std::vector<F> all = fields(b);
+    for (size_t i = 0; i < all.size(); ++i) {
+        if (all[i].num == num && all[i].wt == 0) {
+            out.push_back(all[i].v);
+        }
+    }
+    return out;
+}
 static uint64_t value(const std::vector<uint8_t>& b, int num) {
     const std::vector<F> all = fields(b);
     for (size_t i = 0; i < all.size(); ++i) {
@@ -201,19 +213,68 @@ int main() {
     unlink(gpsFile);
     std::vector<uint8_t> junk(5, 0xff);  // unparsable input is left alone
     CHECK(evo::filterSdrSensors(junk, evo::keptSensorTypes(false)) == 0 && junk.size() == 5);
-    // Vehicle file (written at installation for another car): model and year only, invalid lines ignored.
+    // Vehicle file (written at installation for another car): model, year, side and fuel, invalid lines ignored.
     char vehicle[96];
     snprintf(vehicle, sizeof(vehicle), "/tmp/entry-sdr-vehicle-%d", int(getpid()));
     f = fopen(vehicle, "w");
     CHECK(f);
-    fputs("model=320d xDrive\r\nyear=2021\nmodel=bad;model\nyear=3021\nother=1\n", f);
+    fputs(
+        "model=320d xDrive\r\nyear=2021\nside=right\r\nfuel=diesel\nmodel=bad;model\nyear=3021\nother=1\n"
+        "side=centre\nside=Left\nfuel=electric\nfuel=petrol \n",
+        f);
     fclose(f);
     aa::SdrIdentity id;
     CHECK(id.carModel == "iDrive" && id.carYear == "2019");
+    CHECK(id.driverPosition == aa::DriverPosition::kLeft && id.fuel == aa::FuelType::kUnleaded);
     CHECK(id.loadVehicleFile(vehicle) && id.carModel == "320d xDrive" && id.carYear == "2021");
+    CHECK(id.driverPosition == aa::DriverPosition::kRight && id.fuel == aa::FuelType::kDiesel);
+    f = fopen(vehicle, "w");  // written again for a left-hand drive petrol car: the last valid line wins
+    CHECK(f);
+    fputs("side=left\nfuel=petrol\n", f);
+    fclose(f);
+    CHECK(id.loadVehicleFile(vehicle) && id.driverPosition == aa::DriverPosition::kLeft &&
+          id.fuel == aa::FuelType::kUnleaded && id.carModel == "320d xDrive");
     unlink(vehicle);
     aa::SdrIdentity none;
     CHECK(!none.loadVehicleFile(vehicle) && none.carModel == "iDrive");
+    CHECK(none.driverPosition == aa::DriverPosition::kLeft && none.fuel == aa::FuelType::kUnleaded);
+    // What the phone is told: the template says left-hand drive (field 6 = 0), unleaded plus electric (fuel types 1
+    // and 10) and a Tesla Supercharger connector (8). A car gets its own side and exactly one fuel, no connector.
+    std::vector<uint8_t> sensorService, source;
+    CHECK(value(orig, 6) == 0 && service(orig, 1, sensorService) && sub(sensorService, 2, source));
+    CHECK(values(source, 3) == std::vector<uint64_t>({1, 10}) && values(source, 4) == std::vector<uint64_t>({8}));
+    const std::vector<uint8_t> leftPetrol =
+        aa::buildCarServiceDiscovery(kDhuSdpProtobuf, kDhuSdpProtobufLen, nullptr, nullptr);
+    CHECK(values(leftPetrol, 6) == std::vector<uint64_t>({0}));
+    CHECK(service(leftPetrol, 1, sensorService) && sub(sensorService, 2, source));
+    CHECK(values(source, 3) == std::vector<uint64_t>({1}) && values(source, 4).empty());
+    CHECK(value(source, 2) == 256);  // the rest of the sensor source stays
+    f = fopen(vehicle, "w");
+    CHECK(f);
+    fputs("side=right\nfuel=diesel\n", f);
+    fclose(f);
+    const std::vector<uint8_t> rightDiesel =
+        aa::buildCarServiceDiscovery(kDhuSdpProtobuf, kDhuSdpProtobufLen, vehicle, nullptr);
+    unlink(vehicle);
+    CHECK(values(rightDiesel, 6) == std::vector<uint64_t>({1}));
+    CHECK(service(rightDiesel, 1, sensorService) && sub(sensorService, 2, source));
+    CHECK(values(source, 3) == std::vector<uint64_t>({4}) && values(source, 4).empty());
+    // Only the side's value and the fuel's value differ: same length, two bytes apart.
+    CHECK(rightDiesel.size() == leftPetrol.size());
+    size_t differing = 0;
+    for (size_t i = 0; i < leftPetrol.size(); ++i) {
+        differing += leftPetrol[i] != rightDiesel[i] ? 1 : 0;
+    }
+    CHECK(differing == 2);
+    // A description without the field still gets the side; one without a sensor channel is left as it was.
+    std::vector<uint8_t> bare;
+    aa::pb::appendString(bare, 2, "BMW");
+    aa::SdrIdentity rightHand;
+    rightHand.driverPosition = aa::DriverPosition::kRight;
+    const std::vector<uint8_t> sided = aa::buildServiceDiscovery(bare.data(), bare.size(), rightHand);
+    CHECK(values(sided, 6) == std::vector<uint64_t>({1}));
+    std::vector<uint8_t> noSensors = sided;
+    CHECK(!aa::declareFuel(noSensors, aa::FuelType::kDiesel) && noSensors == sided);
     CHECK(aa::validCarModel("X3 M40i") && !aa::validCarModel("") && !aa::validCarModel(std::string(25, 'a')) &&
           !aa::validCarModel("a'b") && aa::validCarYear("1999") && !aa::validCarYear("999") &&
           !aa::validCarYear("3000"));
@@ -307,6 +368,7 @@ int main() {
     }
     puts(
         "PASS capteurs AA : modele DHU reduit a NIGHT_MODE + DRIVING_STATUS (le telephone garde son GPS), canal 9 "
-        "toujours retire par le coeur, autres canaux identiques, fichier voiture (modele, annee), version annoncee");
+        "toujours retire par le coeur, autres canaux identiques, fichier voiture (modele, annee, cote, carburant), "
+        "un seul carburant sans prise de recharge, version annoncee");
     return 0;
 }

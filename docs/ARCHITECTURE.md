@@ -38,7 +38,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `pb.hpp` | Écriture des messages protobuf, lecture bornée de ce que le téléphone envoie |
 | `tcp_server` | Attente de la connexion du téléphone sur le Wi-Fi de la voiture |
 | `wireless_setup` | Échange Bluetooth qui transmet le Wi-Fi au téléphone |
-| `sdr_builder` | Description de la voiture envoyée au téléphone ; la plateforme lui donne le fichier `vehicle` et y retire les capteurs absents |
+| `sdr_builder` | Description de la voiture envoyée au téléphone (côté du conducteur et carburant compris) ; la plateforme lui donne le fichier `vehicle` et y retire les capteurs absents |
 | `car_location.hpp` | Position de la voiture vers le capteur Android Auto |
 | `crash_handler` | Trace d'un plantage, puis le nettoyage enregistré par la plateforme |
 | `display_plan.hpp` | Image demandée au téléphone selon la taille de l'écran, et zone montrée |

@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Jiraiya43
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Builds the car's ServiceDiscoveryResponse: identity strings, main display, touchscreen and audio channels.
+// Builds the car's ServiceDiscoveryResponse: identity, driver side, fuel, main display, touchscreen and audio channels.
 #include "sdr_builder.hpp"
 
 #include <cstdio>
@@ -15,6 +15,7 @@ typedef std::vector<uint8_t> Bytes;
 
 // Field numbers along the paths edited here.
 const uint32_t kServiceField = 1;        // top level: one per channel
+const uint32_t kDriverSideField = 6;     // top level: DriverPosition
 const uint32_t kHeadUnitInfoField = 17;  // top level: copies of the identity strings
 const uint32_t kChannelIdField = 1;      // in a service
 const uint32_t kMediaSinkField = 3;      // in a service
@@ -31,6 +32,9 @@ const uint32_t kInsetsField = 1;       // top, bottom, left, right
 const uint32_t kTouchscreenField = 2;  // in an input source
 const uint32_t kWidthField = 1;        // in a touchscreen, with kHeightField
 const uint32_t kHeightField = 2;
+const uint32_t kSensorSourceField = 2;   // in a service
+const uint32_t kSourceFuelTypes = 3;     // in a sensor source, repeated
+const uint32_t kSourceEvConnectors = 4;  // in a sensor source, repeated
 
 const uint32_t kDensity = 140;
 const uint64_t kGuidanceAudio = 1;
@@ -154,7 +158,9 @@ SdrIdentity::SdrIdentity()
       huMake("BMW"),
       huModel("EntryNav2"),
       swBuild("entry-aad"),
-      swVersion("0.0.0") {}
+      swVersion("0.0.0"),
+      driverPosition(DriverPosition::kLeft),
+      fuel(FuelType::kUnleaded) {}
 
 bool validCarModel(const std::string& s) {
     if (s.empty() || s.size() > 24) {
@@ -194,6 +200,20 @@ bool SdrIdentity::loadVehicleFile(const char* path) {
             carModel = line.substr(6);
         } else if (line.compare(0, 5, "year=") == 0 && validCarYear(line.substr(5))) {
             carYear = line.substr(5);
+        } else if (line.compare(0, 5, "side=") == 0) {
+            const std::string side = line.substr(5);
+            if (side == "right") {
+                driverPosition = DriverPosition::kRight;
+            } else if (side == "left") {
+                driverPosition = DriverPosition::kLeft;
+            }
+        } else if (line.compare(0, 5, "fuel=") == 0) {
+            const std::string kind = line.substr(5);
+            if (kind == "diesel") {
+                fuel = FuelType::kDiesel;
+            } else if (kind == "petrol") {
+                fuel = FuelType::kUnleaded;
+            }
         }
     }
     fclose(file);
@@ -202,15 +222,53 @@ bool SdrIdentity::loadVehicleFile(const char* path) {
 
 std::vector<uint8_t> buildServiceDiscovery(const uint8_t* base, size_t baseLen, const SdrIdentity& id) {
     Bytes out;
+    bool sideWritten = false;
     const bool ok = pb::rewriteMessage(base, baseLen, out, [&](const pb::Field& field, Bytes& to) -> bool {
         if (pb::isMessage(field, kHeadUnitInfoField)) {
             return rewriteInner(field, to, [&](const pb::Field& info, Bytes& into) -> bool {
                 return replaceIdentity(info, into, id, &IdentityField::info);
             });
         }
+        if (field.type == pb::kVarint && field.number == kDriverSideField) {
+            pb::appendUint(to, field.number, static_cast<uint64_t>(id.driverPosition));
+            sideWritten = true;
+            return true;
+        }
         return replaceIdentity(field, to, id, &IdentityField::top);
     });
-    return ok ? out : Bytes(base, base + baseLen);
+    if (!ok) {
+        return Bytes(base, base + baseLen);
+    }
+    if (!sideWritten) {
+        pb::appendUint(out, kDriverSideField, static_cast<uint64_t>(id.driverPosition));
+    }
+    return out;
+}
+
+bool declareFuel(std::vector<uint8_t>& sdr, FuelType fuel) {
+    bool changed = false;
+    const bool ok = rewriteChannel(
+        sdr, channel::kSensors,
+        [&](const pb::Field& part, Bytes& to) -> bool {
+            if (!pb::isMessage(part, kSensorSourceField)) {
+                return false;
+            }
+            // Every fuel and connector of the template dropped, then the car's one fuel.
+            Bytes source;
+            if (!pb::rewriteMessage(part.data, part.size, source, [](const pb::Field& field, Bytes&) -> bool {
+                    return field.number == kSourceFuelTypes || field.number == kSourceEvConnectors;
+                })) {
+                return false;
+            }
+            pb::appendUint(source, kSourceFuelTypes, static_cast<uint64_t>(fuel));
+            pb::appendMessage(to, part.number, source);
+            return true;
+        },
+        changed);
+    if (ok && changed) {
+        printf("[SDR] sensor source: fuel %s, no EV connector\n", fuel == FuelType::kDiesel ? "diesel" : "petrol");
+    }
+    return ok && changed;
 }
 
 bool tuneMainDisplay(std::vector<uint8_t>& sdr, const DisplayPlan& display) {
@@ -332,8 +390,10 @@ std::vector<uint8_t> buildCarServiceDiscovery(const uint8_t* base, size_t baseLe
         identity.swVersion = softwareVersion;
     }
     std::vector<uint8_t> sdr = buildServiceDiscovery(base, baseLen, identity);
-    printf("[SDR] ServiceDiscovery identity: %s %s %s (BT channel: none)\n", identity.carMake.c_str(),
-           identity.carModel.c_str(), identity.carYear.c_str());
+    printf("[SDR] ServiceDiscovery identity: %s %s %s, %s-hand drive (BT channel: none)\n", identity.carMake.c_str(),
+           identity.carModel.c_str(), identity.carYear.c_str(),
+           identity.driverPosition == DriverPosition::kRight ? "right" : "left");
+    declareFuel(sdr, identity.fuel);
     tuneMainDisplay(sdr, display);
     declareTouchscreen(sdr, display);
     removeMediaChannel(sdr);
