@@ -50,6 +50,11 @@ QEMU avec les bibliothèques de la voiture).
   pause, en boucle, tant que l'Assistant écoutait. Le micro est désormais lu sans blocage, par tranches de 100 ms ;
   2 s sans son comptent comme une panne, il est rouvert après 1 s, et après 3 pannes de suite sans aucun son il attend
   la demande suivante du téléphone. L'arrêt reste immédiat. Testé sur PC.
+- GPS de la voiture : une seule vitesse de 70 m/s (252 km/h) ou plus suffit pour qu'Android Auto ignore la vitesse de
+  toutes les positions suivantes, jusqu'à la fin de la séance. Le service acceptait jusqu'à 150 m/s, et la vitesse
+  calculée entre deux positions pouvait dépasser 70 m/s quand une position arrivait en retard. Toute vitesse envoyée
+  reste maintenant sous 70 m/s : une position plus rapide part sans sa vitesse, et une vitesse calculée trop grande
+  n'est pas envoyée, ni la direction qui va avec. Testé sur PC.
 
 ## [0.13.0-rc.7] - 2026-11-20 · PC
 
