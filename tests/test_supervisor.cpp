@@ -18,6 +18,28 @@ unsigned configuration = 0, uuidWrites = 0, configWrites = 0, disconnects = 0;
 unsigned transientReads = 0, readerOpens = 0, readerCloses = 0;
 bool failUuid = false, failConfig = false, videoGone = true, liveLink = false, failRead = false;
 bool flipKnown = true;
+// The phone of a lost session, as on the car: while our Android Auto UUID is on the slot, it reconnects kPhoneBackMs
+// after a disconnection, phoneReturns more times. lateWrites: results of the next UUID writes, which reach the stack
+// only once the phone is back (-1: our link saw it first and sent nothing; 7: the stack refused, slot connected).
+// splitWrites: next writes answered 4 with only the transport copy changed, as when the stack cannot close its server.
+const uint32_t kPhoneBackMs = 70;
+unsigned phoneReturns = 0, splitWrites = 0;
+bool phoneComing = false;
+uint32_t droppedAt = 0;
+std::vector<int> lateWrites;
+void phoneStep() {
+    if (!phoneComing || evo::monoMs() - droppedAt < kPhoneBackMs) {
+        return;
+    }
+    phoneComing = false;
+    if (simulated.uuidPayload != aaPayload()) {
+        return;  // no Android Auto record left to come back to
+    }
+    simulated.state = 2;
+    simulated.transportState = 1;
+    simulated.connected = true;
+    liveLink = true;  // its connection opens our link as well
+}
 }  // namespace
 namespace evo {
 unsigned hotspotRequests = 0;
@@ -40,6 +62,7 @@ bool SppSnapshotReader::read(unsigned instance, SppSlotSnapshot& out, bool allow
         out = spare;
         return spareReadable;
     }
+    phoneStep();
     out = simulated;
     if (transientReads) {
         --transientReads;
@@ -55,7 +78,9 @@ bool AlpsSppLink::start(uint8_t instance) {
     return true;
 }
 void AlpsSppLink::setMonitorOnly(bool) {}
-void AlpsSppLink::closeLink() {}
+void AlpsSppLink::closeLink() {
+    liveLink = false;
+}
 bool AlpsSppLink::linkUp() {
     return liveLink;
 }
@@ -83,9 +108,33 @@ bool AlpsSppLink::setDataInterface(uint8_t value, int) {
 }
 int AlpsSppLink::registerUuidPayload(const std::vector<uint8_t>& payload, int) {
     assert(started == testSlot);
+    if (!lateWrites.empty()) {
+        const int result = lateWrites.front();
+        lateWrites.erase(lateWrites.begin());
+        while (phoneComing && evo::monoMs() - droppedAt < kPhoneBackMs) {
+            usleep(1000);
+        }
+        phoneStep();
+        assert(simulated.state == 2 && (result == -1 || result == 7));
+        if (result == 7) {
+            ++uuidWrites;  // sent, and refused by the stack
+        }
+        return result;
+    }
+    if (liveLink) {
+        return -1;  // as the real link: no UUID while a link is up, nothing sent
+    }
     ++uuidWrites;
     if (failUuid) {
         return -1;
+    }
+    if (simulated.state == 2) {
+        return 7;  // as the stack: a connected slot keeps its UUID
+    }
+    if (splitWrites) {
+        --splitWrites;
+        simulated.transportUuidPayload = payload;
+        return 4;
     }
     simulated.uuidPayload = simulated.transportUuidPayload = payload;
     return 0;
@@ -96,6 +145,11 @@ bool AlpsSppLink::requestSppDisconnect() {
     simulated.state = 1;
     simulated.transportState = 0;
     simulated.connected = false;
+    if (phoneReturns) {
+        --phoneReturns;
+        phoneComing = true;
+        droppedAt = evo::monoMs();
+    }
     return true;
 }
 EvoIlm::EvoIlm() {}
@@ -310,6 +364,83 @@ static void slot5Cases(const std::vector<uint8_t>& bmw, const std::vector<uint8_
     spareReadable = false;
     assert(chdir(cwd) == 0 && rmdir(dir) == 0);
 }
+// Our UUID registered, the phone connected, a journal saved: what a stop (or the next start) finds.
+static void connectedWithAa(const Baseline& saved) {
+    assert(save(saved));
+    simulated = evo::SppSlotSnapshot();
+    simulated.uuidPayload = simulated.transportUuidPayload = aaPayload();
+    simulated.state = 2;
+    simulated.transportState = 1;
+    simulated.connected = true;
+    liveLink = false;
+    configuration = 1;  // as the service leaves it
+}
+// Slot 5 given back while the phone of a lost session keeps looking for the car: a phone that comes back within a few
+// tens of milliseconds of each disconnection is never seen idle by a 100 ms check, and every later start is refused.
+static void phoneBackCases(const std::vector<uint8_t>& generic) {
+    uuidWrites = configWrites = disconnects = 0;
+    testSlot = 5;
+    spare = evo::SppSlotSnapshot();
+    spareReadable = false;
+    char cwd[4096];
+    assert(getcwd(cwd, sizeof(cwd)));
+    char dir[] = "/tmp/entry-aa-phone-test-XXXXXX";
+    assert(mkdtemp(dir) && chdir(dir) == 0);
+    evo::SppSnapshotReader reader;
+    Baseline b;
+    b.pid = 123;
+    b.identity = "456";
+    b.instance = 5;
+    b.interface = 0;
+    b.uuid = generic;
+    const std::vector<uint8_t> aa = aaPayload();
+
+    // Back 70 ms after each of two disconnections: the slot is idle before that, and the pair goes back at once.
+    connectedWithAa(b);
+    phoneReturns = 2;
+    uint32_t begin = evo::monoMs();
+    assert(recover(b, reader) && evo::monoMs() - begin < 1000);
+    assert(disconnects == 1 && uuidWrites == 1 && simulated.uuidPayload == generic && !simulated.connected);
+    assert(access(journal, F_OK) != 0);
+    usleep((kPhoneBackMs + 30) * 1000);
+    phoneStep();
+    assert(!phoneComing && simulated.idle());  // no Android Auto record left for the phone to come back to
+    phoneReturns = 0;
+
+    // Twice back before the write (once seen by our link, once refused by the stack), then it lets go.
+    connectedWithAa(b);
+    disconnects = uuidWrites = 0;
+    phoneReturns = 2;
+    lateWrites.push_back(-1);
+    lateWrites.push_back(7);
+    assert(recover(b, reader));
+    assert(disconnects == 3 && uuidWrites == 2 && lateWrites.empty() && simulated.uuidPayload == generic);
+    assert(simulated.transportUuidPayload == generic && configuration == 0 && access(journal, F_OK) != 0);
+
+    // A write answered 4 with only the transport copy changed, the slot still idle: written again, no disconnection.
+    connectedWithAa(b);
+    disconnects = uuidWrites = 0;
+    splitWrites = 1;
+    assert(recover(b, reader));
+    assert(disconnects == 1 && uuidWrites == 2 && splitWrites == 0 && simulated.uuidPayload == generic);
+
+    // A phone that never lets go: bounded rounds and time, the journal kept, nothing claimed.
+    connectedWithAa(b);
+    disconnects = uuidWrites = 0;
+    phoneReturns = 100;
+    lateWrites.assign(10, 7);
+    begin = evo::monoMs();
+    assert(!recover(b, reader) && access(journal, F_OK) == 0);
+    assert(disconnects == kRestoreRounds && uuidWrites == kRestoreRounds && simulated.uuidPayload == aa);
+    assert(evo::monoMs() - begin < kRestoreLimitMs);
+    // Once it lets go, the next start finishes the restore.
+    phoneReturns = 0;
+    lateWrites.clear();
+    phoneComing = false;
+    assert(recover(b, reader) && simulated.uuidPayload == generic && access(journal, F_OK) != 0);
+    liveLink = false;
+    assert(chdir(cwd) == 0 && rmdir(dir) == 0);
+}
 // Which slot a start takes: 5 while it is free, 0 where 5 is not available, none while 5 is in use.
 static void slotCases(const std::vector<uint8_t>& bmw, const std::vector<uint8_t>& generic) {
     const std::vector<uint8_t> aa = aaPayload();
@@ -476,11 +607,12 @@ int main() {
     recoveryCases(genericPair);
     recoveryCases(bmw);
     slot5Cases(bmw, genericPair);
+    phoneBackCases(genericPair);
     slotCases(bmw, genericPair);
     advertisementCases();
     compatBluetoothCases();
     puts(
         "PASS supervisor: actual BMW and generic preflight, exact child snapshot, saved pairs reloaded/restored, "
-        "partial failures and busy/third-party refusals, slot 5 with slot 0 left to BMW Apps, Bluetooth points of "
-        "the check for wireless only");
+        "partial failures and busy/third-party refusals, slot 5 with slot 0 left to BMW Apps, a phone back on the "
+        "slot during the restore, Bluetooth points of the check for wireless only");
 }

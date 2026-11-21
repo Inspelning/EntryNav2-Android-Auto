@@ -8,6 +8,18 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+### Corrigé
+
+- Sans-fil : à l'arrêt, le Bluetooth pouvait ne pas être rendu quand le téléphone cherchait encore la voiture, et
+  les Démarrer suivants étaient alors refusés en moins d'une seconde. Tant que l'enregistrement Android Auto reste
+  sur son emplacement Bluetooth, le téléphone peut s'y reconnecter avant que le superviseur, qui regardait
+  l'emplacement toutes les 100 ms, l'ait vu libre, et la pile Bluetooth de la voiture refuse de changer
+  l'enregistrement d'un emplacement connecté. C'est l'explication la plus probable de
+  [#88](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/88) (MINI F56, Galaxy Z Fold : deux Démarrer
+  refusés après Arrêter). Le superviseur regarde maintenant l'emplacement toutes les 10 ms, remet l'enregistrement
+  d'origine dès qu'il est libre, et redemande la déconnexion quand le téléphone est revenu le premier (4 fois au plus,
+  8 s au plus). Les contrôles d'avant restent, et un retour non confirmé garde toujours son journal. Testé sur PC.
+
 ## [0.13.0-rc.7] - 2026-11-20 · PC
 
 Version candidate : après une coupure du sans-fil, Android Auto revient tout seul quand le téléphone garde son lien

@@ -131,6 +131,98 @@ bool recoverySnapshot(evo::SppSnapshotReader& reader, unsigned instance, evo::Sp
     ELOG("Supervisor", "restore: Alps reading not settled after 3 s: %s; journal kept", reader.error().c_str());
     return false;
 }
+// Giving our slot back races the phone. Its link dropped, the phone looks for the car again and, as long as our
+// Android Auto record is there, can reconnect before a slot read every 100 ms ever sees it idle: the restore failed
+// and every later start was refused (#88). The original pair
+// cannot be written first: the stack answers a UUID change on a connected slot with status 7 and changes nothing
+// (sppSetUUID, libevo_btappl.so), and only these SPP requests exist on its bus. So the slot is watched closely, the
+// pair is written the moment it is idle, and our link is disconnected again when the phone was back first. Bounded:
+// a few rounds within a time limit, and every ownership check stays as it was.
+const useconds_t kSlotWatchUs = 10000;  // between two reads, each of which already takes 20 ms (two passes)
+const uint32_t kIdleWaitMs = 1500;      // per disconnection request
+const unsigned kRestoreRounds = 4;      // rounds (a disconnection while connected, then the write), at most
+const uint32_t kRestoreLimitMs = 8000;  // no new round after this
+// After a disconnection request: true once the slot reads idle. false after waitMs, or as soon as it is connected
+// again after it was seen dropped: the phone was back before the slot settled.
+bool waitIdle(evo::SppSnapshotReader& reader, unsigned slot, evo::SppSlotSnapshot& now, uint32_t waitMs) {
+    const uint32_t begin = evo::monoMs();
+    bool dropped = false;
+    do {
+        usleep(kSlotWatchUs);
+        // Copies that disagree are allowed here: a refused write leaves them so, and the caller checks both.
+        if (!reader.read(slot, now, true)) {
+            continue;
+        }
+        if (now.idle()) {
+            return true;
+        }
+        const bool linked = now.connected || now.state == 2;
+        if (linked && dropped) {
+            return false;
+        }
+        dropped = dropped || !linked;
+    } while (evo::monoMs() - begin < waitMs);
+    return false;
+}
+// Writes the original pair back over ours: now holds ours, the original or one of each, in either copy.
+bool restoreUuid(const Baseline& b, evo::SppSnapshotReader& reader, evo::AlpsSppLink& bt, evo::SppSlotSnapshot& now) {
+    const std::vector<uint8_t> aa = aaPayload();
+    const uint32_t begin = evo::monoMs();
+    for (unsigned round = 1;; ++round) {
+        bool idle = now.idle();
+        int result = 0;
+        if (!idle) {
+            // An unconfirmed partial registration does not establish ownership of a live connection.
+            if (now.uuidPayload != aa) {
+                ELOG("Supervisor",
+                     "restore: SPP busy without a confirmed Android Auto registration: nothing disconnected");
+                return false;
+            }
+            if (!bt.requestSppDisconnect()) {
+                ELOG("Supervisor", "restore: Android Auto SPP disconnect request refused");
+                return false;
+            }
+            idle = waitIdle(reader, b.instance, now, kIdleWaitMs);
+        }
+        if (idle) {
+            if ((now.uuidPayload != aa && now.uuidPayload != b.uuid) ||
+                (now.transportUuidPayload != aa && now.transportUuidPayload != b.uuid)) {
+                ELOG("Supervisor", "restore: UUID changed during the disconnection: journal kept");
+                return false;
+            }
+            // Pump fd may have seen data before DisconnectInd; close only our local bridge.
+            bt.closeLink();
+            result = bt.registerUuidPayload(b.uuid, 3000);
+            if (result == 0) {
+                return true;
+            }
+            // -1 with our link up: the phone reconnected before the request left. -1 otherwise: the stack never
+            // confirmed, and this link refuses any further UUID: stop there.
+            if (result < 0 && !bt.linkUp()) {
+                ELOG("Supervisor", "restore: UUID restore not confirmed (result=%d)", result);
+                return false;
+            }
+        }
+        if (round >= kRestoreRounds || evo::monoMs() - begin >= kRestoreLimitMs) {
+            if (idle) {
+                ELOG("Supervisor", "restore: UUID restore not confirmed (result=%d) after %u rounds", result, round);
+            } else {
+                ELOG("Supervisor", "restore: disconnection of our SPP not confirmed after %u rounds", round);
+            }
+            return false;
+        }
+        if (idle) {
+            ELOG("Supervisor", "restore: original UUID not taken (result=%d%s), round %u/%u: trying again", result,
+                 result == 7 || bt.linkUp() ? ", the phone was back first" : "", round, kRestoreRounds);
+        } else {
+            ELOG("Supervisor", "restore: SPP %u not idle after the disconnection, round %u/%u: asking again",
+                 b.instance, round, kRestoreRounds);
+        }
+        if (!recoverySnapshot(reader, b.instance, now, true)) {
+            return false;
+        }
+    }
+}
 bool recover(const Baseline& b, evo::SppSnapshotReader& reader) {
     if (reader.pid() != b.pid || reader.identity() != b.identity) {
         ELOG("Supervisor", "restore: Alps restarted: journal kept, no old value written back");
@@ -153,44 +245,8 @@ bool recover(const Baseline& b, evo::SppSnapshotReader& reader) {
         ELOG("Supervisor", "restore: Alps bus unavailable");
         return false;
     }
-    if (now.uuidPayload == aa || now.transportUuidPayload == aa) {
-        if (!now.idle()) {
-            // An unconfirmed partial registration does not establish ownership of a live connection.
-            if (now.uuidPayload != aa) {
-                ELOG("Supervisor",
-                     "restore: SPP busy without a confirmed Android Auto registration: nothing disconnected");
-                return false;
-            }
-            if (!bt.requestSppDisconnect()) {
-                ELOG("Supervisor", "restore: Android Auto SPP disconnect request refused");
-                return false;
-            }
-            uint32_t begin = evo::monoMs();
-            bool idle = false;
-            do {
-                usleep(100000);
-                if (reader.read(b.instance, now) && now.idle()) {
-                    idle = true;
-                    break;
-                }
-            } while (evo::monoMs() - begin < 5000);
-            if (!idle) {
-                ELOG("Supervisor", "restore: disconnection of our SPP not confirmed");
-                return false;
-            }
-        }
-        if ((now.uuidPayload != aa && now.uuidPayload != b.uuid) ||
-            (now.transportUuidPayload != aa && now.transportUuidPayload != b.uuid)) {
-            ELOG("Supervisor", "restore: UUID changed during the disconnection: journal kept");
-            return false;
-        }
-        // Pump fd may have seen data before DisconnectInd; close only our local bridge.
-        bt.closeLink();
-        int result = bt.registerUuidPayload(b.uuid, 3000);
-        if (result != 0) {
-            ELOG("Supervisor", "restore: UUID restore not confirmed (result=%d)", result);
-            return false;
-        }
+    if ((now.uuidPayload == aa || now.transportUuidPayload == aa) && !restoreUuid(b, reader, bt, now)) {
+        return false;
     }
     std::vector<uint8_t> cfg;
     // Slot 5's 0x6203 cannot be read back (slotConfigurationReadable): it is written back every time, confirmed by
