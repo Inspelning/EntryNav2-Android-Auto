@@ -19,6 +19,11 @@ QEMU avec les bibliothèques de la voiture).
   refusés après Arrêter). Le superviseur regarde maintenant l'emplacement toutes les 10 ms, remet l'enregistrement
   d'origine dès qu'il est libre, et redemande la déconnexion quand le téléphone est revenu le premier (4 fois au plus,
   8 s au plus). Les contrôles d'avant restent, et un retour non confirmé garde toujours son journal. Testé sur PC.
+- Sans-fil : quand le Wi-Fi calait plusieurs secondes pendant un envoi de la voiture, la séance continuait sur une
+  connexion cassée. L'envoi abandonné au bout de 5 s pouvait laisser un message coupé en deux, et tout ce que la voiture
+  envoyait ensuite devenait illisible pour le téléphone, sans que la séance s'arrête. Un envoi raté met désormais fin à
+  la séance comme une coupure : rien de plus ne part, et le téléphone est relancé comme après une séance perdue.
+  Testé sur PC.
 
 ## [0.13.0-rc.7] - 2026-11-20 · PC
 

@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -1052,6 +1053,67 @@ std::string brokenStream() {
     return std::string();
 }
 
+// A phone whose Wi-Fi stalls takes nothing in while it still speaks: the head unit's send gives up partway through a
+// frame, and whatever followed would be garbage to the phone. The session must end there, as lost and not as a
+// goodbye. The head unit gives a stuck send 5 s (set by start()); to stay fast, the test shortens that on the head
+// unit's end of its own socketpair when the phone stops reading, and shrinks that end's send buffer so that a few
+// microphone chunks fill it.
+std::string stalledSend() {
+    const int kSendBuffer = 4096;            // the kernel doubles it: about two 4 KiB pieces fit
+    const timeval kSendLimit = {0, 300000};  // instead of the head unit's 5 s
+    const long long kEndWithinMs = 3000;     // a session that carries on is still there after this
+    int fds[2];
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds) != 0) {
+        return "socketpair";
+    }
+    aa::AASession session;
+    watch(session, true);
+    if (!session.start(fds[0])) {
+        close(fds[1]);
+        return "session start";
+    }
+    std::vector<std::string> log;
+    Phone phone(fds[1], log);
+    phone.handshake();
+    phone.discover();
+    phone.send(14, kSealed, bytes({0x80, 0x05, 0x08, 0x01}));  // the phone opens the car microphone
+    phone.settle();
+    takeEvents();
+    std::string verdict;
+    if (!session.isActive() || phone.lost()) {
+        verdict = "the session did not get as far as the microphone";
+    } else {
+        // From here the phone reads nothing, but it keeps sending microphone acks: silence cannot end the session.
+        // The head unit's end is still open: the session is active.
+        setsockopt(fds[0], SOL_SOCKET, SO_SNDBUF, &kSendBuffer, sizeof(kSendBuffer));
+        setsockopt(fds[0], SOL_SOCKET, SO_SNDTIMEO, &kSendLimit, sizeof(kSendLimit));
+        const Bytes chunk(8192, 0x5a);
+        for (int i = 0; i < 8; ++i) {
+            session.postMicData(&chunk[0], chunk.size());
+        }
+        const long long since = monotonicMs();
+        while (session.isActive() && monotonicMs() - since < kEndWithinMs) {
+            phone.send(14, kSealed, bytes({0x80, 0x04, 0x08, 0x00, 0x10, 0x01}));
+            usleep(100000);
+        }
+        const std::vector<std::string> events = takeEvents();
+        bool endedCallback = false;
+        for (size_t i = 0; i < events.size(); ++i) {
+            endedCallback = endedCallback || events[i] == "ended";
+        }
+        if (session.isActive()) {
+            verdict = format("still running %lld ms after its send to the phone stalled", kEndWithinMs);
+        } else if (!endedCallback || session.phoneSaidGoodbye()) {
+            verdict = format("ended without its callback (%d) or as a goodbye (%d)", endedCallback ? 1 : 0,
+                             session.phoneSaidGoodbye() ? 1 : 0);
+        }
+    }
+    session.stop();
+    close(fds[1]);
+    takeEvents();
+    return verdict;
+}
+
 // The video focus indications the head unit sent, in order: "1" FOCUSED, "2" UNFOCUSED, each followed by 'u' when
 // unrequested.
 std::string focusTrail(const std::vector<std::string>& log, size_t from) {
@@ -1250,6 +1312,7 @@ int main(int argc, char** argv) {
     takeEvents();
     const std::string broken = writing ? std::string() : brokenStream();
     takeEvents();
+    const std::string stalled = writing ? std::string() : stalledSend();
     const std::string keyframe = writing ? std::string() : keyframeAfterLoss();
     takeEvents();
     const bool oversized = writing || streamVideo(2);
@@ -1297,6 +1360,11 @@ int main(int argc, char** argv) {
         return 1;
     }
     puts("PASS session, broken stream: 16 encrypted frames in a row that do not decrypt end it, 15 do not");
+    if (!stalled.empty()) {
+        printf("FAIL session, stalled send: %s\n", stalled.c_str());
+        return 1;
+    }
+    puts("PASS session, stalled send: a send that gives up partway through a frame ends it as lost");
     if (!keyframe.empty()) {
         printf("FAIL session, keyframe after a lost frame: %s\n", keyframe.c_str());
         return 1;
