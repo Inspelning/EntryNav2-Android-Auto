@@ -41,33 +41,40 @@ bool encodeFrame(uint8_t channel, uint8_t flags, const uint8_t* payload, size_t 
 MessageAssembler::Outcome MessageAssembler::add(const FrameHeader& header, const std::vector<uint8_t>& payload,
                                                 std::vector<uint8_t>& message) {
     const uint8_t position = header.position();
-    if (position == frame::kMiddle || position == frame::kLast) {
-        const auto it = pending_.find(header.channel);
-        if (it == pending_.end() || !it->second.sized) {
-            return kNoFirst;
-        }
+    if (position == frame::kWhole) {
+        // A message of its own, one frame long: what is being assembled or skipped on the channel stays as it is.
+        message = payload;
+        return kComplete;
     }
-    Pending& pending = pending_[header.channel];
+    if (position == frame::kFirst) {
+        // Replaces an unfinished message, or ends the tail of a lost one whose LAST never came.
+        Pending& pending = pending_[header.channel];
+        pending.data = payload;
+        pending.lostTail = false;
+        pending.size = header.totalSize;
+        pending.onWire = header.length;
+        return kPending;
+    }
+    const std::map<uint8_t, Pending>::iterator it = pending_.find(header.channel);
+    if (it == pending_.end()) {
+        forget(header.channel, position);
+        return kNoFirst;
+    }
+    Pending& pending = it->second;
+    if (pending.lostTail) {
+        if (position == frame::kLast) {
+            pending_.erase(it);
+        }
+        return kRestOfLost;
+    }
     if (pending.data.size() + payload.size() > frame::kMaxMessage) {
-        pending_.erase(header.channel);
+        forget(header.channel, position);
         return kOverflow;
     }
-    switch (position) {
-        case frame::kWhole:
-            message = payload;
-            return kComplete;
-        case frame::kFirst:
-            pending.data = payload;
-            pending.sized = true;
-            pending.size = header.totalSize;
-            pending.onWire = header.length;
-            return kPending;
-        case frame::kMiddle:
-            pending.data.insert(pending.data.end(), payload.begin(), payload.end());
-            pending.onWire += header.length;
-            return kPending;
-        default:
-            break;
+    if (position == frame::kMiddle) {
+        pending.data.insert(pending.data.end(), payload.begin(), payload.end());
+        pending.onWire += header.length;
+        return kPending;
     }
     // LAST closes the message started by FIRST.
     const uint32_t onWire = pending.onWire + header.length;
@@ -83,6 +90,20 @@ MessageAssembler::Outcome MessageAssembler::add(const FrameHeader& header, const
         return kShortOfSize;
     }
     return kComplete;
+}
+
+void MessageAssembler::lose(const FrameHeader& header) {
+    if (header.position() != frame::kWhole) {
+        forget(header.channel, header.position());
+    }
+}
+
+// Erased first, so that what was gathered is freed; a LAST leaves nothing of its message to skip.
+void MessageAssembler::forget(uint8_t channel, uint8_t position) {
+    pending_.erase(channel);
+    if (position != frame::kLast) {
+        pending_[channel].lostTail = true;
+    }
 }
 
 }  // namespace aa

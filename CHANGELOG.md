@@ -24,6 +24,11 @@ QEMU avec les bibliothèques de la voiture).
   envoyait ensuite devenait illisible pour le téléphone, sans que la séance s'arrête. Un envoi raté met désormais fin à
   la séance comme une coupure : rien de plus ne part, et le téléphone est relancé comme après une séance perdue.
   Testé sur PC.
+- Image (ou consignes de guidage) figée pour le reste de la séance après quelques messages perdus. Le téléphone n'envoie
+  que 10 messages d'avance sans accusé de la voiture ; un message que la voiture écartait (image trop courte, morceaux
+  arrivés incomplets, morceau illisible) n'était jamais accusé et gardait une de ces places pour de bon, et au dixième
+  le flux s'arrêtait. Chaque message écarté est désormais accusé une fois, et le reste d'un message perdu en route est
+  ignoré sans bruit jusqu'à son dernier morceau. Testé sur PC.
 
 ## [0.13.0-rc.7] - 2026-11-20 · PC
 

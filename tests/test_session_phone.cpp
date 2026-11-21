@@ -382,6 +382,15 @@ public:
         const bool first = (flags & 0x03) == 0x01;
         frame(channel, flags, (flags & 0x08) ? tls_.seal(data) : data, first ? &total : nullptr);
     }
+    // A MIDDLE (0x08) fragment whose TLS record is cut after its 5-byte header, over two frames: the head unit cannot
+    // decrypt the first frame by itself, the second brings the rest of the record, and the stream stays readable.
+    void cutRecord(uint8_t channel, uint8_t flags, const Bytes& data) {
+        log_.push_back(format("ph ch=%u fl=%02x piece ", channel, flags) + hex(data) +
+                       ", its record cut over 2 frames");
+        const Bytes records = tls_.seal(data);
+        frame(channel, flags, Bytes(records.begin(), records.begin() + 5), nullptr);
+        frame(channel, flags, Bytes(records.begin() + 5, records.end()), nullptr);
+    }
     void raw(const char* what, const Bytes& data) {
         log_.push_back(std::string("ph raw ") + what + " " + hex(data));
         writeAll(data);
@@ -873,6 +882,13 @@ void fragmentEdges(std::vector<std::string>& log) {
     phone.send(0, kSealed, bytes({0x05}));
     phone.send(6, kSealed, bytes({0x05}));
     phone.send(8, kSealed, bytes({0x05}));
+    phone.settle();
+    log.push_back("-- a fragment that does not decrypt: the rest of its message skipped, a whole one passes, one ack");
+    phone.piece(6, 0x09, head, static_cast<uint32_t>(video.size()));
+    phone.cutRecord(6, 0x08, counting(6, 0x6c));
+    phone.send(6, kSealed, bytes({0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0x02, 0x98}));
+    phone.piece(6, 0x08, counting(6, 0x72));
+    phone.piece(6, 0x0a, tail);
     phone.settle();
     log.push_back("-- a second version response restarts TLS");
     phone.send(0, kPlain, bytes({0x00, 0x02, 0x00, 0x01, 0x00, 0x06, 0x00, 0x00}));

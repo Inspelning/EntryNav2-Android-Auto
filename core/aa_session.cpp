@@ -486,7 +486,8 @@ AASession::Received AASession::receive(uint8_t& channel, Message& wire, Message&
     if (encrypted) {
         if (!tls_.open(wire.data(), wire.size(), plain)) {
             printf("[AASession] Failed to decrypt encrypted frame (%u bytes).\n", header.length);
-            assembler_.drop(channel);
+            assembler_.lose(header);
+            ackDropped(header);
             if (++unreadableInARow_ >= kUnreadableLimit) {
                 printf(
                     "[AASession] %u encrypted frames in a row did not decrypt: the stream is broken, session ends.\n",
@@ -497,21 +498,28 @@ AASession::Received AASession::receive(uint8_t& channel, Message& wire, Message&
         }
         unreadableInARow_ = 0;
     }
-    switch (assembler_.add(header, encrypted ? plain : wire, message)) {
+    const MessageAssembler::Outcome outcome = assembler_.add(header, encrypted ? plain : wire, message);
+    switch (outcome) {
         case MessageAssembler::kComplete:
-            break;
         case MessageAssembler::kPending:
-            return kNothing;
+        case MessageAssembler::kRestOfLost:  // the rest of a message dropped and logged before
+            break;
         case MessageAssembler::kOverflow:
-            printf("[AASession] Reassembly overflow on channel %u: dropping fragments.\n", channel);
-            return kNothing;
+            printf("[AASession] Reassembly overflow on channel %u: dropping its message.\n", channel);
+            break;
         case MessageAssembler::kNoFirst:
-            printf("[AASession] Continuation fragment on channel %u with no FIRST: dropping\n", channel);
-            return kNothing;
+            printf("[AASession] Continuation fragment on channel %u with no FIRST: dropping its message\n", channel);
+            break;
         case MessageAssembler::kShortOfSize:
             printf("[AASession] channel %u reassembled %u wire bytes, phone announced %u: dropping\n", channel,
                    assembler_.receivedBytes(), assembler_.announcedBytes());
-            return kNothing;
+            break;
+    }
+    if (outcome != MessageAssembler::kComplete) {
+        if (outcome != MessageAssembler::kPending) {
+            ackDropped(header);
+        }
+        return kNothing;
     }
     if (logged) {
         printHead(message);

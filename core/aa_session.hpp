@@ -139,6 +139,7 @@ private:
     void onSetup(uint8_t channel);
     void onStart(uint8_t channel, const Message& message);
     void onMedia(uint8_t channel, uint16_t id, const Message& message);
+    void ackDropped(const FrameHeader& header);  // a frame dropped or skipped: the media message it closes
     void onVideoFocusRequest(uint8_t channel, const Message& message);
     void onInputBinding(uint8_t channel);
     void onMicrophoneOpen(uint8_t channel, const Message& message);
