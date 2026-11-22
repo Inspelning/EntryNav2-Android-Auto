@@ -18,6 +18,10 @@ QEMU with the car's libraries).
 - Version number in the title of the *Help* page of the Android Auto menu in iDrive (for example "Help -
   0.13.0-rc.10"): a photo of the page is enough to know which version runs in the car. Its six lines stay the
   same. Tested on PC.
+- The phone sees the car's series ("BMW G20", "MINI F56") instead of "iDrive" when the `vehicle` file gives no model.
+  The iDrive app reads it in the coding, where CarPlay reads it to introduce the car to an iPhone, never reading the
+  rest of that block, which holds the car's VIN ([#15](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/15)).
+  The file's `model=` line always wins. Tested on PC.
 
 ## [0.13.0-rc.9] - 2026-11-22 · PC
 

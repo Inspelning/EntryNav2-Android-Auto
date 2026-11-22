@@ -10,7 +10,7 @@ Le service ne lit aucun réglage dans son environnement : ses valeurs sont fixes
 
 | Fichier | Effet |
 |---|---|
-| `vehicle` | La voiture annoncée au téléphone, une ligne par réglage : `model=…`, `year=…`, `side=left` ou `side=right` (côté du conducteur : Android Auto dispose son écran pour ce côté), `fuel=petrol` ou `fuel=diesel`. Sans ce fichier ou sans une ligne : « iDrive », 2019, essence, et le côté codé dans la voiture (conduite à gauche s'il est illisible) ; une ligne `side=` l'emporte sur le codage. La marque (BMW ou MINI) vient du codage de l'iDrive |
+| `vehicle` | La voiture annoncée au téléphone, une ligne par réglage : `model=…`, `year=…`, `side=left` ou `side=right` (côté du conducteur : Android Auto dispose son écran pour ce côté), `fuel=petrol` ou `fuel=diesel`. Sans ce fichier ou sans une ligne : la série codée dans la voiture (« G20 », « F56 » ; « iDrive » si le codage ne la dit pas), 2019, essence, et le côté codé dans la voiture (conduite à gauche s'il est illisible) ; une ligne `side=` l'emporte sur le codage. La marque (BMW ou MINI) vient du codage de l'iDrive |
 | `usb` | Présent : Android Auto par câble USB au lieu du sans-fil (case *Câble USB au lieu du sans-fil* du menu). Vide, ou le nom de la seule prise à surveiller : voir [USB](USB.md) |
 | `autostart` | Présent : Android Auto démarre avec l'iDrive (case *Démarrage automatique* du menu) |
 | `entry-direct` | Présent : la ligne *Android Auto* de l'iDrive ouvre directement Android Auto, au lieu de son menu |

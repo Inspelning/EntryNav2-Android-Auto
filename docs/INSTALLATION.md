@@ -101,8 +101,9 @@ cd / && md5sum -c /tmp/entrynav2-android-auto-$V/MD5SUMS
 - Si `mount -o remount,ro /` échoue, le redémarrage qui suit remet le système en lecture seule.
 
 Facultatif, la voiture annoncée au téléphone : le modèle et l'année qu'il affiche, et le carburant. Sans ce fichier,
-il affiche « iDrive » et 2019, essence : l'unité ne connaît pas le nom du modèle. La marque, BMW ou MINI, vient du
-codage de l'iDrive et ne se règle pas ici. Le côté du conducteur, pour lequel Android Auto dispose son écran, vient
+il affiche la série codée dans la voiture (par exemple « G20 » ou « F56 », « iDrive » si le codage ne la dit pas), 2019
+et essence : l'unité ne connaît pas le nom du modèle. La marque, BMW ou MINI, vient du codage de l'iDrive et ne se
+règle pas ici. Le côté du conducteur, pour lequel Android Auto dispose son écran, vient
 aussi du codage de la voiture (voir plus bas pour l'imposer).
 
 Remplacer `MODELE` et `ANNEE` par ceux de la voiture (par exemple `320d` et `2020`, ou `Cooper S` et `2019`) ;

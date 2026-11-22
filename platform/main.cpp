@@ -9,6 +9,7 @@
 // clang-format off
 #include "alps_spp.hpp"
 #include "car_brand.hpp"
+#include "car_series.hpp"
 #include "driver_side.hpp"
 #include "evo_ap.hpp"
 #include "evo_video.hpp"
@@ -175,6 +176,22 @@ aa::DriverPosition readCodedDriverSide() {
     }
     return right ? aa::DriverPosition::kRight : aa::DriverPosition::kLeft;
 }
+// The series the iDrive app read in the car's coding (car_series.hpp), into out (6 bytes). Without the file (an older
+// app, or a coding that says nothing sure), empty: the vehicle file's model, or "iDrive".
+void readCarSeries(char* out) {
+    out[0] = 0;
+    FILE* f = fopen(evo::contract::kSeriesFile, "r");
+    char line[16] = {0};
+    const bool read = f && fgets(line, sizeof(line), f) && aa::parseCarSeries(line, out);
+    if (f) {
+        fclose(f);
+    }
+    if (read) {
+        ELOG("Main", "series coded in the car: %s (told to the phone unless the vehicle file gives a model)", out);
+    } else {
+        ELOG("Main", "series not read from %s: the vehicle file's model, or iDrive", evo::contract::kSeriesFile);
+    }
+}
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -305,6 +322,9 @@ int main(int argc, char** argv) {
     app.session.setDisplay(display);
     app.session.setCarMake(aa::brandName(brand));
     app.session.setCodedDriverSide(readCodedDriverSide());
+    static char series[6];  // kept for the session's whole life
+    readCarSeries(series);
+    app.session.setCodedModel(series[0] ? series : nullptr);
     app.usbPort = usbPort ? usbPort : "";
     app.session.setTouchForwarding(input == evo::INPUT_FORWARD);
     app.session.setVehicleFile(evo::contract::kVehicle);  // the car's model, year, side, fuel; written at installation

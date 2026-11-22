@@ -66,6 +66,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `controller_layout.hpp` | Quelle touche est chaque bouton, selon le codage de la voiture, comme l'iDrive (contrôleur type G ou F) |
 | `car_brand.hpp` | Marque codée dans l'iDrive (BMW ou MINI) : marque annoncée au téléphone, bords de l'écran cachés par le rond des MINI |
 | `driver_side.hpp` | Côté du conducteur codé dans la voiture (volant à gauche ou à droite), annoncé au téléphone sauf ligne `side=` du fichier `vehicle` |
+| `car_series.hpp` | Série codée dans la voiture (G20, F56…), annoncée au téléphone comme modèle sauf ligne `model=` du fichier `vehicle` |
 | `evo_gps` | Lecture passive du GPS de la voiture |
 | `evo_mic` | Micro de la voiture pour l'Assistant, lu sans blocage ; réouvert au plus une fois par seconde après un échec |
 | `evo_wlan`, `evo_ap` | Wi-Fi de la voiture, allumé comme le fait CarPlay |
