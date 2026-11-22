@@ -74,6 +74,14 @@ QEMU avec les bibliothèques de la voiture).
   vide le temps d'un relevé, y revenait, puis la quittait encore le temps d'un relevé moins de 3 s plus tard, l'appli
   prenait ces deux départs pour une touche de l'iDrive confirmée (MENU, MEDIA…). Le premier départ est désormais
   oublié dès que la page vide revient ; une vraie touche est toujours confirmée au relevé suivant. Testé sur PC.
+- Appli iDrive : écran vide après la marche arrière
+  ([#88](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/88), MINI F56). L'aide au stationnement reste
+  allumée un moment après la marche arrière, et Android Auto restait caché tant qu'elle l'était. Quand BACK fermait
+  sa vue (ou qu'elle se fermait seule), l'iDrive revenait sur la page vide d'Android Auto sans son image, jusqu'à la
+  fin de l'aide au stationnement ou un passage par le menu. Ce retour sur la page vide, hors marche arrière, compte
+  maintenant comme un choix d'Android Auto, qui reste affiché jusqu'au prochain changement de l'aide au
+  stationnement. Le journal du service ne dit plus « picture back » en sortant de la marche arrière quand l'aide au
+  stationnement cache encore l'image. Testé sur PC.
 
 ## [0.13.0-rc.7] - 2026-11-20 · PC
 

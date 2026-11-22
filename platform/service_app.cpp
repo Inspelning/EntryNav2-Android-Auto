@@ -349,14 +349,21 @@ void ServiceApp::command(const ControlCommand& c, void* user) {
     } else if (c.verb == "gear") {
         const bool r = c.arg == 2;  // CDS driving.gear reverse (2 = reverse), logged by the app
         if (r != a->reverse) {
-            ELOG("ServiceApp", "reverse gear %s: AA picture %s", r ? "engaged" : "left", r ? "hidden" : "back");
+            // Either one keeps the picture hidden: the log said "back" while park assist still hid it (#88).
+            ELOG("ServiceApp", "reverse gear %s: AA picture %s", r ? "engaged" : "left",
+                 r               ? "hidden"
+                 : a->parkAssist ? "still hidden by park assist"
+                                 : "back");
         }
         a->reverse = r;
     } else if (c.verb == "pdc") {
         // The iDrive app decides: park assist on, and the driver has not chosen Android Auto over it.
         const bool owns = c.arg != 0;
         if (owns != a->parkAssist) {
-            ELOG("ServiceApp", "park assist %s: AA picture %s", owns ? "on" : "off", owns ? "hidden" : "back");
+            ELOG("ServiceApp", "park assist %s: AA picture %s", owns ? "on" : "off",
+                 owns         ? "hidden"
+                 : a->reverse ? "still hidden by the reverse gear"
+                              : "back");
         }
         a->parkAssist = owns;
     } else if (c.verb == "call") {  // iDrive app (CDS communication.callStatus): phone keys go to iDrive's call screen

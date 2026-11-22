@@ -48,7 +48,8 @@
 //   Android Auto, with a timeout.
 // - Park assist (sensors.PDCStatus 1, also opened by its button without reverse): the same, the service told
 //   "pdc 1" hides the picture, "pdc 0" when it ends brings it back. It stays on a while after reverse: the
-//   driver choosing Android Auto meanwhile (Open row, entry button) keeps it until park assist changes (#26).
+//   driver choosing Android Auto meanwhile (Open row, entry button) keeps it until park assist changes (#26). So
+//   does its view closing out of reverse (BACK, or by itself): iDrive gives the focus back to the blank state (#88).
 // - Phone call: iDrive's call screen is not fought; when the call ends, event 52 within 10 s.
 // - Service (re)started, or phone connected: it is told the call, the gear and park assist again (started in
 //   reverse, Android Auto would come up over the camera).
@@ -141,6 +142,7 @@ private:
     bool appKeyRecent();
     bool keepForAppKey(const char* why, long now);
     void flushGear(const char* why);
+    void leaveParkAssist(const char* why);
     void updatePopupPeek(bool covered, long now);
     void beginWait(long now);
     void askWithoutHold(long now);

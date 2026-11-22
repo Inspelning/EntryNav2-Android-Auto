@@ -111,6 +111,16 @@ void HoldMachine::pdcChanged(int status) {
     }
 }
 
+// The picture comes back over a park assist that is still on, until park assist changes.
+void HoldMachine::leaveParkAssist(const char* why) {
+    if (!parkAssistOwns()) {
+        return;
+    }
+    parkDismissed_ = true;
+    io_.send("pdc 0");
+    say("park assist: %s, kept until park assist changes", why);
+}
+
 void HoldMachine::driveModeChanged(long now) {
     driveModeAt_ = now;
 }
@@ -146,12 +156,8 @@ void HoldMachine::holdViaMenu(const char* why, long now) {
 // never reaches the screen underneath (entry button and the menu's Open row).
 void HoldMachine::showAndHold(const char* why, long now) {
     flushGear(why);
-    if (parkAssistOwns()) {
-        // Park assist stays on a while after reverse: the driver who picks Android Auto over it gets it.
-        parkDismissed_ = true;
-        io_.send("pdc 0");
-        say("park assist: Android Auto chosen over it, kept until park assist changes");
-    }
+    // Park assist stays on a while after reverse: the driver who picks Android Auto over it gets it.
+    leaveParkAssist("Android Auto chosen over it");
     waiting_ = false;
     unheld_ = false;
     if (popupOpen_) {
@@ -215,6 +221,11 @@ void HoldMachine::aaFocus(bool focused) {
         holdGaveUp_ = false;
         underPopup_ = false;
         flushGear("blank state regained focus");
+        // Out of reverse, park assist still on: iDrive gives the focus back to the blank state when its view closes
+        // (BACK, or by itself). The picture stayed hidden over a blank page until park assist ended (#88).
+        if (gear_ != kReverseGear) {
+            leaveParkAssist("its view closed, iDrive back on the Android Auto page");
+        }
     }
     say("hold: state %u focus -> %d", kAaState, static_cast<int>(focused));
 }

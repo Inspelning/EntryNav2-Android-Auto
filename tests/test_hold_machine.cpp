@@ -679,6 +679,52 @@ void parkAssist() {
         c.hold.pdcChanged(evo::app::kParkAssistOn);  // a new one: it owns the screen again
         CHECK_OUT(c, "pdc 1");
     }
+    {  // still on after reverse, its view closed (BACK): iDrive back on the blank state brings Android Auto back (#88)
+        Car c;
+        heldOnBlank(c);
+        CHECK(c.gear(2));
+        c.blankFocus(false);  // the camera takes the focus, the blank state still visible under it (car log)
+        c.overlay(0);
+        c.poll();
+        c.hold.pdcChanged(evo::app::kParkAssistOn);
+        CHECK_OUT(c, "pdc 1");
+        CHECK(!c.gear(1));  // out of reverse, park assist stays on
+        c.polls(3);
+        CHECK_OUT(c, "");
+        c.blankFocus(true);  // its view closed: the focus back on the blank state
+        CHECK_OUT(c, "gear 1, pdc 0");
+        CHECK(!c.hold.cameraWins() && c.logged("its view closed"));
+        c.overlay(1);
+        c.poll();
+        CHECK_OUT(c, "");  // held, nothing more to ask
+        CHECK(c.hold.holding());
+        c.hold.pdcChanged(2);  // it ends: Android Auto is already up
+        CHECK_OUT(c, "");
+    }
+    {  // in reverse, the focus back on the blank state is not the view closing: the camera keeps the screen
+        Car c;
+        heldOnBlank(c);
+        CHECK(c.gear(2));
+        c.hold.pdcChanged(evo::app::kParkAssistOn);
+        CHECK_OUT(c, "pdc 1");
+        c.blankLeft();
+        c.blankFocus(true);
+        CHECK_OUT(c, "");
+        CHECK(c.hold.cameraWins() && c.hold.parkAssistOwns());
+    }
+    {  // opened by its button: its view closed while still on, the picture back the same way
+        Car c;
+        heldOnBlank(c);
+        c.hold.pdcChanged(evo::app::kParkAssistOn);
+        CHECK_OUT(c, "pdc 1");
+        c.blankFocus(false);  // its view
+        c.overlay(0);
+        c.poll();
+        CHECK_OUT(c, "");
+        c.blankFocus(true);
+        CHECK_OUT(c, "pdc 0");
+        CHECK(!c.hold.parkAssistOwns());
+    }
     {  // a service started meanwhile is told, with the call
         Car c;
         c.hold.pdcChanged(evo::app::kParkAssistOn);
