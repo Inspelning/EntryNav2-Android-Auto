@@ -14,7 +14,7 @@ Le service ne lit aucun réglage dans son environnement : ses valeurs sont fixes
 | `usb` | Présent : Android Auto par câble USB au lieu du sans-fil (case *Câble USB au lieu du sans-fil* du menu). Vide, ou le nom de la seule prise à surveiller : voir [USB](USB.md) |
 | `autostart` | Présent : Android Auto démarre avec l'iDrive (case *Démarrage automatique* du menu) |
 | `entry-direct` | Présent : la ligne *Android Auto* de l'iDrive ouvre directement Android Auto, au lieu de son menu |
-| `kombi-off` | Présent : rien n'est envoyé au compteur ni à la tête haute |
+| `kombi-off` | Présent : rien n'est envoyé au compteur ni à la tête haute (Ethernet des Série G ou MOST des Série F) |
 | `kombi-single-maneuver` | Présent au démarrage : graphe limité à la prochaine manœuvre, pour un compteur qui refuse le trajet complet (voir ci-dessous). Sans ce fichier : graphe historique |
 | `gps-telephone` | Présent : le téléphone garde son propre GPS, celui de la voiture n'est pas transmis |
 | `maintenance` | Présent : l'appli et le service gardent leurs journaux (case *Garder les journaux* du menu, voir [Journaux](#journaux)) |

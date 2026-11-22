@@ -22,6 +22,12 @@ QEMU with the car's libraries).
   The iDrive app reads it in the coding, where CarPlay reads it to introduce the car to an iPhone, never reading the
   rest of that block, which holds the car's VIN ([#15](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/15)).
   The file's `model=` line always wins. Tested on PC.
+- Android Auto's arrows on the cluster of F-series cars, over MOST: arrow, distance, unit and street, in the guidance
+  fields the BMW navigation fills (`HUD_Terminal` block). Only without an Ethernet cluster (G-series cars do not
+  change), never during BMW guidance, nothing created on the cluster
+  ([compatibility](docs/COMPATIBILITE.md#flèches-sur-le-compteur-des-série-f),
+  [#79](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/79)). Tested on PC only, from the description of a
+  6WA cluster (F52).
 
 ## [0.13.0-rc.9] - 2026-11-22 · PC
 

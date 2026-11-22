@@ -35,6 +35,7 @@ CASES = [
     ("kombi-client", "tests/test-kombi-client-arm", [], None),
     ("kombi-nav", "tests/test-kombi-nav-arm", [], None),
     ("kombi-golden", "tests/test-kombi-golden-arm", [], None),
+    ("kombi-most", "tests/test-kombi-most-arm", [], None),
     ("usb-accessory", "tests/test-usb-accessory-arm", [], None),
     ("usb-bridge", "tests/test-usb-bridge-arm", [], None),
     ("usb-loop", "tests/test-usb-loop-arm", [], None),

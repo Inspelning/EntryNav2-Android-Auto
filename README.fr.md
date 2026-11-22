@@ -30,7 +30,8 @@ Sans boîtier, sans câble obligatoire, sans remplacer aucun fichier BMW.
 - **Commandes d'origine** : molette, touches, écran tactile, boutons du volant, bouton vocal vers l'Assistant.
 - **Micro de la voiture** pour l'Assistant Google, **son par le Bluetooth** de la voiture.
 - **GPS de la voiture** transmis au téléphone, avec retour au GPS du téléphone si besoin.
-- **Guidage sur la tête haute et le compteur** : flèche, distance, rue, sortie de rond-point.
+- **Guidage sur la tête haute et le compteur** : flèche, distance, rue, sortie de rond-point (Série G ; Série F en
+  essai, [compatibilité](docs/COMPATIBILITE.md#flèches-sur-le-compteur-des-série-f)).
 - **Cohabitation avec l'iDrive** : caméra de recul, volume, modes de conduite, jour et nuit.
 - **Toujours réversible** : le Bluetooth est rendu à l'iDrive à l'arrêt, et un garde-fou désactive l'appli si l'iDrive
   plante plusieurs fois de suite après l'avoir chargée.

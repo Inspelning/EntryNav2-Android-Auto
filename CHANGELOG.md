@@ -18,6 +18,12 @@ QEMU avec les bibliothèques de la voiture).
   iPhone, sans jamais lire le reste du bloc, où se trouve le numéro de série de la voiture
   ([#15](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/15)). La ligne `model=` du fichier l'emporte
   toujours. Testé sur PC.
+- Flèches d'Android Auto sur le compteur des Série F, par MOST : flèche, distance, unité et rue, dans les champs de
+  guidage que remplit la navigation BMW (bloc `HUD_Terminal`). Seulement sans compteur Ethernet (les Série G ne
+  changent pas), jamais pendant un guidage BMW, rien de créé sur le compteur
+  ([compatibilité](docs/COMPATIBILITE.md#flèches-sur-le-compteur-des-série-f),
+  [#79](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/79)). Testé sur PC seulement, d'après la description
+  d'un compteur 6WA (F52).
 
 ## [0.13.0-rc.9] - 2026-11-22 · PC
 

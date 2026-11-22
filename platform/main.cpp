@@ -358,6 +358,7 @@ int main(int argc, char** argv) {
     app.session.setMicRequestCallback(evo::ServiceApp::micRequest, &app);
     app.mic.start(evo::ServiceApp::micData, &app);  // optional: without it the Assistant just hears nothing
     app.session.setNavStatusCallback(evo::ServiceApp::navStatus, &app);
+    app.kombi.attachMost(&app.kombiMost);  // F-series: the cluster's MOST fields, through the controller reader
     app.kombi.start(evo::kombi::probeBmwGuidance);  // HUD/cluster arrows; the BMW navigation always wins
     evo::CarGpsReader carGps;
     evo::CarGpsFeed gpsFeed;
@@ -434,6 +435,7 @@ int main(int argc, char** argv) {
                 fclose(f);
             }
         }
+        knob.setPeer(&app.kombiMost);
         if (!knob.start(input, evo::ServiceApp::knobEvent, &app)) {
             ELOG("Main", "controller unavailable for this run");
         }

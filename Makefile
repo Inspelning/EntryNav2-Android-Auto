@@ -34,7 +34,7 @@ CORE_SRC = core/aa_session.cpp core/aa_channels.cpp core/aa_messages.cpp core/ca
 CORE_OBJ = $(CORE_SRC:.cpp=.o)
 # The cluster guidance (platform/kombi_*), in the service and in its tests.
 KOMBI_SRC = platform/kombi_phone.cpp platform/kombi_display.cpp platform/kombi_someip.cpp platform/kombi_graph.cpp \
-            platform/kombi_client.cpp platform/kombi_guide.cpp platform/kombi_nav.cpp
+            platform/kombi_client.cpp platform/kombi_guide.cpp platform/kombi_nav.cpp platform/kombi_most.cpp
 KOMBI_OBJ = $(KOMBI_SRC:.cpp=.o)
 # Android Auto over a USB cable: the kernel's usbfs, the accessory switch, the bridge to the session, the loop.
 USB_SRC = platform/usb_devfs.cpp platform/usb_accessory.cpp platform/usb_bridge.cpp platform/usb_loop.cpp
@@ -251,6 +251,8 @@ test-kombi-host:
 	env -u XDG_RUNTIME_DIR dbus-run-session -- ./tests/test-bmw-guidance
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_kombi_golden.cpp $(KOMBI_SRC) -o tests/test-kombi-golden
 	./tests/test-kombi-golden
+	$(HOST_CXX) $(HOST_FLAGS) tests/test_kombi_most.cpp $(KOMBI_SRC) -o tests/test-kombi-most
+	./tests/test-kombi-most
 
 # The USB cable: a fake bus (a folder like /sys/bus/usb/devices) and fake phones; no real device is opened.
 test-usb-host:
@@ -328,6 +330,7 @@ test-kombi-arm-build: $(KOMBI_OBJ)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_kombi_client.cpp $(KOMBI_OBJ) -o tests/test-kombi-client-arm $(LDSHLIB) -lpthread -lrt
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_kombi_nav.cpp $(KOMBI_OBJ) -o tests/test-kombi-nav-arm $(LDSHLIB) -lpthread -lrt
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_kombi_golden.cpp $(KOMBI_OBJ) -o tests/test-kombi-golden-arm $(LDSHLIB) -lpthread -lrt
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_kombi_most.cpp $(KOMBI_OBJ) -o tests/test-kombi-most-arm $(LDSHLIB) -lpthread -lrt
 
 test-sdr-arm-build:
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_sdr_g20.cpp core/sdr_builder.cpp platform/evo_sdr_sensors.cpp -o tests/test-sdr-g20-arm $(LDSHLIB)

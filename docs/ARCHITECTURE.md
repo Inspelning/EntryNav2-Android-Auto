@@ -82,6 +82,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `kombi_guide` | Machine de guidage : manœuvre, distance, voies, rue, approche |
 | `kombi_display`, `kombi_graph` | Codes et tables du compteur, dessin des manœuvres et des voies |
 | `kombi_client`, `kombi_someip` | Liaison SOME/IP avec le compteur (service `0xB006`) |
+| `kombi_most` | Prochaine manœuvre sur le compteur des Série F, par MOST (bloc `HUD_Terminal`, `0x82`), par la connexion vMOST du lecteur de molette ; seulement sans compteur Ethernet (testé sur PC) |
 | `evo_bmw_guidance` | Détection de la navigation BMW en cours, qui garde la priorité |
 
 ## `hmiapp/` : l'appli de l'iDrive
@@ -121,6 +122,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `tests/test_session_phone.cpp` | Session complète face à un faux téléphone : chaque message envoyé, comparé à un relevé figé |
 | `tests/test_wireless_phone.cpp` | Échange Bluetooth du Wi-Fi, octet par octet, comparé à un relevé figé |
 | `tests/test_kombi_golden.cpp` | Chaque trame envoyée au compteur, octet par octet, comparée à un relevé figé |
+| `tests/test_kombi_most.cpp` | Compteur des Série F par MOST face à un faux vmostd : registre, tailles, dessin, refus, autre client, sortie |
 | `tests/test_peek_timing.cpp`, `tests/test_wireless_lifecycle.cpp` | Effacement de l'image, cycle de vie Bluetooth puis Wi-Fi du service |
 | `tests/test_volume_state.cpp` | Pastille du volume : niveau d'une autre source ignoré, répétitions, touches, sourdine |
 | `tests/test_evo_mic.cpp` | Micro de la voiture sur une fausse libasound (`tests/fake_libasound.c`) : son transmis, arrêt immédiat avec un micro muet ou en panne, réouverture espacée |

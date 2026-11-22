@@ -162,6 +162,25 @@ la base 0.12.0-rc.2 ; le portage sur la branche actuelle est vérifié séparém
 
 Pour activer ce mode ou revenir au graphe historique : [maintenance](MAINTENANCE.md#graphe-limité-à-la-prochaine-manœuvre).
 
+## Flèches sur le compteur des Série F
+
+Sur les Série F (et les MINI de la même époque), le compteur n'est pas sur l'Ethernet comme celui des Série G : c'est un
+appareil MOST, dont les champs de guidage (bloc `HUD_Terminal`, `0x82`) sont remplis par la navigation BMW. Depuis la
+version qui suit 0.13.0-rc.9, le service y affiche la prochaine manœuvre d'Android Auto : une flèche dessinée, la
+distance, son unité et la rue. **Jamais essayé en voiture par le projet** : le protocole vient de la description d'un
+testeur sur une F52 au compteur 6WA ([#79](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/79)).
+
+- Seulement là où aucun compteur Ethernet ne répond : une Série G n'est pas concernée.
+- Rien n'est créé sur le compteur. Si ses champs n'existent pas ou n'ont pas les tailles du compteur 6WA, rien n'est
+  dessiné et le journal donne les tailles lues.
+- La navigation BMW garde la priorité : quand elle guide, ou qu'un autre programme dessine sur ces champs, Android Auto
+  les lui laisse sans les effacer.
+- Le compteur doit peut-être être codé pour afficher la navigation : s'il accepte tout sans rien montrer, c'est la piste.
+- Le fichier `kombi-off` coupe aussi ces flèches.
+
+Les lignes `[KombiMost]` du journal du service disent ce qui s'est passé : registre MOST, tailles des champs, première
+image prise par le compteur, refus.
+
 ## Double appui sur MEDIA
 
 Le retour à une session connectée utilise le lecteur vMOST déjà actif dans le service, avec les états MEDIA

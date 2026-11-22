@@ -30,7 +30,8 @@ English · [Français](README.fr.md)
   Assistant.
 - **Car microphone** for the Google Assistant, **car speakers** over Bluetooth.
 - **Car GPS** sent to the phone, with a fallback to the phone's own GPS.
-- **Turn-by-turn on the head-up display and cluster**: arrow, distance, street name, roundabout exit.
+- **Turn-by-turn on the head-up display and cluster**: arrow, distance, street name, roundabout exit (G series; F
+  series being tried, [compatibility](docs/COMPATIBILITE.md#flèches-sur-le-compteur-des-série-f)).
 - **Lives alongside iDrive**: reversing camera, volume overlay, driving modes, day and night.
 - **Always reversible.** Bluetooth goes back to iDrive when Android Auto stops, and a guard switches the app off if
   iDrive crashes several times in a row after loading it.
