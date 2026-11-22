@@ -396,6 +396,13 @@ public:
         log_.push_back(std::string("ph raw ") + what + " " + hex(data));
         writeAll(data);
     }
+    // A whole encrypted message whose record fails its check: one bit flipped in its last byte (the MAC).
+    void corrupted(uint8_t channel, const Bytes& message) {
+        log_.push_back(format("ph ch=%u fl=%02x ", channel, kSealed) + hex(message) + ", its record corrupted");
+        Bytes records = tls_.seal(message);
+        records[records.size() - 1] ^= 0x01;
+        frame(channel, kSealed, records, nullptr);
+    }
     // A ping, then every head unit frame up to its answer: whatever was sent or posted before has been handled.
     void settle() {
         if (lost_) {
@@ -1044,12 +1051,14 @@ std::string quietPhone() {
     return std::string();
 }
 
-// An encrypted frame the head unit cannot decrypt: a record header TLS would never write.
-void unreadable(Phone& phone) {
-    phone.raw("unreadable", bytes({0x00, kSealed, 0x00, 0x04, 0x01, 0x02, 0x03, 0x04}));
+// Encrypted frames that never give a whole record: the first one announces an application record of 16 KB, the next
+// ones bring a few bytes of it each. TLS waits for the rest, it does not fail.
+void unreadable(Phone& phone, bool first) {
+    phone.raw("unreadable", first ? bytes({0x00, kSealed, 0x00, 0x05, 0x17, 0x03, 0x03, 0x40, 0x00})
+                                  : bytes({0x00, kSealed, 0x00, 0x04, 0x01, 0x02, 0x03, 0x04}));
 }
 
-// The TLS stream breaks: 15 unreadable frames in a row are survived, the 16th ends the session.
+// A record that never completes: 15 frames in a row that give nothing are survived, the 16th ends the session.
 std::string brokenStream() {
     std::vector<std::string> log;
     Link link;
@@ -1057,15 +1066,37 @@ std::string brokenStream() {
     phone.handshake();
     phone.discover();
     for (int i = 0; i < 15; ++i) {
-        unreadable(phone);
+        unreadable(phone, i == 0);
     }
     phone.settle();  // a plain ping, still answered
     if (!link.session.isActive() || phone.lost()) {
         return "15 unreadable frames ended the session";
     }
-    unreadable(phone);
+    unreadable(phone, false);
     if (!waitEnded(link.session)) {
         return "the 16th unreadable frame in a row did not end the session";
+    }
+    return std::string();
+}
+
+// A record that fails its check is fatal to TLS: no later record decrypts, the good ones neither. The session ends at
+// that frame, and sends nothing more: the dropped video was acked with whatever OpenSSL left behind, its alert.
+std::string corruptedRecord() {
+    std::vector<std::string> log;
+    Link link;
+    Phone phone(link.phoneFd, log);
+    phone.handshake();
+    phone.discover();
+    log.clear();
+    phone.corrupted(6, bytes({0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0x2a, 0x60, 0x61}));
+    if (!waitEnded(link.session)) {
+        return "a corrupted record did not end the session";
+    }
+    phone.untilClosed();
+    for (size_t i = 0; i < log.size(); ++i) {
+        if (log[i].compare(0, 3, "hu ") == 0 && log[i] != "hu <closed>") {
+            return "the head unit still sent \"" + log[i] + "\" after a corrupted record";
+        }
     }
     return std::string();
 }
@@ -1378,6 +1409,8 @@ int main(int argc, char** argv) {
     takeEvents();
     const std::string broken = writing ? std::string() : brokenStream();
     takeEvents();
+    const std::string corrupted = writing ? std::string() : corruptedRecord();
+    takeEvents();
     const std::string stalled = writing ? std::string() : stalledSend();
     const std::string keyframe = writing ? std::string() : keyframeAfterLoss();
     takeEvents();
@@ -1427,7 +1460,12 @@ int main(int argc, char** argv) {
         printf("FAIL session, broken stream: %s\n", broken.c_str());
         return 1;
     }
-    puts("PASS session, broken stream: 16 encrypted frames in a row that do not decrypt end it, 15 do not");
+    puts("PASS session, broken stream: 16 encrypted frames in a row that give no record end it, 15 do not");
+    if (!corrupted.empty()) {
+        printf("FAIL session, corrupted record: %s\n", corrupted.c_str());
+        return 1;
+    }
+    puts("PASS session, corrupted record: it ends the session at once, nothing more is sent");
     if (!stalled.empty()) {
         printf("FAIL session, stalled send: %s\n", stalled.c_str());
         return 1;

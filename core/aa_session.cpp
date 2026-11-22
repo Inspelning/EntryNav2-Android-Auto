@@ -37,8 +37,9 @@ const unsigned kFramesLoggedEvery = 300;
 const unsigned kKeysLogged = 200;  // evo_knob logs every key anyway
 const unsigned kMovesLogged = 40;
 const unsigned kMicrophoneLogEvery = 250;
-// Encrypted frames in a row that do not decrypt: the TLS stream is broken (a record lost or cut on the way), and no
-// later frame will decrypt either. The session ends rather than wait for the silence limit with a frozen picture.
+// Encrypted frames in a row that give nothing to read without breaking TLS: bytes of a record that never completes (a
+// part lost on the way). The session ends rather than wait for the silence limit with a frozen picture. A record that
+// fails its check breaks TLS at once (TlsClient::broken): the session ends at that frame.
 const unsigned kUnreadableLimit = 16;
 const int kTouchMove = 2;
 
@@ -492,6 +493,12 @@ AASession::Received AASession::receive(uint8_t& channel, Message& wire, Message&
     const bool encrypted = header.encrypted();
     if (encrypted) {
         if (!tls_.open(wire.data(), wire.size(), plain)) {
+            if (tls_.broken()) {
+                // No later frame can decrypt, and nothing more can be sealed: no ack, no ping, the session ends.
+                printf("[AASession] Encrypted frame on channel %u (%u bytes) broke TLS: session ends.\n", channel,
+                       header.length);
+                return kLost;
+            }
             printf("[AASession] Failed to decrypt encrypted frame (%u bytes).\n", header.length);
             assembler_.lose(header);
             ackDropped(header);

@@ -42,6 +42,13 @@ QEMU avec les bibliothèques de la voiture).
   envoyait ensuite devenait illisible pour le téléphone, sans que la séance s'arrête. Un envoi raté met désormais fin à
   la séance comme une coupure : rien de plus ne part, et le téléphone est relancé comme après une séance perdue.
   Testé sur PC.
+- Sans-fil : un message chiffré abîmé en route laissait la séance continuer sur un chiffrement mort. En TLS, un
+  enregistrement qui échoue à sa vérification est fatal : plus rien ne se déchiffre ensuite, les bons non plus, et la
+  séance attendait 15 trames illisibles de plus avant de s'arrêter. Le premier message que la voiture envoyait ensuite
+  (souvent l'accusé de cette image) partait en plus avec l'alerte d'OpenSSL à sa place. La séance s'arrête maintenant à
+  cette trame, sans rien envoyer de plus, et le téléphone est relancé comme après une séance perdue. Un enregistrement
+  coupé sur deux trames reste lu normalement, et 16 trames de suite qui n'apportent aucun enregistrement complet
+  arrêtent toujours la séance. Testé sur PC.
 - Image (ou consignes de guidage) figée pour le reste de la séance après quelques messages perdus. Le téléphone n'envoie
   que 10 messages d'avance sans accusé de la voiture ; un message que la voiture écartait (image trop courte, morceaux
   arrivés incomplets, morceau illisible) n'était jamais accusé et gardait une de ces places pour de bon, et au dixième
