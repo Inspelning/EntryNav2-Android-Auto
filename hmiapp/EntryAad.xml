@@ -68,6 +68,9 @@
       <textIdModel id="86" textId="26">
         <synonyms/>
       </textIdModel>
+      <textIdModel id="87" textId="27">
+        <synonyms/>
+      </textIdModel>
       <raIntModel id="40" modelType="NativeStateID" value="1"/>
     </models>
     <events>
@@ -90,7 +93,7 @@
           <button action="25" id="65" model="36" text="Aide"/>
         </components>
       </hmiState>
-      <hmiState id="12" parentId="10" text="Aide" textModel="36">
+      <hmiState id="12" parentId="10" text="Aide" textModel="87">
         <components>
           <label id="99" model="86"/>
           <label id="90" model="80"/>

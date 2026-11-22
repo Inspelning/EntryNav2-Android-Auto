@@ -13,6 +13,12 @@ QEMU with the car's libraries).
 
 ## [Unreleased]
 
+### Added
+
+- Version number in the title of the *Help* page of the Android Auto menu in iDrive (for example "Help -
+  0.13.0-rc.10"): a photo of the page is enough to know which version runs in the car. Its six lines stay the
+  same. Tested on PC.
+
 ## [0.13.0-rc.9] - 2026-11-22 · PC
 
 Release candidate: logs without a PC (kept after the car sleeps, copied to a USB stick from the iDrive menu) and

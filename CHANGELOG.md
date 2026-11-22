@@ -8,6 +8,12 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+### Ajouté
+
+- Numéro de version dans le titre de la page *Aide* du menu Android Auto de l'iDrive (par exemple « Aide -
+  0.13.0-rc.10 ») : une photo de la page suffit pour savoir quelle version tourne dans la voiture. Ses six lignes
+  restent les mêmes. Testé sur PC.
+
 ## [0.13.0-rc.9] - 2026-11-22 · PC
 
 Version candidate : des journaux sans PC (gardés après le sommeil de la voiture, copiés sur clé USB depuis le menu

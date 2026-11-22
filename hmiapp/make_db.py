@@ -4,7 +4,8 @@
 """Build the iDrive app's text and image databases.
 
 EntryAad_ALL_Texts.zip holds <lang>.txt ("id=text" lines, same format as BMW's PluginsCoded apps) and
-EntryAad_ALL_Images.zip holds <imageId>.png, from hmiapp/res. Both are reproducible: same input, same bytes.
+EntryAad_ALL_Images.zip holds <imageId>.png, from hmiapp/res. Both are reproducible: same input, same bytes. The Help
+page's title carries the project's version (VERSION), so a photo of it tells which version a car runs.
 
 Usage: make_db.py <res dir> <output dir>
 """
@@ -101,7 +102,9 @@ LANG_TEXTS = {  # ASCII only
     },
 }
 LANG_TEXTS["fr-CA"] = LANG_TEXTS["fr-FR"]
+HELP_TITLE = 27  # "<Help> - <version>": title of the Help page (its six lines are full, the page does not scroll)
 FIXED_DATE = (2026, 11, 2, 0, 0, 0)  # the same date in every archive: reproducible files
+VERSION_FILE = Path(__file__).resolve().parents[1] / "VERSION"
 
 
 def add(archive, name, data):
@@ -111,12 +114,21 @@ def add(archive, name, data):
     archive.writestr(info, data)
 
 
-def write_texts(path):
+def project_version():
+    """The project's version, as VERSION gives it: one line of ASCII letters, digits, dots and dashes."""
+    version = VERSION_FILE.read_text().strip()
+    if not version or not all(c.isascii() and (c.isalnum() or c in ".-") for c in version):
+        raise SystemExit(f"FAIL: {VERSION_FILE} does not hold a version: {version!r}")
+    return version
+
+
+def write_texts(path, version):
     """One <lang>.txt per language: English, overridden by the language's own texts."""
     with zipfile.ZipFile(path, "w") as archive:
         for lang, langname in LANGS.items():
             texts = dict(TEXTS)
             texts.update(LANG_TEXTS.get(lang, {}))
+            texts[HELP_TITLE] = f"{texts[16]} - {version}"
             body = f"100000={langname}\n" + "".join(f"{key}={value}\n" for key, value in sorted(texts.items()))
             if not body.isascii():
                 raise SystemExit(f"FAIL: {lang} texts must stay ASCII")
@@ -154,7 +166,7 @@ def main():
         raise SystemExit("Usage: make_db.py <res dir> <output dir>")
     res, out = Path(sys.argv[1]), Path(sys.argv[2])
     out.mkdir(parents=True, exist_ok=True)
-    write_texts(out / "EntryAad_ALL_Texts.zip")
+    write_texts(out / "EntryAad_ALL_Texts.zip", project_version())
     write_images(out / "EntryAad_ALL_Images.zip", res)
     print("wrote EntryAad_ALL_Texts.zip, EntryAad_ALL_Images.zip in", out)
 
