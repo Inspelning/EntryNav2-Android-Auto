@@ -65,6 +65,7 @@ AASession::AASession()
       vehicleFile_(nullptr),
       softwareVersion_(nullptr),
       carMake_(nullptr),
+      codedSide_(DriverPosition::kLeft),
       longestSilenceMs_(0),
       goodbye_(false),
       lastReceivedMs_(0),

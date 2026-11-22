@@ -8,6 +8,14 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+### Ajouté
+
+- Côté du conducteur lu dans le codage de la voiture : l'appli iDrive demande à l'iDrive si la voiture est codée
+  volant à gauche ou volant à droite, comme elle le fait déjà pour la marque et les touches, et le service l'annonce au
+  téléphone. Une voiture à volant à droite n'a plus besoin d'une ligne `side=right` dans le fichier `vehicle` ; cette
+  ligne reste possible et l'emporte sur le codage. Si le codage ne dit rien de sûr, conduite à gauche comme avant.
+  Le journal de l'appli écrit `driver side: left` ou `right`, celui du service le côté reçu. Testé sur PC.
+
 ### Modifié
 
 - Sans-fil : une image qui arrive moins de 25 ms après la précédente attend le reste de ce délai avant d'aller au

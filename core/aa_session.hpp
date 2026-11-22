@@ -18,6 +18,7 @@
 #include "car_location.hpp"
 #include "display_plan.hpp"
 #include "keyframe_request.hpp"
+#include "sdr_builder.hpp"
 
 namespace aa {
 
@@ -75,6 +76,8 @@ public:
     void setDisplay(const DisplayPlan& display) { display_ = display; }
     // The maker announced to the phone, as iDrive is coded ("MINI"); kept by the caller. Null: "BMW".
     void setCarMake(const char* make) { carMake_ = make; }
+    // The driver's side as the car is coded; the vehicle file's "side=" still wins. Left by default.
+    void setCodedDriverSide(DriverPosition side) { codedSide_ = side; }
 
     // Car input for the phone, from any thread: queued, then sent by the session thread.
     void postTouchEvent(const TouchEventOut& ev);
@@ -165,6 +168,7 @@ private:
     const char* vehicleFile_;
     const char* softwareVersion_;
     const char* carMake_;
+    DriverPosition codedSide_;
     DisplayPlan display_;
 
     CarInbox inbox_;

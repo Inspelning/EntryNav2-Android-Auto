@@ -9,6 +9,7 @@
 // clang-format off
 #include "alps_spp.hpp"
 #include "car_brand.hpp"
+#include "driver_side.hpp"
 #include "evo_ap.hpp"
 #include "evo_video.hpp"
 #include "evo_touch.hpp"
@@ -155,6 +156,25 @@ aa::CarBrand readCarBrand() {
     }
     return brand;
 }
+
+// The driver's side the iDrive app read in the car's coding (driver_side.hpp). Without the file (an older app, or a
+// coding that says nothing sure), left; the vehicle file's "side=" wins either way.
+aa::DriverPosition readCodedDriverSide() {
+    bool right = false;
+    FILE* f = fopen(evo::contract::kDriverSideFile, "r");
+    char line[16] = {0};
+    const bool read = f && fgets(line, sizeof(line), f) && aa::parseDriverSide(line, right);
+    if (f) {
+        fclose(f);
+    }
+    if (read) {
+        ELOG("Main", "driver side coded in the car: %s", aa::driverSideName(right));
+    } else {
+        ELOG("Main", "driver side not read from %s: left, unless the vehicle file says otherwise",
+             evo::contract::kDriverSideFile);
+    }
+    return right ? aa::DriverPosition::kRight : aa::DriverPosition::kLeft;
+}
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -284,6 +304,7 @@ int main(int argc, char** argv) {
     app.videoConfig.holdCloseFrames = !usb;  // pairs come from the Wi-Fi's bursts, not the cable
     app.session.setDisplay(display);
     app.session.setCarMake(aa::brandName(brand));
+    app.session.setCodedDriverSide(readCodedDriverSide());
     app.usbPort = usbPort ? usbPort : "";
     app.session.setTouchForwarding(input == evo::INPUT_FORWARD);
     app.session.setVehicleFile(evo::contract::kVehicle);  // the car's model, year, side, fuel; written at installation

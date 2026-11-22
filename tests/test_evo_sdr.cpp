@@ -13,6 +13,7 @@
 
 #include "car_brand.hpp"
 #include "dhu_sdp.h"
+#include "driver_side.hpp"
 #include "evo_gps.hpp"
 #include "evo_sdr_sensors.hpp"
 #include "pb.hpp"
@@ -266,6 +267,30 @@ int main() {
         differing += leftPetrol[i] != rightDiesel[i] ? 1 : 0;
     }
     CHECK(differing == 2);
+    // The side coded in the car (driver_side.hpp): told to the phone, unless the vehicle file says "side=".
+    const std::vector<uint8_t> codedRight = aa::buildCarServiceDiscovery(
+        kDhuSdpProtobuf, kDhuSdpProtobufLen, nullptr, nullptr, aa::DisplayPlan(), nullptr, aa::DriverPosition::kRight);
+    CHECK(values(codedRight, 6) == std::vector<uint64_t>({1}) && codedRight.size() == leftPetrol.size());
+    f = fopen(vehicle, "w");
+    CHECK(f);
+    fputs("model=118i\nside=left\n", f);
+    fclose(f);
+    const std::vector<uint8_t> fileLeft = aa::buildCarServiceDiscovery(
+        kDhuSdpProtobuf, kDhuSdpProtobufLen, vehicle, nullptr, aa::DisplayPlan(), nullptr, aa::DriverPosition::kRight);
+    f = fopen(vehicle, "w");
+    CHECK(f);
+    fputs("model=118i\n", f);
+    fclose(f);
+    const std::vector<uint8_t> fileWithoutSide = aa::buildCarServiceDiscovery(
+        kDhuSdpProtobuf, kDhuSdpProtobufLen, vehicle, nullptr, aa::DisplayPlan(), nullptr, aa::DriverPosition::kRight);
+    unlink(vehicle);
+    CHECK(values(fileLeft, 6) == std::vector<uint64_t>({0}) &&
+          values(fileWithoutSide, 6) == std::vector<uint64_t>({1}));
+    bool right = false;
+    CHECK(aa::parseDriverSide("right\n", right) && right && !strcmp(aa::driverSideName(right), "right"));
+    CHECK(aa::parseDriverSide("left", right) && !right && !strcmp(aa::driverSideName(right), "left"));
+    CHECK(!aa::parseDriverSide("rights", right) && !aa::parseDriverSide("Right", right) &&
+          !aa::parseDriverSide("", right) && !aa::parseDriverSide(nullptr, right) && !right);
     // A description without the field still gets the side; one without a sensor channel is left as it was.
     std::vector<uint8_t> bare;
     aa::pb::appendString(bare, 2, "BMW");

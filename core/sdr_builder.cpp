@@ -377,9 +377,10 @@ void setDiscoveryTrim(DiscoveryTrim trim) {
 }
 
 std::vector<uint8_t> buildCarServiceDiscovery(const uint8_t* base, size_t baseLen, const char* vehicleFile,
-                                              const char* softwareVersion, const DisplayPlan& display,
-                                              const char* make) {
+                                              const char* softwareVersion, const DisplayPlan& display, const char* make,
+                                              DriverPosition codedSide) {
     SdrIdentity identity;
+    identity.driverPosition = codedSide;  // before the file, whose "side=" wins
     if (vehicleFile) {
         identity.loadVehicleFile(vehicleFile);
     }

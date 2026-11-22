@@ -100,19 +100,21 @@ cd / && md5sum -c /tmp/entrynav2-android-auto-$V/MD5SUMS
 - Le dernier `md5sum -c` relit les fichiers installés : chacun doit répondre `OK`.
 - Si `mount -o remount,ro /` échoue, le redémarrage qui suit remet le système en lecture seule.
 
-Facultatif, la voiture annoncée au téléphone : le modèle et l'année qu'il affiche, le côté du conducteur, pour lequel
-Android Auto dispose son écran, et le carburant. Sans ce fichier, il affiche « iDrive » et 2019, conduite à gauche,
-essence : l'unité ne connaît pas le nom du modèle. La marque, BMW ou MINI, vient du codage de l'iDrive et ne se règle
-pas ici.
+Facultatif, la voiture annoncée au téléphone : le modèle et l'année qu'il affiche, et le carburant. Sans ce fichier,
+il affiche « iDrive » et 2019, essence : l'unité ne connaît pas le nom du modèle. La marque, BMW ou MINI, vient du
+codage de l'iDrive et ne se règle pas ici. Le côté du conducteur, pour lequel Android Auto dispose son écran, vient
+aussi du codage de la voiture (voir plus bas pour l'imposer).
 
 Remplacer `MODELE` et `ANNEE` par ceux de la voiture (par exemple `320d` et `2020`, ou `Cooper S` et `2019`) ;
-24 caractères au plus pour le modèle : lettres sans accent, chiffres, espaces, `-`, `.` et `_`. Remplacer `COTE` par
-`left` (volant à gauche) ou `right` (volant à droite), et `CARBURANT` par `petrol` (essence) ou `diesel`. Une autre
-valeur pour le côté ou le carburant garde la conduite à gauche ou l'essence.
+24 caractères au plus pour le modèle : lettres sans accent, chiffres, espaces, `-`, `.` et `_`. Remplacer `CARBURANT`
+par `petrol` (essence) ou `diesel` ; une autre valeur garde l'essence.
 
 ```sh
-mkdir -p /var/local/data/AA && printf 'model=MODELE\nyear=ANNEE\nside=COTE\nfuel=CARBURANT\n' > /var/local/data/AA/vehicle
+mkdir -p /var/local/data/AA && printf 'model=MODELE\nyear=ANNEE\nfuel=CARBURANT\n' > /var/local/data/AA/vehicle
 ```
+
+Si le journal du service dit `driver side not read` (codage illisible) ou annonce le mauvais côté, une ligne
+`side=left` (volant à gauche) ou `side=right` (volant à droite) ajoutée à ce fichier l'emporte sur le codage.
 
 Puis redémarrer l'unité :
 

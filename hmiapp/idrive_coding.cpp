@@ -11,6 +11,7 @@
 
 #include "../platform/car_brand.hpp"
 #include "../platform/controller_layout.hpp"
+#include "../platform/driver_side.hpp"
 #include "../platform/service_contract.hpp"
 #include "app_log.hpp"
 
@@ -157,6 +158,21 @@ bool writeBrand(const VariantServer& server) {
     return written;
 }
 
+// Both variants are asked: a coding with neither or both says nothing sure, and the file is not written.
+bool writeDriverSide(const VariantServer& server) {
+    const bool left = server.isSet(aa::kVariantLeftHandDrive);
+    const bool right = server.isSet(aa::kVariantRightHandDrive);
+    if (left == right) {
+        unlink(contract::kDriverSideFile);
+        alog("driver side: coding unclear (left %d, right %d): the vehicle file's side, or left", left ? 1 : 0,
+             right ? 1 : 0);
+        return false;
+    }
+    const bool written = writeLine(contract::kDriverSideFile, aa::driverSideName(right));
+    alog("driver side: %s%s", aa::driverSideName(right), written ? "" : ", not written");
+    return written;
+}
+
 }  // namespace
 
 bool writeIdriveCoding() {
@@ -164,11 +180,13 @@ bool writeIdriveCoding() {
     if (!server.find()) {
         unlink(contract::kControllerFile);
         unlink(contract::kBrandFile);
+        unlink(contract::kDriverSideFile);
         return false;
     }
     const bool keys = writeControllerCoding(server);
     const bool brand = writeBrand(server);
-    return keys && brand;
+    const bool side = writeDriverSide(server);
+    return keys && brand && side;
 }
 
 DriveModePopup readDriveModePopup() {
