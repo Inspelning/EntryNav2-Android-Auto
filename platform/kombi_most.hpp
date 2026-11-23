@@ -13,13 +13,17 @@
 //     176x126), sizes read with function 0xC04; the right edge of the picture is in the shade;
 //   - a picture is filled polygons (0x21D) in a colour (0x21B), drawn into the hidden buffer, then 0x20E swaps the
 //     buffers; texts are UTF-16BE (0x210); 0x204 shows or hides a field; 0x220 empties one.
-// Nothing is created on the cluster: when the fields are missing or sized otherwise, nothing is drawn. One call at a
-// time, the next after the answer (or 300 ms), 20 ms apart at least. A refused call stops the drawing until the next
-// Android Auto session; so do five calls in a row left unanswered.
+// Nothing is created on the cluster: when the fields are missing or sized otherwise, nothing is drawn. Calls go out
+// 20 ms apart at least, at most eight of them waiting for their answers; an answer is the oldest waiting call's of its
+// function, of its field when the answer starts with one; after a call left unanswered, one at a time until an answer
+// comes back. A refused call stops the drawing until the next Android Auto session; so do five calls in a row left
+// unanswered for 10 s.
 //
-// Seen by another project on F-series cars (Sq00ky's, F20/F30): right after an iDrive restart the cluster answers the
-// size reads only after 1.5 s or more, so a size is taken whenever it comes, the reads wait 3 s, and missing or
-// unusable sizes are asked again 30 s later, three times in all. On a car with a head-up display, the iDrive setting
+// Seen by another project on F-series cars (Sq00ky's, F20/F30 with the 6WA cluster): for minutes after a cold iDrive
+// start the cluster answers every call, but 1.1 to 7.5 s late. So a call waits 10 s for its answer, and one that came
+// later still belongs to it, not to a newer call; a copy of one of our calls is ours while the call waits and for 3 s
+// after it was sent or answered; a size is taken whenever it comes, the size reads are judged after 10 s, and missing
+// or unusable sizes are asked again 30 s later, three times in all. On a car with a head-up display, the iDrive setting
 // moves the guidance between the cluster and the HUD, whose pictures differ (176x126 and 126x77 on an F30); the cluster
 // then tells the navigation on FBlock 0x52 instance 0, function 0xCFF (with the factory navigation unlicensed, many
 // times a second, unchanged). A new content of that message from the cluster's own address has both picture sizes read
@@ -194,9 +198,17 @@ public:
 
 private:
     enum Batch { kNoBatch, kSizesBatch, kRemeasureBatch, kDrawBatch, kClearBatch };
+    struct Waiting {  // a drawing call sent, its answer not in
+        HudCall call;
+        uint32_t at;
+        unsigned serial;
+    };
     struct Sent {
         HudCall call;
         uint32_t at;
+        unsigned serial;
+        bool answered;
+        uint32_t answeredAt;
     };
 
     void readInputs(uint32_t now);
@@ -215,6 +227,10 @@ private:
     void mark(bool up);
     void unshadow(VmostPort& port);
     bool ours(const VmostMsgView& m, uint32_t now) const;
+    void onAnswer(const VmostMsgView& m, uint32_t now);
+    void expire(uint32_t now);
+    size_t room() const;
+    static bool takeAnswer(std::deque<Waiting>& list, const VmostMsgView& m, Waiting& out);
 
     const MostHudConfig config_;
 
@@ -242,10 +258,12 @@ private:
     std::vector<uint8_t> registry_;
     FieldSize sizes_[kHudFields];
     bool sizeIn_[kHudFields];
-    bool sizesWaiting_;  // the size reads went out: answers until sizesAskedAt_ + 3 s
+    uint32_t sizeAskedAt_[kHudFields];
+    bool sizesWaiting_;  // the size reads went out: answers until sizesAskedAt_ + 10 s
     uint32_t sizesAskedAt_;
     int sizeTries_;
-    bool remeasureDue_, haveMovedTo_;
+    bool remeasureDue_, remeasuring_, haveMovedTo_;
+    uint32_t remeasureAt_;
     std::vector<uint8_t> movedTo_;  // the last place the cluster named for the guidance
     unsigned remeasures_, lateSizes_;
     FieldSize drawnPicture_, pendingPicture_;  // the picture size the arrow on the cluster was drawn for
@@ -253,9 +271,12 @@ private:
     Batch batch_;
     bool batchFailed_;
     HudView pending_;
-    bool inFlight_, answered_, refused_;
-    HudCall inFlightCall_;
-    uint32_t sentAt_, lastSendAt_;
+    std::deque<Waiting> waiting_;  // oldest first
+    std::deque<Waiting> givenUp_;  // no answer within 10 s: one that still comes is theirs
+    unsigned serial_;
+    bool refused_;  // a drawing call was refused since the last tick
+    unsigned refusals_, slowAnswers_, lateAnswers_;
+    uint32_t lastSendAt_;
     int missed_;
     std::deque<Sent> recent_;  // our last calls: their copies on the shadow are not another client
     uint32_t foreignUntil_;

@@ -324,9 +324,20 @@ struct Car {
     bool hudSilent;  // the cluster does not answer
     uint16_t refuseFkt;
     uint16_t pictureW, pictureH;
-    uint32_t sizeDelayMs;  // a cold cluster answers the size reads this late
+    uint32_t sizeDelayMs;    // a cold cluster answers the size reads this late
+    uint32_t answerDelayMs;  // and the drawing calls this late, each answer with its call's parameters
+    bool drawSilent;         // the drawing calls are never answered
     std::vector<Later> later;
-    Car() : hud(true), silent(false), hudSilent(false), refuseFkt(0), pictureW(176), pictureH(126), sizeDelayMs(0) {}
+    Car()
+        : hud(true),
+          silent(false),
+          hudSilent(false),
+          refuseFkt(0),
+          pictureW(176),
+          pictureH(126),
+          sizeDelayMs(0),
+          answerDelayMs(0),
+          drawSilent(false) {}
 };
 
 // Ticks the hud for `ms`, answering each new call as the car would.
@@ -371,6 +382,11 @@ void run(MostHud& hud, FakePort& port, Car& car, uint32_t& now, uint32_t ms) {
                 } else {
                     hud.onMessage(answer(kHudFblock, kHudSize, kMostOpResultAck, keep));
                 }
+            } else if (car.drawSilent) {
+                continue;
+            } else if (car.answerDelayMs) {
+                Later l = {now + car.answerDelayMs, m.out.fkt, m.data};
+                car.later.push_back(l);
             } else {
                 hud.onMessage(answer(kHudFblock, m.out.fkt, kMostOpResultAck, Bytes()));
             }
@@ -454,7 +470,7 @@ void drawsAndClears() {
     }
     CHECK(port.shadows.size() == 3);
     for (size_t i = 2; i < port.sent.size(); ++i) {
-        CHECK(port.at[i] - port.at[i - 1] >= 20);  // one call at a time, 20 ms apart at least
+        CHECK(port.at[i] - port.at[i - 1] >= 20);  // 20 ms apart at least
     }
     // Nearer: one text.
     size_t before = port.sent.size();
@@ -504,12 +520,14 @@ void pacing() {
         MostHud hud(place.config());
         FakePort port;
         Car car;
-        car.hudSilent = true;  // the cluster never answers: 300 ms per read, asked three times 30 s apart
+        car.hudSilent = true;  // the cluster never answers: the reads judged after 10 s, asked three times 30 s apart
         uint32_t now = 0;
         tell(hud, 8, "Rue A", 300, "300", kUnitMetres);
         run(hud, port, car, now, 5000);
-        CHECK(hud.phase() == MostHud::kSizes && port.sent.size() == 1 + 6 && port.at[2] - port.at[1] >= 300);
+        CHECK(hud.phase() == MostHud::kSizes && port.sent.size() == 1 + 6 && port.at[2] - port.at[1] >= 20);
         run(hud, port, car, now, 80000);
+        CHECK(hud.phase() == MostHud::kSizes && port.sent.size() == 1 + 18);
+        run(hud, port, car, now, 15000);
         CHECK(hud.phase() == MostHud::kAbsent && port.sent.size() == 1 + 18);
     }
     {
@@ -596,9 +614,55 @@ void coldCluster() {
         run(hud, port, car, now, 5000);
         CHECK(hud.phase() == MostHud::kSizes && !hud.showing());
         car.hudSilent = false;
-        run(hud, port, car, now, 32000);
+        run(hud, port, car, now, 40000);
         CHECK(hud.phase() == MostHud::kReady && hud.showing() && countFkt(port, kHudSize) == 12);
     }
+}
+
+// For minutes after a cold iDrive start the cluster answers every call seconds late (1.1 to 7.5 s on an F30): the arrow
+// still goes up, eight calls waiting at most, nothing stops, and a copy of a call still waiting is not another client.
+void lateAnswers() {
+    Place place;
+    MostHud hud(place.config());
+    FakePort port;
+    Car car;
+    car.sizeDelayMs = 5300;
+    car.answerDelayMs = 5300;
+    uint32_t now = 0;
+    tell(hud, 8, "Rue A", 300, "300", kUnitMetres);
+    run(hud, port, car, now, 3000);
+    CHECK(hud.phase() == MostHud::kSizes && !hud.showing());
+    run(hud, port, car, now, 30000);
+    CHECK(hud.phase() == MostHud::kReady && hud.showing() && place.marked());
+    CHECK(countFkt(port, kHudSize) == 6 && countFkt(port, kHudSwap) == 1 && countFkt(port, kHudText) == 3);
+    const size_t first = 1 + 6;  // the first drawing call
+    CHECK(port.sent.size() > first + 8 && port.at[first + 8] - port.at[first] >= 5300);
+    // A new distance; the cluster's copy of that call comes while it waits, well after it was sent.
+    tell(hud, 8, "Rue A", 250, "250", kUnitMetres);
+    size_t before = port.sent.size();
+    run(hud, port, car, now, 3500);
+    CHECK(port.sent.size() == before + 1);
+    const Message waiting = port.sent.back();
+    hud.onMessage(answer(kHudFblock, waiting.out.fkt, kMostOpStartResultAck, waiting.data, 0x0100));
+    tell(hud, 8, "Rue A", 200, "200", kUnitMetres);
+    before = port.sent.size();
+    run(hud, port, car, now, 8000);
+    CHECK(port.sent.size() == before + 1 && port.sent.back().data == hudText(3, "200").data && hud.showing());
+}
+
+// Sizes answered, drawing calls never: eight go out, and only after 10 s without an answer does the drawing stop.
+void silentDrawing() {
+    Place place;
+    MostHud hud(place.config());
+    FakePort port;
+    Car car;
+    car.drawSilent = true;
+    uint32_t now = 0;
+    tell(hud, 8, "Rue A", 300, "300", kUnitMetres);
+    run(hud, port, car, now, 5000);
+    CHECK(hud.phase() == MostHud::kReady && port.sent.size() == 1 + 6 + 8);
+    run(hud, port, car, now, 7000);
+    CHECK(hud.phase() == MostHud::kStopped && !hud.showing() && place.marked() && port.sent.size() == 1 + 6 + 8);
 }
 
 // The iDrive setting moves the guidance to the head-up display: the cluster says so, the picture sizes are read again
@@ -747,6 +811,8 @@ int main() {
     pacing();
     notAllowedOrBmw();
     coldCluster();
+    lateAnswers();
+    silentDrawing();
     headUpDisplay();
     refusedThenNextSession();
     otherClientAndEchoes();
@@ -755,7 +821,8 @@ int main() {
     refusedSends();
     printf(
         "PASS kombi most: registry, sizes, calls, pictures, views, presenter, neighbours, drawing and clearing, "
-        "pacing, Ethernet and BMW navigation first, cold cluster, head-up display, refusals, other client, stale "
+        "pacing, Ethernet and BMW navigation first, cold cluster, late answers, silent cluster, head-up display, "
+        "refusals, other client, stale "
         "marker, exit\n");
     return 0;
 }

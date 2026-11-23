@@ -24,8 +24,9 @@ QEMU with the car's libraries).
   The file's `model=` line always wins. Tested on PC.
 - Android Auto's arrows on the cluster of F-series cars, over MOST: arrow, distance, unit and street, in the guidance
   fields the BMW navigation fills (`HUD_Terminal` block). Only without an Ethernet cluster (G-series cars do not
-  change), never during BMW guidance, nothing created on the cluster. A cluster slow to answer right after an iDrive
-  restart is waited for, and the arrow follows the guidance when it moves to the head-up display
+  change), never during BMW guidance, nothing created on the cluster. A cluster that answers seconds late after a cold
+  iDrive start is waited for (10 s per call, eight calls ahead), and the arrow follows the guidance when it moves to
+  the head-up display
   ([compatibility](docs/COMPATIBILITE.md#flèches-sur-le-compteur-des-série-f),
   [#79](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/79)). Tested on PC only, from the description of a
   6WA cluster (F52).

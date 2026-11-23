@@ -22,16 +22,21 @@ namespace kombi {
 namespace {
 
 const char* const kTag = "KombiMost";
-const uint32_t kGapMs = 20;         // between two calls, at least
-const uint32_t kAnswerMs = 300;     // a call without an answer this long counts as missed
-const uint32_t kRegistryMs = 1500;  // the registry's answer
-const uint32_t kRetryMs = 30000;    // a registry or sizes that did not answer are asked again this much later
-const uint32_t kSizeWaitMs = 3000;  // the size reads' answers, late ones included (a cold cluster takes 1.5 s)
-const int kSizeTries = 3;           // size reads without usable answers before giving up for this run
+const uint32_t kGapMs = 20;  // between two calls, at least
+// A cold cluster answers every call 1.1 to 7.5 s late, for minutes after an iDrive start.
+const uint32_t kAnswerMs = 10000;    // a call without an answer this long counts as missed
+const uint32_t kSlowMs = 1500;       // an answer later than this is slow (logged)
+const uint32_t kGivenUpMs = 30000;   // an answer to a call given up on is still recognised this long after the call
+const size_t kWaitingMax = 8;        // calls waiting for their answers at once: one at a time takes minutes per arrow
+const unsigned kSlowLogged = 3;      // slow or late answers logged (all are counted)
+const uint32_t kRegistryMs = 1500;   // the registry's answer
+const uint32_t kRetryMs = 30000;     // a registry or sizes that did not answer are asked again this much later
+const uint32_t kSizeWaitMs = 10000;  // the size reads' answers, late ones included
+const int kSizeTries = 3;            // size reads without usable answers before giving up for this run
 const uint16_t kMinPictureW = 80, kMinPictureH = 60;  // smaller, no arrow fits
 const unsigned kRemeasuresLogged = 20;
 const uint32_t kForeignMs = 30000;  // another client drew on the fields: they are left to it this long
-const uint32_t kEchoMs = 3000;      // a copy of one of our calls arrives within this
+const uint32_t kEchoMs = 3000;      // our call's copy: while it waits, and this long after it went out or was answered
 const int kMissedLimit = 5;         // calls in a row without an answer: the cluster is not there
 const int kLookupTries = 3;         // registry requests without an answer before giving up for this run
 const size_t kRecentCalls = 32;     // our calls kept to recognise their copies
@@ -644,15 +649,18 @@ MostHud::MostHud(const MostHudConfig& config)
       sizesAskedAt_(0),
       sizeTries_(0),
       remeasureDue_(false),
+      remeasuring_(false),
       haveMovedTo_(false),
+      remeasureAt_(0),
       remeasures_(0),
       lateSizes_(0),
       batch_(kNoBatch),
       batchFailed_(false),
-      inFlight_(false),
-      answered_(false),
+      serial_(0),
       refused_(false),
-      sentAt_(0),
+      refusals_(0),
+      slowAnswers_(0),
+      lateAnswers_(0),
       lastSendAt_(0),
       missed_(0),
       foreignUntil_(0),
@@ -667,6 +675,7 @@ MostHud::MostHud(const MostHudConfig& config)
     pthread_mutex_init(&mu_, nullptr);
     memset(sizes_, 0, sizeof(sizes_));
     memset(sizeIn_, 0, sizeof(sizeIn_));
+    memset(sizeAskedAt_, 0, sizeof(sizeAskedAt_));
     memset(&drawnPicture_, 0, sizeof(drawnPicture_));
     memset(&pendingPicture_, 0, sizeof(pendingPicture_));
     staleMarker_ = access(config_.markerFile.c_str(), F_OK) == 0;
@@ -719,6 +728,9 @@ void MostHud::readInputs(uint32_t now) {
         if (phase_ == kStopped) {
             phase_ = kReady;
             missed_ = 0;
+            // The last session's calls no longer count against this one.
+            givenUp_.insert(givenUp_.end(), waiting_.begin(), waiting_.end());
+            waiting_.clear();
             ELOG(kTag, "new Android Auto session: the cluster may be drawn on again");
         }
     }
@@ -770,15 +782,104 @@ bool MostHud::wants(const VmostMsgView& m) const {
            (m.fblock == kGuidanceFblock && m.fkt == kGuidanceMovedFkt);
 }
 
+namespace {
+
+bool sameCall(const HudCall& c, const VmostMsgView& m) {
+    return c.fkt == m.fkt && c.data.size() == m.len && (m.len == 0 || memcmp(c.data.data(), m.data, m.len) == 0);
+}
+
+}  // namespace
+
 bool MostHud::ours(const VmostMsgView& m, uint32_t now) const {
+    for (size_t i = 0; i < waiting_.size(); ++i) {
+        if (sameCall(waiting_[i].call, m)) {
+            return true;
+        }
+    }
     for (size_t i = 0; i < recent_.size(); ++i) {
-        const HudCall& c = recent_[i].call;
-        if (now - recent_[i].at <= kEchoMs && c.fkt == m.fkt && c.data.size() == m.len &&
-            (m.len == 0 || memcmp(c.data.data(), m.data, m.len) == 0)) {
+        const Sent& s = recent_[i];
+        if (sameCall(s.call, m) && (now - s.at <= kEchoMs || (s.answered && now - s.answeredAt <= kEchoMs))) {
             return true;
         }
     }
     return false;
+}
+
+// The oldest call of the answer's function, of its field when the answer starts with one of theirs.
+bool MostHud::takeAnswer(std::deque<Waiting>& list, const VmostMsgView& m, Waiting& out) {
+    size_t pick = list.size();
+    for (size_t i = 0; i < list.size(); ++i) {
+        const HudCall& c = list[i].call;
+        if (c.fkt != m.fkt) {
+            continue;
+        }
+        if (m.len >= 2 && c.data.size() >= 2 && memcmp(c.data.data(), m.data, 2) == 0) {
+            pick = i;
+            break;
+        }
+        if (pick == list.size()) {
+            pick = i;
+        }
+    }
+    if (pick == list.size()) {
+        return false;
+    }
+    out = list[pick];
+    list.erase(list.begin() + static_cast<long>(pick));
+    return true;
+}
+
+// An answer to one of our drawing calls, waiting or given up on; any other (another client's, a size read's) is left.
+void MostHud::onAnswer(const VmostMsgView& m, uint32_t now) {
+    Waiting w;
+    bool late = false;
+    if (!takeAnswer(waiting_, m, w)) {
+        if (!takeAnswer(givenUp_, m, w)) {
+            return;
+        }
+        late = true;
+    }
+    for (size_t i = 0; i < recent_.size(); ++i) {
+        if (recent_[i].serial == w.serial) {
+            recent_[i].answered = true;
+            recent_[i].answeredAt = now;
+        }
+    }
+    const unsigned after = static_cast<unsigned>(now - w.at);
+    if (late) {
+        if (++lateAnswers_ <= kSlowLogged) {
+            ELOG(kTag, "the cluster answered function 0x%03x after %u ms, once given up on (%u such answers)", m.fkt,
+                 after, lateAnswers_);
+        }
+    } else if (after > kSlowMs && ++slowAnswers_ <= kSlowLogged) {
+        ELOG(kTag,
+             "the cluster answered function 0x%03x after %u ms: slow, as a cold cluster is for minutes after an "
+             "iDrive start (%u slow answers)",
+             m.fkt, after, slowAnswers_);
+    }
+    if (m.op == kMostOpErrorAck || m.op == kMostOpError) {
+        refused_ = true;
+        ++refusals_;
+        ELOG(kTag, "the cluster refused function 0x%03x (operation 0x%x, error %02x %02x)", m.fkt, m.op,
+             m.len > 0 ? m.data[0] : 0, m.len > 1 ? m.data[1] : 0);
+    } else {
+        missed_ = 0;  // it is there
+    }
+}
+
+// Waiting calls without an answer for 10 s are missed; the answers still to come are recognised for a while.
+void MostHud::expire(uint32_t now) {
+    while (!waiting_.empty() && now - waiting_.front().at >= kAnswerMs) {
+        const Waiting w = waiting_.front();
+        waiting_.pop_front();
+        givenUp_.push_back(w);
+        if (++missed_ == 1) {
+            ELOG(kTag, "no answer to function 0x%03x within %u s", w.call.fkt, kAnswerMs / 1000);
+        }
+    }
+    while (!givenUp_.empty() && (now - givenUp_.front().at >= kGivenUpMs || givenUp_.size() > kRecentCalls)) {
+        givenUp_.pop_front();
+    }
 }
 
 void MostHud::onMessage(const VmostMsgView& m) {
@@ -798,16 +899,17 @@ void MostHud::onMessage(const VmostMsgView& m) {
         return;
     }
     if (m.fkt == kHudSize && (m.op == kMostOpResultAck || m.op == kMostOpStatus)) {
-        // A size is taken whenever it comes: a cold cluster answers after the call's 300 ms.
+        // A size is taken whenever it comes: a cold cluster answers seconds late.
         uint16_t field;
         FieldSize size;
         if (fieldSize(m.data, m.len, &field, &size) && field >= 1 && field <= kHudFields) {
             sizes_[field - 1] = size;
             sizeIn_[field - 1] = true;
-            if (!inFlight_ || inFlightCall_.fkt != kHudSize) {
+            if (now - sizeAskedAt_[field - 1] > kSlowMs) {
                 ++lateSizes_;
             }
         }
+        return;
     }
     if (m.op <= 8) {  // a request: a copy of ours, or another client drawing (the BMW navigation)
         if (drawingFunction(m.fkt) && !ours(m, now)) {
@@ -822,69 +924,55 @@ void MostHud::onMessage(const VmostMsgView& m) {
         }
         return;
     }
-    if (!inFlight_ || m.fkt != inFlightCall_.fkt) {
-        return;
-    }
-    if (m.op == kMostOpResultAck || m.op == kMostOpStatus) {
-        answered_ = true;
-    } else if (m.op == kMostOpErrorAck || m.op == kMostOpError) {
-        answered_ = true;
-        refused_ = true;
-        ELOG(kTag, "the cluster refused function 0x%03x (operation 0x%x, error %02x %02x)", m.fkt, m.op,
-             m.len > 0 ? m.data[0] : 0, m.len > 1 ? m.data[1] : 0);
+    if (m.op == kMostOpResultAck || m.op == kMostOpStatus || m.op == kMostOpErrorAck || m.op == kMostOpError) {
+        onAnswer(m, now);
     }
 }
 
+// After a call left unanswered, one at a time until an answer comes back.
+size_t MostHud::room() const {
+    const size_t most = missed_ > 0 ? 1 : kWaitingMax;
+    return waiting_.size() < most ? most - waiting_.size() : 0;
+}
+
 int MostHud::dueInMs(uint32_t nowMs) const {
-    if (inFlight_) {
-        if (answered_) {
-            return 0;
-        }
-        const int32_t left = static_cast<int32_t>(sentAt_ + kAnswerMs - nowMs);
-        return left > 0 ? left : 0;
+    if (refused_ || (batch_ != kNoBatch && queue_.empty() && waiting_.empty())) {
+        return 0;
     }
-    if (!queue_.empty()) {
-        const int32_t left = static_cast<int32_t>(lastSendAt_ + kGapMs - nowMs);
-        return left > 0 ? left : 0;
+    int32_t due = 100;
+    if (!queue_.empty() && room() > 0) {
+        due = std::min(due, static_cast<int32_t>(lastSendAt_ + kGapMs - nowMs));
     }
-    return 100;
+    if (!waiting_.empty()) {
+        due = std::min(due, static_cast<int32_t>(waiting_.front().at + kAnswerMs - nowMs));
+    }
+    return due > 0 ? due : 0;
 }
 
 void MostHud::tick(uint32_t now, VmostPort& port) {
     clock_ = now;
     readInputs(now);
-    if (inFlight_) {
-        if (!answered_ && static_cast<int32_t>(now - sentAt_) < static_cast<int32_t>(kAnswerMs)) {
-            return;
-        }
-        inFlight_ = false;
-        // Size reads may be answered late or refused (a field the cluster lacks): checkSizes() judges the answers.
-        const bool read = batch_ == kSizesBatch || batch_ == kRemeasureBatch;
-        if (!answered_ && !read) {
-            if (++missed_ == 1) {
-                ELOG(kTag, "no answer to function 0x%03x within %u ms", inFlightCall_.fkt, kAnswerMs);
-            }
-        } else if (answered_ && !refused_) {
-            missed_ = 0;
-        }
-        if (refused_) {
-            refused_ = false;
-            if (!read) {
-                batchFailed_ = true;
-                queue_.clear();
-                stop("the cluster refused a call");
-            }
-        } else if (missed_ >= kMissedLimit) {
-            batchFailed_ = true;
-            queue_.clear();
-            stop("five calls in a row without an answer");
-        }
+    expire(now);
+    // Size reads are not waited for: a size is taken whenever it comes, and checkSizes() judges them.
+    if (refused_) {
+        refused_ = false;
+        batchFailed_ = true;
+        queue_.clear();
+        unsure_ = true;  // part of a picture may be up, or not cleared
+        stop("the cluster refused a call");
+    } else if (missed_ >= kMissedLimit) {
+        batchFailed_ = true;
+        queue_.clear();
+        stop("five calls in a row without an answer");
     }
     if (!queue_.empty()) {
-        if (static_cast<int32_t>(now - lastSendAt_) >= static_cast<int32_t>(kGapMs)) {
+        if (room() > 0 && static_cast<int32_t>(now - lastSendAt_) >= static_cast<int32_t>(kGapMs)) {
             sendNext(now, port);
         }
         return;
+    }
+    if (!waiting_.empty()) {
+        return;  // the batch's last answers
     }
     if (batch_ != kNoBatch) {
         endBatch();
@@ -1083,15 +1171,27 @@ void MostHud::decide(uint32_t now) {
         return;
     }
     HudCalls calls;
+    const uint16_t a = config_.layout.pictureA, b = config_.layout.pictureB;
     if (remeasureDue_) {
         remeasureDue_ = false;
         if (++remeasures_ <= kRemeasuresLogged) {
             ELOG(kTag, "the guidance moved between the cluster and the head-up display: picture size read again");
         }
-        calls.push_back(hudSize(config_.layout.pictureA));
-        calls.push_back(hudSize(config_.layout.pictureB));
+        sizeIn_[a - 1] = false;
+        sizeIn_[b - 1] = false;
+        remeasuring_ = true;
+        remeasureAt_ = now;
+        calls.push_back(hudSize(a));
+        calls.push_back(hudSize(b));
         queue(kRemeasureBatch, calls);
         return;
+    }
+    if (remeasuring_) {
+        // Drawn at the new size once both are in; at the old one if they never come.
+        if (!(sizeIn_[a - 1] && sizeIn_[b - 1]) && now - remeasureAt_ < kSizeWaitMs) {
+            return;
+        }
+        remeasuring_ = false;
     }
     if (unsure_ || staleMarker_) {
         ELOG(kTag, "clearing a picture possibly left on the cluster (%s)",
@@ -1100,7 +1200,7 @@ void MostHud::decide(uint32_t now) {
         queue(kClearBatch, calls);
         return;
     }
-    const FieldSize picture = sizes_[config_.layout.pictureA - 1];
+    const FieldSize picture = sizes_[a - 1];
     const bool fits = picture.w >= kMinPictureW && picture.h >= kMinPictureH;
     if (!has || !allowed || !fits) {
         if (shown_) {
@@ -1147,29 +1247,36 @@ void MostHud::queue(Batch batch, const HudCalls& calls) {
 }
 
 void MostHud::sendNext(uint32_t now, VmostPort& port) {
-    inFlightCall_ = queue_.front();
+    const HudCall call = queue_.front();
     queue_.pop_front();
     VmostMsgOut m;
     memset(&m, 0, sizeof(m));
     m.addr = address_;
     m.fblock = kHudFblock;
     m.inst = kHudInstance;
-    m.fkt = inFlightCall_.fkt;
+    m.fkt = call.fkt;
     m.op = kMostOpStartResultAck;
-    m.len = static_cast<uint16_t>(inFlightCall_.data.size());
-    m.data = inFlightCall_.data.data();
-    recent_.push_back(Sent{inFlightCall_, now});
+    m.len = static_cast<uint16_t>(call.data.size());
+    m.data = call.data.data();
+    const unsigned serial = ++serial_;
+    recent_.push_back(Sent{call, now, serial, false, 0});
     while (recent_.size() > kRecentCalls) {
         recent_.pop_front();
     }
     lastSendAt_ = now;
-    sentAt_ = now;
-    answered_ = false;
-    refused_ = false;
     const int rc = port.send(m);
-    inFlight_ = rc == 0;
-    if (rc != 0) {
-        ELOG(kTag, "function 0x%03x not handed to vmostd (%d)", inFlightCall_.fkt, rc);
+    if (rc == 0) {
+        if (call.fkt == kHudSize) {
+            // Read, not waited for: its answer is taken whenever it comes.
+            const uint16_t field = call.data.size() >= 2 ? get16(call.data.data()) : 0;
+            if (field >= 1 && field <= kHudFields) {
+                sizeAskedAt_[field - 1] = now;
+            }
+        } else {
+            waiting_.push_back(Waiting{call, now, serial});
+        }
+    } else {
+        ELOG(kTag, "function 0x%03x not handed to vmostd (%d)", call.fkt, rc);
         if (++missed_ >= kMissedLimit) {
             batchFailed_ = true;
             queue_.clear();
@@ -1254,31 +1361,33 @@ void MostHud::finish(VmostPort& port) {
     const bool bmw = bmw_;
     const bool mayBeUp = shown_ || unsure_ || batch_ == kDrawBatch;
     queue_.clear();
-    inFlight_ = false;
+    givenUp_.insert(givenUp_.end(), waiting_.begin(), waiting_.end());  // not waited for any more
+    waiting_.clear();
     if ((phase_ == kReady || phase_ == kStopped) && mayBeUp && !bmw) {
         HudCalls calls;
         clearCalls(config_.layout, calls);
-        int refusedOrFailed = 0;
+        const unsigned refusalsBefore = refusals_;
+        unsigned failed = 0;
         for (size_t i = 0; i < calls.size(); ++i) {
-            inFlightCall_ = calls[i];
+            const HudCall& call = calls[i];
             VmostMsgOut m;
             memset(&m, 0, sizeof(m));
             m.addr = address_;
             m.fblock = kHudFblock;
             m.inst = kHudInstance;
-            m.fkt = inFlightCall_.fkt;
+            m.fkt = call.fkt;
             m.op = kMostOpStartResultAck;
-            m.len = static_cast<uint16_t>(inFlightCall_.data.size());
-            m.data = inFlightCall_.data.data();
-            inFlight_ = true;
-            refused_ = false;
+            m.len = static_cast<uint16_t>(call.data.size());
+            m.data = call.data.data();
             if (port.send(m) != 0) {
-                ++refusedOrFailed;
+                ++failed;
+            } else {
+                waiting_.push_back(Waiting{call, clock_, ++serial_});  // a refusal in the pause below is seen
             }
             port.pump(static_cast<int>(kGapMs));
-            refusedOrFailed += refused_ ? 1 : 0;
         }
-        inFlight_ = false;
+        waiting_.clear();
+        const bool refusedOrFailed = failed > 0 || refusals_ != refusalsBefore;
         ELOG(kTag, "service stopping: picture cleared%s",
              refusedOrFailed ? " (not every call taken: the marker stays)" : "");
         if (!refusedOrFailed) {
