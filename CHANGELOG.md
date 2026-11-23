@@ -20,7 +20,8 @@ QEMU avec les bibliothèques de la voiture).
   toujours. Testé sur PC.
 - Flèches d'Android Auto sur le compteur des Série F, par MOST : flèche, distance, unité et rue, dans les champs de
   guidage que remplit la navigation BMW (bloc `HUD_Terminal`). Seulement sans compteur Ethernet (les Série G ne
-  changent pas), jamais pendant un guidage BMW, rien de créé sur le compteur
+  changent pas), jamais pendant un guidage BMW, rien de créé sur le compteur. Un compteur lent à répondre juste après
+  une relance de l'iDrive est attendu, et la flèche suit le guidage quand il passe à la tête haute
   ([compatibilité](docs/COMPATIBILITE.md#flèches-sur-le-compteur-des-série-f),
   [#79](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/79)). Testé sur PC seulement, d'après la description
   d'un compteur 6WA (F52).

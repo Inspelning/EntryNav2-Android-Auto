@@ -310,21 +310,39 @@ VmostMsgView answer(uint8_t fblock, uint16_t fkt, uint32_t op, const Bytes& data
     return v;
 }
 
+// An answer the car sends later.
+struct Later {
+    uint32_t at;
+    uint16_t fkt;
+    Bytes data;
+};
+
 // The cluster of the F52: registry with 82/00 at 0x0101, the 6WA fields; every call acknowledged unless refuseFkt.
 struct Car {
     bool hud;
     bool silent;     // the registry does not answer
     bool hudSilent;  // the cluster does not answer
     uint16_t refuseFkt;
-    uint16_t pictureW;
-    Car() : hud(true), silent(false), hudSilent(false), refuseFkt(0), pictureW(176) {}
+    uint16_t pictureW, pictureH;
+    uint32_t sizeDelayMs;  // a cold cluster answers the size reads this late
+    std::vector<Later> later;
+    Car() : hud(true), silent(false), hudSilent(false), refuseFkt(0), pictureW(176), pictureH(126), sizeDelayMs(0) {}
 };
 
 // Ticks the hud for `ms`, answering each new call as the car would.
-void run(MostHud& hud, FakePort& port, const Car& car, uint32_t& now, uint32_t ms) {
+void run(MostHud& hud, FakePort& port, Car& car, uint32_t& now, uint32_t ms) {
     size_t answered = port.sent.size();
     for (uint32_t end = now + ms; now < end; now += 5) {
         port.now = now;
+        for (size_t i = 0; i < car.later.size();) {
+            if (now >= car.later[i].at) {
+                const Later l = car.later[i];
+                car.later.erase(car.later.begin() + static_cast<long>(i));
+                hud.onMessage(answer(kHudFblock, l.fkt, kMostOpResultAck, l.data));
+            } else {
+                ++i;
+            }
+        }
         hud.tick(now, port);
         while (answered < port.sent.size()) {
             const Message& m = port.sent[answered++];
@@ -343,9 +361,16 @@ void run(MostHud& hud, FakePort& port, const Car& car, uint32_t& now, uint32_t m
                 static const uint16_t w[] = {396, 272, 80, 44, 176, 176}, h[] = {68, 33, 28, 28, 126, 126};
                 const unsigned field = m.data[1];
                 const uint16_t width = field >= 5 ? car.pictureW : w[field - 1];
+                const uint16_t height = field >= 5 ? car.pictureH : h[field - 1];
                 keep = Bytes({0x00, static_cast<uint8_t>(field), 0x01, static_cast<uint8_t>(width >> 8),
-                              static_cast<uint8_t>(width & 0xFF), 0x00, static_cast<uint8_t>(h[field - 1])});
-                hud.onMessage(answer(kHudFblock, kHudSize, kMostOpResultAck, keep));
+                              static_cast<uint8_t>(width & 0xFF), static_cast<uint8_t>(height >> 8),
+                              static_cast<uint8_t>(height & 0xFF)});
+                if (car.sizeDelayMs) {
+                    Later l = {now + car.sizeDelayMs, kHudSize, keep};
+                    car.later.push_back(l);
+                } else {
+                    hud.onMessage(answer(kHudFblock, kHudSize, kMostOpResultAck, keep));
+                }
             } else {
                 hud.onMessage(answer(kHudFblock, m.out.fkt, kMostOpResultAck, Bytes()));
             }
@@ -427,7 +452,7 @@ void drawsAndClears() {
         CHECK(port.sent[i].out.addr == 0x0101 && port.sent[i].out.op == kMostOpStartResultAck &&
               port.sent[i].out.fblock == kHudFblock && port.sent[i].out.inst == 0);
     }
-    CHECK(port.shadows.size() == 2);
+    CHECK(port.shadows.size() == 3);
     for (size_t i = 2; i < port.sent.size(); ++i) {
         CHECK(port.at[i] - port.at[i - 1] >= 20);  // one call at a time, 20 ms apart at least
     }
@@ -457,7 +482,7 @@ void drawsAndClears() {
     // Stopping the service with nothing up sends nothing.
     before = port.sent.size();
     hud.finish(port);
-    CHECK(port.sent.size() == before && port.shadows.size() == 4);
+    CHECK(port.sent.size() == before && port.shadows.size() == 6);
 }
 
 void pacing() {
@@ -479,12 +504,13 @@ void pacing() {
         MostHud hud(place.config());
         FakePort port;
         Car car;
-        car.hudSilent = true;  // the cluster never answers: 300 ms per call, five calls, then given up
+        car.hudSilent = true;  // the cluster never answers: 300 ms per read, asked three times 30 s apart
         uint32_t now = 0;
         tell(hud, 8, "Rue A", 300, "300", kUnitMetres);
         run(hud, port, car, now, 5000);
-        CHECK(hud.phase() == MostHud::kAbsent && port.sent.size() == 1 + 5);  // the sizes are missing
-        CHECK(port.at[2] - port.at[1] >= 300);
+        CHECK(hud.phase() == MostHud::kSizes && port.sent.size() == 1 + 6 && port.at[2] - port.at[1] >= 300);
+        run(hud, port, car, now, 80000);
+        CHECK(hud.phase() == MostHud::kAbsent && port.sent.size() == 1 + 18);
     }
     {
         Place place;
@@ -530,7 +556,8 @@ void notAllowedOrBmw() {
         tell(hud, 8, "Rue A", 300, "300", kUnitMetres);
         run(hud, port, g, now, 1000);
         CHECK(hud.phase() == MostHud::kAbsent && port.sent.size() == 1 && countFkt(port, kHudSize) == 0);
-        CHECK(port.shadows.size() == 4 && !(port.shadows[2] & 0x10000) && !(port.shadows[3] & 0x10000));
+        CHECK(port.shadows.size() == 6 && !(port.shadows[3] & 0x10000) && !(port.shadows[4] & 0x10000) &&
+              !(port.shadows[5] & 0x10000));  // the copies dropped again
     }
     {
         Car blank;
@@ -539,8 +566,81 @@ void notAllowedOrBmw() {
         MostHud hud(place.config());
         tell(hud, 8, "Rue A", 300, "300", kUnitMetres);
         run(hud, port, blank, now, 2000);
-        CHECK(hud.phase() == MostHud::kAbsent && countFkt(port, kHudSize) == 6 && countFkt(port, kHudPolygon) == 0);
+        CHECK(hud.phase() == MostHud::kSizes && countFkt(port, kHudSize) == 6);  // asked again later
+        run(hud, port, blank, now, 70000);
+        CHECK(hud.phase() == MostHud::kAbsent && countFkt(port, kHudSize) == 18 && countFkt(port, kHudPolygon) == 0);
     }
+}
+
+// Right after an iDrive restart the cluster answers the size reads late: they are taken, and the picture goes up.
+void coldCluster() {
+    {
+        Place place;
+        MostHud hud(place.config());
+        FakePort port;
+        Car car;
+        car.sizeDelayMs = 1800;
+        uint32_t now = 0;
+        tell(hud, 8, "Rue A", 300, "300", kUnitMetres);
+        run(hud, port, car, now, 6000);
+        CHECK(hud.phase() == MostHud::kReady && hud.showing() && countFkt(port, kHudSize) == 6);
+    }
+    {
+        Place place;
+        MostHud hud(place.config());
+        FakePort port;
+        Car car;
+        car.hudSilent = true;  // nothing the first time, then the cluster wakes up: the missing sizes asked again
+        uint32_t now = 0;
+        tell(hud, 8, "Rue A", 300, "300", kUnitMetres);
+        run(hud, port, car, now, 5000);
+        CHECK(hud.phase() == MostHud::kSizes && !hud.showing());
+        car.hudSilent = false;
+        run(hud, port, car, now, 32000);
+        CHECK(hud.phase() == MostHud::kReady && hud.showing() && countFkt(port, kHudSize) == 12);
+    }
+}
+
+// The iDrive setting moves the guidance to the head-up display: the cluster says so, the picture sizes are read again
+// and the arrow is drawn anew inside the HUD's smaller picture. The same place again, or the navigation's answer on the
+// same function, changes nothing.
+void headUpDisplay() {
+    Place place;
+    MostHud hud(place.config());
+    FakePort port;
+    Car car;
+    uint32_t now = 0;
+    tell(hud, 8, "Rue A", 300, "300", kUnitMetres);
+    run(hud, port, car, now, 2000);
+    CHECK(hud.showing() && countFkt(port, kHudSize) == 6);
+    car.pictureW = 126;
+    car.pictureH = 77;
+    const Bytes hudPlace({0x02});
+    hud.onMessage(answer(kGuidanceFblock, kGuidanceMovedFkt, 0x0, hudPlace, 0x0101));
+    size_t before = port.sent.size();
+    run(hud, port, car, now, 1000);
+    CHECK(countFkt(port, kHudSize, before) == 2 && countFkt(port, kHudSwap, before) == 1);
+    CHECK(countFkt(port, kHudText, before) == 0);  // the texts stay
+    for (size_t i = before; i < port.sent.size(); ++i) {
+        const Bytes& d = port.sent[i].data;
+        if (port.sent[i].out.fkt != kHudPolygon) {
+            continue;
+        }
+        for (size_t k = 6; k + 3 < d.size(); k += 4) {
+            CHECK(((d[k] << 8) | d[k + 1]) < 126 && ((d[k + 2] << 8) | d[k + 3]) < 77);
+        }
+    }
+    before = port.sent.size();
+    hud.onMessage(answer(kGuidanceFblock, kGuidanceMovedFkt, 0x0, hudPlace, 0x0101));       // the same place again
+    hud.onMessage(answer(kGuidanceFblock, kGuidanceMovedFkt, 0xC, Bytes({0x01}), 0x0100));  // the navigation
+    run(hud, port, car, now, 1000);
+    CHECK(port.sent.size() == before);
+    // Back to the cluster.
+    car.pictureW = 176;
+    car.pictureH = 126;
+    hud.onMessage(answer(kGuidanceFblock, kGuidanceMovedFkt, 0x0, Bytes({0x01}), 0x0101));
+    run(hud, port, car, now, 1000);
+    CHECK(countFkt(port, kHudSize, before) == 2 && countFkt(port, kHudSwap, before) == 1 && hud.showing());
 }
 
 void refusedThenNextSession() {
@@ -646,6 +746,8 @@ int main() {
     drawsAndClears();
     pacing();
     notAllowedOrBmw();
+    coldCluster();
+    headUpDisplay();
     refusedThenNextSession();
     otherClientAndEchoes();
     staleMarker();
@@ -653,6 +755,7 @@ int main() {
     refusedSends();
     printf(
         "PASS kombi most: registry, sizes, calls, pictures, views, presenter, neighbours, drawing and clearing, "
-        "pacing, Ethernet and BMW navigation first, refusals, other client, stale marker, exit\n");
+        "pacing, Ethernet and BMW navigation first, cold cluster, head-up display, refusals, other client, stale "
+        "marker, exit\n");
     return 0;
 }

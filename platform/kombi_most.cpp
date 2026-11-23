@@ -25,7 +25,11 @@ const char* const kTag = "KombiMost";
 const uint32_t kGapMs = 20;         // between two calls, at least
 const uint32_t kAnswerMs = 300;     // a call without an answer this long counts as missed
 const uint32_t kRegistryMs = 1500;  // the registry's answer
-const uint32_t kRetryMs = 30000;    // a registry that did not answer is asked again this much later
+const uint32_t kRetryMs = 30000;    // a registry or sizes that did not answer are asked again this much later
+const uint32_t kSizeWaitMs = 3000;  // the size reads' answers, late ones included (a cold cluster takes 1.5 s)
+const int kSizeTries = 3;           // size reads without usable answers before giving up for this run
+const uint16_t kMinPictureW = 80, kMinPictureH = 60;  // smaller, no arrow fits
+const unsigned kRemeasuresLogged = 20;
 const uint32_t kForeignMs = 30000;  // another client drew on the fields: they are left to it this long
 const uint32_t kEchoMs = 3000;      // a copy of one of our calls arrives within this
 const int kMissedLimit = 5;         // calls in a row without an answer: the cluster is not there
@@ -266,7 +270,7 @@ bool layoutFits(const FieldSize sizes[kHudFields], std::string* why) {
         problem = "a field is 0x0: they were never set up (the BMW navigation does it)";
     } else if (a.w != b.w || a.h != b.h) {
         problem = "the two picture buffers differ";
-    } else if (a.w < 80 || a.h < 60) {
+    } else if (a.w < kMinPictureW || a.h < kMinPictureH) {
         problem = "picture too small for an arrow";
     } else if (street.w < 60 || street.h < 12 || distance.w < 24 || distance.h < 12 || unit.w < 12 || unit.h < 12) {
         problem = "a text field too small";
@@ -636,6 +640,13 @@ MostHud::MostHud(const MostHudConfig& config)
       lookupAt_(0),
       retryAt_(0),
       registryIn_(false),
+      sizesWaiting_(false),
+      sizesAskedAt_(0),
+      sizeTries_(0),
+      remeasureDue_(false),
+      haveMovedTo_(false),
+      remeasures_(0),
+      lateSizes_(0),
       batch_(kNoBatch),
       batchFailed_(false),
       inFlight_(false),
@@ -656,6 +667,8 @@ MostHud::MostHud(const MostHudConfig& config)
     pthread_mutex_init(&mu_, nullptr);
     memset(sizes_, 0, sizeof(sizes_));
     memset(sizeIn_, 0, sizeof(sizeIn_));
+    memset(&drawnPicture_, 0, sizeof(drawnPicture_));
+    memset(&pendingPicture_, 0, sizeof(pendingPicture_));
     staleMarker_ = access(config_.markerFile.c_str(), F_OK) == 0;
     marked_ = staleMarker_;
 }
@@ -753,7 +766,8 @@ void MostHud::readInputs(uint32_t now) {
 }
 
 bool MostHud::wants(const VmostMsgView& m) const {
-    return m.fblock == kHudFblock || (m.fblock == kRegistryFblock && m.fkt == kRegistryFkt);
+    return m.fblock == kHudFblock || (m.fblock == kRegistryFblock && m.fkt == kRegistryFkt) ||
+           (m.fblock == kGuidanceFblock && m.fkt == kGuidanceMovedFkt);
 }
 
 bool MostHud::ours(const VmostMsgView& m, uint32_t now) const {
@@ -776,8 +790,24 @@ void MostHud::onMessage(const VmostMsgView& m) {
         }
         return;
     }
+    if (m.fblock == kGuidanceFblock) {
+        onGuidanceMoved(m);
+        return;
+    }
     if (m.inst != kHudInstance) {
         return;
+    }
+    if (m.fkt == kHudSize && (m.op == kMostOpResultAck || m.op == kMostOpStatus)) {
+        // A size is taken whenever it comes: a cold cluster answers after the call's 300 ms.
+        uint16_t field;
+        FieldSize size;
+        if (fieldSize(m.data, m.len, &field, &size) && field >= 1 && field <= kHudFields) {
+            sizes_[field - 1] = size;
+            sizeIn_[field - 1] = true;
+            if (!inFlight_ || inFlightCall_.fkt != kHudSize) {
+                ++lateSizes_;
+            }
+        }
     }
     if (m.op <= 8) {  // a request: a copy of ours, or another client drawing (the BMW navigation)
         if (drawingFunction(m.fkt) && !ours(m, now)) {
@@ -797,12 +827,6 @@ void MostHud::onMessage(const VmostMsgView& m) {
     }
     if (m.op == kMostOpResultAck || m.op == kMostOpStatus) {
         answered_ = true;
-        uint16_t field;
-        FieldSize size;
-        if (m.fkt == kHudSize && fieldSize(m.data, m.len, &field, &size) && field >= 1 && field <= kHudFields) {
-            sizes_[field - 1] = size;
-            sizeIn_[field - 1] = true;
-        }
     } else if (m.op == kMostOpErrorAck || m.op == kMostOpError) {
         answered_ = true;
         refused_ = true;
@@ -834,26 +858,26 @@ void MostHud::tick(uint32_t now, VmostPort& port) {
             return;
         }
         inFlight_ = false;
-        if (!answered_) {
+        // Size reads may be answered late or refused (a field the cluster lacks): checkSizes() judges the answers.
+        const bool read = batch_ == kSizesBatch || batch_ == kRemeasureBatch;
+        if (!answered_ && !read) {
             if (++missed_ == 1) {
                 ELOG(kTag, "no answer to function 0x%03x within %u ms", inFlightCall_.fkt, kAnswerMs);
             }
-        } else if (!refused_) {
+        } else if (answered_ && !refused_) {
             missed_ = 0;
         }
         if (refused_) {
             refused_ = false;
-            batchFailed_ = true;
-            queue_.clear();
-            if (batch_ != kSizesBatch) {
+            if (!read) {
+                batchFailed_ = true;
+                queue_.clear();
                 stop("the cluster refused a call");
             }
         } else if (missed_ >= kMissedLimit) {
             batchFailed_ = true;
             queue_.clear();
-            if (batch_ != kSizesBatch) {  // missing sizes end the lookup for good (onSizes)
-                stop("five calls in a row without an answer");
-            }
+            stop("five calls in a row without an answer");
         }
     }
     if (!queue_.empty()) {
@@ -893,10 +917,15 @@ void MostHud::tick(uint32_t now, VmostPort& port) {
                 }
             }
             break;
+        case kSizes:
+            checkSizes(now);
+            if (phase_ == kAbsent) {
+                unshadow(port);
+            }
+            break;
         case kReady:
             decide(now);
             break;
-        case kSizes:
         case kAbsent:
         case kStopped:
             break;
@@ -907,8 +936,11 @@ void MostHud::startLookup(uint32_t now, VmostPort& port) {
     if (!shadowed_) {
         const int a = port.shadow(kRegistryFblock, kRegistryInstance, true);
         const int b = port.shadow(kHudFblock, kHudInstance, true);
-        ELOG(kTag, "copies of the MOST registry and the cluster's guidance fields (82/00): %s (%d), %s (%d)",
-             a == 0 ? "OK" : "refused", a, b == 0 ? "OK" : "refused", b);
+        const int c = port.shadow(kGuidanceFblock, kGuidanceInstance, true);
+        ELOG(kTag,
+             "copies of the MOST registry, the cluster's guidance fields (82/00) and the navigation (52/00): %s (%d), "
+             "%s (%d), %s (%d)",
+             a == 0 ? "OK" : "refused", a, b == 0 ? "OK" : "refused", b, c == 0 ? "OK" : "refused", c);
         shadowed_ = true;
     }
     static const uint8_t none[4] = {0, 0, 0, 0};
@@ -947,39 +979,90 @@ void MostHud::onRegistry(uint32_t now) {
     const bool separateHud = registryAddress(registry_.data(), registry_.size(), kHudFblock, 0x02, &hud);
     ELOG(kTag, "MOST registry: %u entries; HUD_Terminal 82/00 at 0x%04x%s: reading its fields' sizes", devices,
          address_, separateHud ? " (a separate head-up display 82/02 too, left alone)" : "");
-    memset(sizeIn_, 0, sizeof(sizeIn_));
-    HudCalls calls;
-    for (uint16_t field = 1; field <= kHudFields; ++field) {
-        calls.push_back(hudSize(field));
-    }
-    queue(kSizesBatch, calls);
+    sizeTries_ = 0;
+    askSizes(false);
     phase_ = kSizes;
 }
 
-void MostHud::onSizes() {
-    const FieldSize* s = sizes_;
-    ELOG(kTag,
-         "fields: frame %ux%u, street %ux%u, distance %ux%u, unit %ux%u, pictures %ux%u and %ux%u (%u of %u read)",
-         s[0].w, s[0].h, s[1].w, s[1].h, s[2].w, s[2].h, s[3].w, s[3].h, s[4].w, s[4].h, s[5].w, s[5].h,
-         static_cast<unsigned>(sizeIn_[0] + sizeIn_[1] + sizeIn_[2] + sizeIn_[3] + sizeIn_[4] + sizeIn_[5]),
-         static_cast<unsigned>(kHudFields));
-    std::string why;
-    for (size_t i = 0; i < kHudFields; ++i) {
-        if (!sizeIn_[i]) {
-            why = "a size was not given";
+// The size reads, of every field or of those not answered yet.
+void MostHud::askSizes(bool missingOnly) {
+    HudCalls calls;
+    for (uint16_t field = 1; field <= kHudFields; ++field) {
+        if (!missingOnly || !sizeIn_[field - 1]) {
+            sizeIn_[field - 1] = false;
+            calls.push_back(hudSize(field));
         }
     }
-    if (why.empty() && !layoutFits(sizes_, &why)) {
+    sizesWaiting_ = false;
+    queue(kSizesBatch, calls);
+}
+
+bool MostHud::sizesComplete() const {
+    for (size_t i = 0; i < kHudFields; ++i) {
+        if (!sizeIn_[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// After the reads: every size in, or 3 s gone, judges them; a judged failure asks again 30 s later.
+void MostHud::checkSizes(uint32_t now) {
+    if (batch_ == kSizesBatch) {
+        return;  // still asking
+    }
+    if (sizesWaiting_ && (sizesComplete() || now - sizesAskedAt_ >= kSizeWaitMs)) {
+        sizesWaiting_ = false;
+        onSizes(now);
+    } else if (!sizesWaiting_ && static_cast<int32_t>(now - retryAt_) >= 0) {
+        askSizes(!sizesComplete());  // unusable sizes: all again; missing ones: those only
+    }
+}
+
+void MostHud::onSizes(uint32_t now) {
+    const FieldSize* s = sizes_;
+    ELOG(kTag,
+         "fields: frame %ux%u, street %ux%u, distance %ux%u, unit %ux%u, pictures %ux%u and %ux%u (%u of %u read, "
+         "%u late)",
+         s[0].w, s[0].h, s[1].w, s[1].h, s[2].w, s[2].h, s[3].w, s[3].h, s[4].w, s[4].h, s[5].w, s[5].h,
+         static_cast<unsigned>(sizeIn_[0] + sizeIn_[1] + sizeIn_[2] + sizeIn_[3] + sizeIn_[4] + sizeIn_[5]),
+         static_cast<unsigned>(kHudFields), lateSizes_);
+    std::string why;
+    if (!sizesComplete()) {
+        why = "a size was not given";
+    } else if (!layoutFits(sizes_, &why)) {
         why = why.empty() ? "unknown" : why;
     }
-    if (!why.empty()) {
-        ELOG(kTag, "these fields are not the ones drawn here (%s): no Android Auto picture on the cluster",
-             why.c_str());
-        phase_ = kAbsent;
+    if (why.empty()) {
+        ELOG(kTag, "guidance fields ready: Android Auto's next maneuver goes to the cluster when the phone guides");
+        phase_ = kReady;
         return;
     }
-    ELOG(kTag, "guidance fields ready: Android Auto's next maneuver goes to the cluster when the phone guides");
-    phase_ = kReady;
+    if (++sizeTries_ < kSizeTries) {
+        ELOG(kTag, "these fields are not the ones drawn here yet (%s): asked again in %u s", why.c_str(),
+             kRetryMs / 1000);
+        retryAt_ = now + kRetryMs;
+        return;
+    }
+    ELOG(kTag, "these fields are not the ones drawn here (%s, %d tries): no Android Auto picture on the cluster",
+         why.c_str(), sizeTries_);
+    phase_ = kAbsent;
+}
+
+// The cluster says the guidance moved between itself and the HUD: both picture sizes are read again, once per new place
+// it names (it may repeat the same one many times a second). Only its own message: the navigation answers on the same
+// function.
+void MostHud::onGuidanceMoved(const VmostMsgView& m) {
+    if (m.fkt != kGuidanceMovedFkt || m.inst != kGuidanceInstance || m.addr != address_ ||
+        (phase_ != kReady && phase_ != kStopped)) {
+        return;
+    }
+    if (haveMovedTo_ && movedTo_.size() == m.len && (m.len == 0 || memcmp(movedTo_.data(), m.data, m.len) == 0)) {
+        return;
+    }
+    movedTo_.assign(m.data, m.data + m.len);
+    haveMovedTo_ = true;
+    remeasureDue_ = true;
 }
 
 void MostHud::decide(uint32_t now) {
@@ -1000,6 +1083,16 @@ void MostHud::decide(uint32_t now) {
         return;
     }
     HudCalls calls;
+    if (remeasureDue_) {
+        remeasureDue_ = false;
+        if (++remeasures_ <= kRemeasuresLogged) {
+            ELOG(kTag, "the guidance moved between the cluster and the head-up display: picture size read again");
+        }
+        calls.push_back(hudSize(config_.layout.pictureA));
+        calls.push_back(hudSize(config_.layout.pictureB));
+        queue(kRemeasureBatch, calls);
+        return;
+    }
     if (unsure_ || staleMarker_) {
         ELOG(kTag, "clearing a picture possibly left on the cluster (%s)",
              staleMarker_ ? "by a previous run" : "a call was refused");
@@ -1007,20 +1100,31 @@ void MostHud::decide(uint32_t now) {
         queue(kClearBatch, calls);
         return;
     }
-    if (!has || !allowed) {
+    const FieldSize picture = sizes_[config_.layout.pictureA - 1];
+    const bool fits = picture.w >= kMinPictureW && picture.h >= kMinPictureH;
+    if (!has || !allowed || !fits) {
         if (shown_) {
-            ELOG(kTag, "picture cleared (%s)", !allowed ? "arrows off, or an Ethernet KOMBI" : "no maneuver to show");
+            ELOG(kTag, "picture cleared (%s)",
+                 !allowed ? "arrows off, or an Ethernet KOMBI"
+                 : !has   ? "no maneuver to show"
+                          : "picture field too small for an arrow");
             clearCalls(config_.layout, calls);
             queue(kClearBatch, calls);
         }
         return;
     }
-    if (shown_ && view == shownView_) {
+    const bool resized = shown_ && (picture.w != drawnPicture_.w || picture.h != drawnPicture_.h);
+    if (shown_ && view == shownView_ && !resized) {
         return;
     }
+    HudView shown = shownView_;
+    if (resized) {
+        ELOG(kTag, "picture field now %ux%u (was %ux%u): arrow drawn again", picture.w, picture.h, drawnPicture_.w,
+             drawnPicture_.h);
+        shown.direction = -1;  // a new picture, the texts as they are
+    }
     uint16_t visible = visible_;
-    viewCalls(view, shown_ ? &shownView_ : nullptr, config_.layout, sizes_[config_.layout.pictureA - 1], visible,
-              calls);
+    viewCalls(view, shown_ ? &shown : nullptr, config_.layout, picture, visible, calls);
     if (calls.empty()) {
         shownView_ = view;
         return;
@@ -1032,6 +1136,7 @@ void MostHud::decide(uint32_t now) {
     mark(true);
     visible_ = visible;
     pending_ = view;
+    pendingPicture_ = picture;
     queue(kDrawBatch, calls);
 }
 
@@ -1080,8 +1185,11 @@ void MostHud::endBatch() {
     batchFailed_ = false;
     switch (batch) {
         case kSizesBatch:
-            onSizes();
+            sizesWaiting_ = true;  // checkSizes() takes it from here
+            sizesAskedAt_ = clock_;
             break;
+        case kRemeasureBatch:
+            break;  // the answers come in whenever (onMessage)
         case kDrawBatch:
             if (failed) {
                 unsure_ = true;
@@ -1089,6 +1197,7 @@ void MostHud::endBatch() {
             }
             shown_ = true;
             shownView_ = pending_;
+            drawnPicture_ = pendingPicture_;
             ++drawn_;
             if (!firstAcked_) {
                 firstAcked_ = true;
@@ -1134,6 +1243,7 @@ void MostHud::mark(bool up) {
 
 void MostHud::unshadow(VmostPort& port) {
     if (shadowed_) {
+        port.shadow(kGuidanceFblock, kGuidanceInstance, false);
         port.shadow(kHudFblock, kHudInstance, false);
         port.shadow(kRegistryFblock, kRegistryInstance, false);
         shadowed_ = false;

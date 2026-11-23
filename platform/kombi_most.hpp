@@ -17,6 +17,14 @@
 // time, the next after the answer (or 300 ms), 20 ms apart at least. A refused call stops the drawing until the next
 // Android Auto session; so do five calls in a row left unanswered.
 //
+// Seen by another project on F-series cars (Sq00ky's, F20/F30): right after an iDrive restart the cluster answers the
+// size reads only after 1.5 s or more, so a size is taken whenever it comes, the reads wait 3 s, and missing or
+// unusable sizes are asked again 30 s later, three times in all. On a car with a head-up display, the iDrive setting
+// moves the guidance between the cluster and the HUD, whose pictures differ (176x126 and 126x77 on an F30); the cluster
+// then tells the navigation on FBlock 0x52 instance 0, function 0xCFF (with the factory navigation unlicensed, many
+// times a second, unchanged). A new content of that message from the cluster's own address has both picture sizes read
+// again, and the arrow is drawn anew at the new size.
+//
 // It reads the phone's navigation messages itself, as the Ethernet arrows do (kombi_nav.hpp), and shows the same next
 // maneuver. Never where the Ethernet KOMBI is: not once it took an arrow, not while its address is in the neighbour
 // table, and the MOST registry is asked only after the guidance wanted a picture for ethernetFirstS (the Ethernet
@@ -49,6 +57,8 @@ const uint8_t kHudFblock = 0x82, kHudInstance = 0x00;
 const uint8_t kRegistryFblock = 0x02, kRegistryInstance = 0x00;
 const uint16_t kRegistryAddress = 0x0100;  // the NetworkMaster
 const uint16_t kRegistryFkt = 0xA01;       // CentralRegistry
+const uint8_t kGuidanceFblock = 0x52, kGuidanceInstance = 0x00;
+const uint16_t kGuidanceMovedFkt = 0xCFF;  // the cluster tells the navigation the guidance moved (cluster or HUD)
 enum HudFunction : uint16_t {
     kHudShow = 0x204,     // [field][0|1]
     kHudSwap = 0x20E,     // [field to hide][field to show]
@@ -183,7 +193,7 @@ public:
     bool showing() const { return shown_; }
 
 private:
-    enum Batch { kNoBatch, kSizesBatch, kDrawBatch, kClearBatch };
+    enum Batch { kNoBatch, kSizesBatch, kRemeasureBatch, kDrawBatch, kClearBatch };
     struct Sent {
         HudCall call;
         uint32_t at;
@@ -192,7 +202,11 @@ private:
     void readInputs(uint32_t now);
     void startLookup(uint32_t now, VmostPort& port);
     void onRegistry(uint32_t now);
-    void onSizes();
+    void askSizes(bool missingOnly);
+    void checkSizes(uint32_t now);
+    void onSizes(uint32_t now);
+    bool sizesComplete() const;
+    void onGuidanceMoved(const VmostMsgView& m);
     void decide(uint32_t now);
     void queue(Batch batch, const HudCalls& calls);
     void sendNext(uint32_t now, VmostPort& port);
@@ -228,6 +242,13 @@ private:
     std::vector<uint8_t> registry_;
     FieldSize sizes_[kHudFields];
     bool sizeIn_[kHudFields];
+    bool sizesWaiting_;  // the size reads went out: answers until sizesAskedAt_ + 3 s
+    uint32_t sizesAskedAt_;
+    int sizeTries_;
+    bool remeasureDue_, haveMovedTo_;
+    std::vector<uint8_t> movedTo_;  // the last place the cluster named for the guidance
+    unsigned remeasures_, lateSizes_;
+    FieldSize drawnPicture_, pendingPicture_;  // the picture size the arrow on the cluster was drawn for
     std::deque<HudCall> queue_;
     Batch batch_;
     bool batchFailed_;

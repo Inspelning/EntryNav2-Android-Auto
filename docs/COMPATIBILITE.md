@@ -175,6 +175,11 @@ testeur sur une F52 au compteur 6WA ([#79](https://github.com/Jiraiya43/EntryNav
   dessiné et le journal donne les tailles lues.
 - La navigation BMW garde la priorité : quand elle guide, ou qu'un autre programme dessine sur ces champs, Android Auto
   les lui laisse sans les effacer.
+- Juste après une relance de l'iDrive, le compteur peut mettre plus d'une seconde et demie à donner la taille de ses
+  champs : la réponse est prise quand elle arrive, et ce qui manque est redemandé 30 s plus tard (trois fois en tout).
+- Sur une voiture à tête haute, le réglage de l'iDrive fait passer le guidage du compteur à la tête haute, dont l'image
+  est plus petite (126x77 au lieu de 176x126 sur une F30) : le compteur le signale, la taille est relue et la flèche
+  redessinée à la nouvelle taille. Ces deux points viennent des essais d'un autre projet sur des F20 et F30.
 - Le compteur doit peut-être être codé pour afficher la navigation : s'il accepte tout sans rien montrer, c'est la piste.
 - Le fichier `kombi-off` coupe aussi ces flèches.
 
