@@ -29,6 +29,13 @@ QEMU with the car's libraries).
   [#79](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/79)). Tested on PC only, from the description of a
   6WA cluster (F52).
 
+### Fixed
+
+- Android Auto reception: the size limit of a message is checked with no risk of overflow on ARM, separately for each
+  message. A message that is too large is dropped and its remaining fragments are ignored up to its end; a whole message
+  does not disturb the fragments in progress ([#122](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/122)).
+  Tested on PC.
+
 ## [0.13.0-rc.9] - 2026-11-22 · PC
 
 Release candidate: logs without a PC (kept after the car sleeps, copied to a USB stick from the iDrive menu) and
