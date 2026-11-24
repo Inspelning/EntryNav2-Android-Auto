@@ -25,7 +25,10 @@ English · [Français](README.fr.md)
 - **A USB cable works too** (experimental, off by default), for phones without wireless Android Auto: a checkbox in
   the menu picks the cable or wireless, nothing is guessed. [Setup and limits](docs/USB.md) (in French).
 - **Started from iDrive.** An *Android Auto* entry in the Media menu, with its own menu: start, stop, start
-  automatically, help.
+  automatically, logs, update, help.
+- **Updates without a PC** (from 0.13.0-rc.10). After the first installation over SSH, a new version installs from a
+  USB stick, through the Android Auto menu. Only an archive signed by the project is accepted
+  ([updating](docs/INSTALLATION.md#par-clé-usb-sans-pc), in French).
 - **Original controls.** iDrive controller, hard keys, touch screen, steering wheel buttons, voice button for the
   Assistant.
 - **Car microphone** for the Google Assistant, **car speakers** over Bluetooth.
@@ -54,7 +57,8 @@ on a PC. The [French changelog](CHANGELOG.md) is the authoritative version.
   screen ([screens](docs/COMPATIBILITE.md#autres-tailles-décran)). Wireless needs the unit's **CarPlay Wi-Fi**;
   without it, a [USB cable](docs/USB.md) works too.
   NBT Evo, ID7 and MGU units run other systems: this project cannot run on them.
-- A PC with an SSH client (Windows 10/11, Linux or macOS) and an **ENET cable** (OBD to Ethernet).
+- For the first installation, a PC with an SSH client (Windows 10/11, Linux or macOS) and an **ENET cable** (OBD to
+  Ethernet). Later updates install from a USB stick.
 - The head unit's **root password**. It is not provided with this project.
 - An Android phone with Android Auto.
 

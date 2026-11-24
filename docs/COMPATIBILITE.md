@@ -166,7 +166,7 @@ Pour activer ce mode ou revenir au graphe historique : [maintenance](MAINTENANCE
 
 Sur les Série F (et les MINI de la même époque), le compteur n'est pas sur l'Ethernet comme celui des Série G : c'est un
 appareil MOST, dont les champs de guidage (bloc `HUD_Terminal`, `0x82`) sont remplis par la navigation BMW. Depuis la
-version qui suit 0.13.0-rc.9, le service y affiche la prochaine manœuvre d'Android Auto : une flèche dessinée, la
+0.13.0-rc.10, le service y affiche la prochaine manœuvre d'Android Auto : une flèche dessinée, la
 distance, son unité et la rue. **Jamais essayé en voiture par le projet** : le protocole vient de la description d'un
 testeur sur une F52 au compteur 6WA ([#79](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/79)).
 

@@ -8,6 +8,13 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+## [0.13.0-rc.10] - 2026-11-24 · PC
+
+Version candidate : la mise à jour par clé USB, sans PC (archive signée par le projet, tout vérifié avant
+d'écrire, mise à jour coupée terminée à la suivante), et les flèches d'Android Auto sur le compteur des Série F par
+MOST. Cette version s'installe encore par SSH (étapes 1 à 3 de l'installation) ; les suivantes pourront s'installer
+par clé USB. Testée sur PC et sous QEMU, **pas encore essayée en voiture**.
+
 ### Ajouté
 
 - **Mise à jour par clé USB**, sans PC ni SSH : l'archive d'une version publiée, copiée telle quelle à la racine d'une
@@ -18,12 +25,11 @@ QEMU avec les bibliothèques de la voiture).
   l'archive vérifiée, écrit les nouveaux fichiers à côté des anciens, les relit, puis les met en place un par un par
   renommage ; l'unité redémarre d'elle-même. Refusée sans rien changer, l'installation relance Android Auto. Une
   coupure de courant pendant l'échange se termine à la mise à jour suivante, grâce à la liste gardée sur la partition
-  de données. Rapport dans `EntryAA-update.txt` sur la
-  clé et dans les journaux copiés ([installation](docs/INSTALLATION.md#par-clé-usb-sans-pc)). Les archives publiées
-  portent désormais une liste `UPDATE` signée par la clé du projet ; une archive fabriquée soi-même
-  (`tools/package_release.py --unsigned`) s'installe par SSH seulement. La première installation reste par SSH, une
-  fois. Testé sur PC et sous QEMU avec la libcrypto de la voiture, pas encore en voiture.
-
+  de données. Rapport dans `EntryAA-update.txt` sur la clé et dans les journaux copiés
+  ([installation](docs/INSTALLATION.md#par-clé-usb-sans-pc)). Les archives publiées portent désormais une liste
+  `UPDATE` signée par la clé du projet ; une archive fabriquée soi-même (`tools/package_release.py --unsigned`)
+  s'installe par SSH seulement. Cette version-ci s'installe encore par SSH, une fois ; les suivantes, par clé USB.
+  Testé sur PC et sous QEMU avec la glibc et la libcrypto de la voiture, pas encore en voiture.
 - Numéro de version dans le titre de la page *Aide* du menu Android Auto de l'iDrive (par exemple « Aide -
   0.13.0-rc.10 ») : une photo de la page suffit pour savoir quelle version tourne dans la voiture. Ses six lignes
   restent les mêmes. Testé sur PC.
@@ -624,7 +630,8 @@ Première version publique. Essayée sur une BMW G20 de 2019, logiciel iDrive `2
   encore suivie sur une voiture.
 - Voir les [limites connues](ROADMAP.md#limites-connues).
 
-[Non publié]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/compare/v0.13.0-rc.9...HEAD
+[Non publié]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/compare/v0.13.0-rc.10...HEAD
+[0.13.0-rc.10]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.10
 [0.13.0-rc.9]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.9
 [0.13.0-rc.8]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.8
 [0.13.0-rc.7]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.7

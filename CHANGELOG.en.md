@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > This is a translation of the authoritative [French changelog](CHANGELOG.md), based on
-> [`v0.13.0-rc.9`](https://github.com/Jiraiya43/EntryNav2-Android-Auto/blob/v0.13.0-rc.9/CHANGELOG.md).
+> [`v0.13.0-rc.10`](https://github.com/Jiraiya43/EntryNav2-Android-Auto/blob/v0.13.0-rc.10/CHANGELOG.md).
 > It may become outdated; consult the French changelog for the source of truth.
 
 All notable changes to this project. Format inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
@@ -12,6 +12,13 @@ Each version states whether it was **tried in a car** or only **tested on a PC**
 QEMU with the car's libraries).
 
 ## [Unreleased]
+
+## [0.13.0-rc.10] - 2026-11-24 · PC
+
+Release candidate: updates from a USB stick, without a PC (archive signed by the project, everything checked before
+anything is written, an interrupted update finished by the next one), and Android Auto's arrows on the cluster of
+F-series cars over MOST. This version itself still installs over SSH (installation steps 1 to 3); later ones can be
+installed from a USB stick. Tested on PC and under QEMU, **not yet tried in a car**.
 
 ### Added
 
@@ -23,12 +30,11 @@ QEMU with the car's libraries).
   Android Auto, takes exactly the archive that was checked, writes the new files beside the old ones, reads them back,
   then puts them in place one by one by renaming; the unit restarts by itself. Refused without any change, the
   install starts Android Auto again. A power cut during the swap is finished by the next update, from the list kept on
-  the data partition. Report in `EntryAA-update.txt` on the stick and in the
-  copied logs ([installation](docs/INSTALLATION.md#par-clé-usb-sans-pc)). Published archives now hold an `UPDATE` list
-  signed by the project's key; an archive built by oneself (`tools/package_release.py --unsigned`) installs by SSH
-  only. The first installation stays over SSH, once. Tested on PC and under QEMU with the car's libcrypto, not yet in
-  a car.
-
+  the data partition. Report in `EntryAA-update.txt` on the stick and in the copied logs
+  ([installation](docs/INSTALLATION.md#par-clé-usb-sans-pc)). Published archives now hold an `UPDATE` list signed by
+  the project's key; an archive built by oneself (`tools/package_release.py --unsigned`) installs by SSH only. This
+  version itself still installs over SSH, once; later ones from a USB stick. Tested on PC and under QEMU with the
+  car's glibc and libcrypto, not yet in a car.
 - Version number in the title of the *Help* page of the Android Auto menu in iDrive (for example "Help -
   0.13.0-rc.10"): a photo of the page is enough to know which version runs in the car. Its six lines stay the
   same. Tested on PC.
@@ -614,7 +620,8 @@ First public release. Tried in a 2019 BMW G20, iDrive software `202111011321`.
   been followed in a car.
 - See the [known limitations](ROADMAP.md#limites-connues).
 
-[Unreleased]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/compare/v0.13.0-rc.9...HEAD
+[Unreleased]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/compare/v0.13.0-rc.10...HEAD
+[0.13.0-rc.10]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.10
 [0.13.0-rc.9]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.9
 [0.13.0-rc.8]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.8
 [0.13.0-rc.7]: https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/tag/v0.13.0-rc.7

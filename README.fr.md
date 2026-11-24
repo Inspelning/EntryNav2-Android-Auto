@@ -26,7 +26,10 @@ Sans boîtier, sans câble obligatoire, sans remplacer aucun fichier BMW.
 - **Par câble USB aussi** (expérimental, désactivé par défaut), pour les téléphones sans Android Auto sans fil : une
   case du menu choisit le câble ou le sans-fil, rien n'est deviné. [Activation et limites](docs/USB.md).
 - **Lancement depuis l'iDrive** : ligne *Android Auto* dans le menu Media, avec son menu (Démarrer, Arrêter, démarrage
-  automatique, aide).
+  automatique, journaux, mise à jour, aide).
+- **Mises à jour sans PC** (depuis la 0.13.0-rc.10) : après la première installation par SSH, une nouvelle version
+  s'installe depuis une clé USB, par le menu Android Auto. Seule une archive signée par le projet est acceptée
+  ([mettre à jour](docs/INSTALLATION.md#par-clé-usb-sans-pc)).
 - **Commandes d'origine** : molette, touches, écran tactile, boutons du volant, bouton vocal vers l'Assistant.
 - **Micro de la voiture** pour l'Assistant Google, **son par le Bluetooth** de la voiture.
 - **GPS de la voiture** transmis au téléphone, avec retour au GPS du téléphone si besoin.
@@ -54,7 +57,8 @@ ou seulement testée sur PC.
   **800×480** ([écrans](docs/COMPATIBILITE.md#autres-tailles-décran)). Le sans-fil demande le **Wi-Fi de CarPlay** de
   l'unité ; sans lui, le [câble USB](docs/USB.md) marche aussi.
   Les NBT Evo, ID7 et MGU tournent sur d'autres systèmes : ce projet ne peut pas s'y exécuter.
-- Un PC avec un client SSH (Windows 10/11, Linux ou macOS) et un **câble ENET** (OBD vers Ethernet).
+- Pour la première installation, un PC avec un client SSH (Windows 10/11, Linux ou macOS) et un **câble ENET** (OBD
+  vers Ethernet). Les mises à jour suivantes se font par clé USB.
 - Le **mot de passe root** de l'unité. Il n'est pas fourni avec ce projet.
 - Un téléphone Android avec Android Auto.
 

@@ -31,7 +31,7 @@ ancienne, suivre celle de l'archive (dans la 0.10.0, le superviseur s'appelle `e
 Depuis le PC, dans le dossier de l'archive :
 
 ```sh
-scp entrynav2-android-auto-0.13.0-rc.9-armhf.tar root@169.254.1.0:/tmp/
+scp entrynav2-android-auto-0.13.0-rc.10-armhf.tar root@169.254.1.0:/tmp/
 ssh root@169.254.1.0
 ```
 
@@ -43,7 +43,7 @@ encore écrit sur la mémoire flash.
 Rien n'est modifié pendant cette étape.
 
 ```sh
-V=0.13.0-rc.9
+V=0.13.0-rc.10
 cd /tmp && rm -rf entrynav2-android-auto-$V && tar -xf entrynav2-android-auto-$V-armhf.tar && cd entrynav2-android-auto-$V
 md5sum -c MD5SUMS
 head -n 1 /etc/version
@@ -137,8 +137,8 @@ Android Auto peut aussi passer par un câble USB : cocher *Câble USB au lieu du
 
 ### Par clé USB, sans PC
 
-Une installation dont le menu Android Auto a la ligne *Mettre à jour par clé USB* (versions publiées après la
-0.13.0-rc.9) se met à jour depuis l'archive d'une version publiée, sans PC ni SSH. Voiture à l'arrêt, contact mis.
+Une installation dont le menu Android Auto a la ligne *Mettre à jour par clé USB* (depuis la 0.13.0-rc.10) se met
+à jour depuis l'archive d'une version publiée, sans PC ni SSH. Voiture à l'arrêt, contact mis.
 
 1. Télécharger l'archive `entrynav2-android-auto-<version>-armhf.tar` d'une
    [version publiée](https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases) et la copier **telle quelle**, sans

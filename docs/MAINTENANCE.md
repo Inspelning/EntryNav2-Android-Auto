@@ -18,6 +18,8 @@ Le service ne lit aucun réglage dans son environnement : ses valeurs sont fixes
 | `kombi-single-maneuver` | Présent au démarrage : graphe limité à la prochaine manœuvre, pour un compteur qui refuse le trajet complet (voir ci-dessous). Sans ce fichier : graphe historique |
 | `gps-telephone` | Présent : le téléphone garde son propre GPS, celui de la voiture n'est pas transmis |
 | `maintenance` | Présent : l'appli et le service gardent leurs journaux (case *Garder les journaux* du menu, voir [Journaux](#journaux)) |
+| `update-report.txt` | Écrit par la mise à jour par clé USB ([installation](INSTALLATION.md#par-clé-usb-sans-pc)) : ce que sa dernière vérification ou installation a trouvé et fait. Copié avec les journaux |
+| `update-pending` | Présent pendant les quelques secondes où une mise à jour par clé USB met ses fichiers en place, ou après une coupure à ce moment-là : la mise à jour suivante le lit pour terminer. Ne pas y toucher, sauf après une réinstallation par SSH, qui le rend inutile |
 
 Exemple, couper le guidage sur le compteur, puis le rétablir :
 
