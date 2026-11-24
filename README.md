@@ -53,8 +53,8 @@ on a PC. The [French changelog](CHANGELOG.md) is the authoritative version.
 
 ## Requirements
 
-- A BMW with an **EntryNav2** head unit (called *EntryEVO* inside its system), with a **1280×480** or **800×480**
-  screen ([screens](docs/COMPATIBILITE.md#autres-tailles-décran)). Wireless needs the unit's **CarPlay Wi-Fi**;
+- A BMW with an **EntryNav2** head unit (called *EntryEVO* inside its system), with a **1280×480**, **800×480** or
+  **1440×540** screen ([screens](docs/COMPATIBILITE.md#autres-tailles-décran)). Wireless needs the unit's **CarPlay Wi-Fi**;
   without it, a [USB cable](docs/USB.md) works too.
   NBT Evo, ID7 and MGU units run other systems: this project cannot run on them.
 - For the first installation, a PC with an SSH client (Windows 10/11, Linux or macOS) and an **ENET cable** (OBD to

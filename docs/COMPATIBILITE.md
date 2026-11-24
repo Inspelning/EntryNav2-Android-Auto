@@ -35,7 +35,7 @@ rapports de leurs propriétaires : elles disent ce qu'ils ont vu, avec la versio
 | X1 F48 | `201802230007` | 1280x480 | sans fil, USB | 0.12.1-rc.4 | marche ; coupures du sans-fil de temps en temps ; pas de guidage à la tête haute : la navigation BMW de ces voitures passe par D-Bus ([#79](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/79)) |
 | X1 F48 de 2018 | non indiqué | non relevé | sans fil, sans antenne Wi-Fi ajoutée | non indiquée | marche, essayé une fois avec la carte et la musique ([#175](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/175)) |
 | X1 F48 LCI de 2020 | `202306092158` | 1280x480 | sans fil | 0.13.0-rc.3 | marche avec un OnePlus 13, toucher et molette ; l'iDrive a redémarré une fois de trop juste après l'installation ([#103](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/103)) |
-| F52 de 2022 | `202012141616` | 1440x540 | USB ; sans fil : le téléphone ferme la séance juste après la mise en place de la vidéo | 0.13.0-rc.7 | image par câble (1920x1080 demandé au téléphone) ; sans fil à l'étude, probablement le 1080p refusé par le téléphone sur le Wi-Fi 2,4 GHz de la voiture ([#180](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/180)) |
+| F52 de 2022 | `202012141616` | 1440x540 | USB et sans fil | 0.13.0-rc.10 avec [#190](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/190) | image par câble (1920x1080 demandé au téléphone) ; sans fil, le téléphone fermait la séance quand on lui demandait 1920x1080 : en 1280x720 étiré à l'écran depuis #190, image sur tout l'écran et toucher justes ; pas de guidage sur la tête haute, à l'étude ([#180](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/180)) |
 | i3 | `202012141616` | 800x480 | USB ; sans fil, et par un adaptateur Android Auto sur l'USB | 0.13.0-rc.6 | marche, ancien contrôleur ([#19](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/19)) ; sans fil avec un OnePlus 15 après un nouvel appairage ([#133](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/133)) |
 | MINI Clubman F54 de 2019 | `202111011321` | 1280x480 | sans fil | 0.13.0-rc.2 | marche ; écran rond : marges et toucher justes en 0.13.0-rc.2 ([#78](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/78)) |
 | MINI Clubman F54 de 2022 | `202111011321` | 1280x480 | sans fil | 0.13.0-rc.10 | marche avec un OnePlus 13 une fois AdGuard coupé sur le téléphone ; écran noir une fois en 0.13.0-rc.7, au redémarrage qui finit l'installation, plus en 0.13.0-rc.10 ([#137](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/137)) |
@@ -98,11 +98,18 @@ Le service lit la taille de l'écran sur la voiture et règle l'image d'Android 
 Android Auto ne sait dessiner que trois tailles : le service demande la plus petite qui contient l'écran, dit au
 téléphone de garder son affichage dans la zone visible, et ne montre que cette zone.
 
+En sans-fil, il ne demande jamais plus de 1280x720 : sur le Wi-Fi 2,4 GHz de la voiture, un téléphone à qui l'on
+demandait 1920x1080 fermait la séance dès la mise en place de la vidéo
+([#180](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/180)). Sur un écran plus large que 1280 pixels, le haut
+de cette image est alors étiré à tout l'écran, dans les mêmes proportions, et le toucher est ramené aux pixels de
+l'image.
+
 | Écran | Image demandée au téléphone | Zone montrée | État |
 |---|---|---|---|
 | 1280x480 | 1280x720 | les 480 lignes du haut | essayé en voiture (référence) : rien ne change |
 | 800x480 | 800x480 | tout | essayé en voiture par câble sur une i3 ([#19](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/19)) et une F20 ([#45](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/45)), aussi sans fil sur une X1 F48 ([#72](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/72)) et une MINI F57 ([#56](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/56)) |
-| jusqu'à 1920x1080 | 1920x1080 | la zone de l'écran, en haut à gauche | testé sur PC, jamais essayé |
+| plus large que 1280, jusqu'à 1920x1080, par câble | 1920x1080 | la zone de l'écran, en haut à gauche | essayé en 1440x540 sur une F52 ([#180](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/180)) |
+| plus large que 1280, jusqu'à 1920x1080, sans fil | 1280x720 | le haut de l'image, étiré à tout l'écran (1280x480 étiré à 1440x540) | essayé en 1440x540 sur une F52 ([#190](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/190)) |
 
 La ligne `@ok|video|` du contrôle donne la taille lue. Un écran plus grand que 1920x1080 est refusé. En 800x480,
 l'image, le menu de l'appli iDrive et la pastille du volume ont été vus en voiture.

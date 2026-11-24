@@ -12,11 +12,19 @@ QEMU avec les bibliothèques de la voiture).
 
 - Traduction polonaise du menu Android Auto de l'iDrive, affichée quand l'iDrive est en polonais (au lieu de
   l'anglais). Comme les autres langues, les textes restent en ASCII, sans lettres accentuées (« laczenie » pour
-  « łączenie ») ([#176](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/176), essayée sur une F44). Testé sur PC.
+  « łączenie ») ([#176](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/176), essayée sur une F44 ; textes de la
+  mise à jour par clé USB : [#185](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/185)). Testé sur PC.
 - Traduction italienne du menu Android Auto de l'iDrive ([#77](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/77)). Testé sur PC.
 
 ### Corrigé
 
+- Sans-fil sur les écrans plus larges que 1280 pixels (10,25 pouces, 1440x540) : le service demandait au téléphone une
+  image de 1920x1080, et le téléphone fermait la séance dès la mise en place de la vidéo, sur le Wi-Fi 2,4 GHz de la
+  voiture. En sans-fil, il demande maintenant 1280x720 au plus : sur un écran plus large, le haut de l'image
+  (1280x480) est étiré à tout l'écran, dans les mêmes proportions, et le toucher est ramené aux pixels de l'image. Par
+  câble, rien ne change (1920x1080), ni sur les écrans de 1280 pixels ou moins
+  ([#190](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/190), essayé sans fil sur une F52 : image sur tout
+  l'écran, toucher juste). Testé sur PC.
 - Son : les demandes de focus audio du téléphone sont décodées comme des messages protobuf, même si leurs champs
   arrivent dans un autre ordre ou si leur valeur occupe plusieurs octets ([#121](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/121)). Testé sur PC.
 - Image : une demande de focus de la voiture arrivée avant la mise en place de la vidéo est désormais envoyée dès que

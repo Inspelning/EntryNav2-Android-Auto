@@ -53,8 +53,8 @@ ou seulement testée sur PC.
 
 ## Il faut
 
-- Une BMW avec une unité **EntryNav2** (appelée *EntryEVO* dans son système), avec un écran **1280×480** ou
-  **800×480** ([écrans](docs/COMPATIBILITE.md#autres-tailles-décran)). Le sans-fil demande le **Wi-Fi de CarPlay** de
+- Une BMW avec une unité **EntryNav2** (appelée *EntryEVO* dans son système), avec un écran **1280×480**,
+  **800×480** ou **1440×540** ([écrans](docs/COMPATIBILITE.md#autres-tailles-décran)). Le sans-fil demande le **Wi-Fi de CarPlay** de
   l'unité ; sans lui, le [câble USB](docs/USB.md) marche aussi.
   Les NBT Evo, ID7 et MGU tournent sur d'autres systèmes : ce projet ne peut pas s'y exécuter.
 - Pour la première installation, un PC avec un client SSH (Windows 10/11, Linux ou macOS) et un **câble ENET** (OBD

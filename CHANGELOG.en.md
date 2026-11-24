@@ -17,11 +17,19 @@ QEMU with the car's libraries).
 
 - Polish translation of the Android Auto menu in iDrive, shown when iDrive is set to Polish (instead of English). As
   in the other languages, the texts stay ASCII, without diacritics ("laczenie" for "łączenie")
-  ([#176](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/176), tried on an F44). Tested on PC.
+  ([#176](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/176), tried on an F44; texts of the USB stick
+  update: [#185](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/185)). Tested on PC.
 - Italian translation of the Android Auto menu in iDrive ([#77](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/77)). Tested on PC.
 
 ### Fixed
 
+- Wireless on screens wider than 1280 pixels (10.25 inches, 1440x540): the service asked the phone for a 1920x1080
+  picture, and the phone closed the session as soon as the video was set up, over the car's 2.4 GHz Wi-Fi. Over
+  wireless it now asks for 1280x720 at most: on a wider screen, the top of the picture (1280x480) is stretched to the
+  whole screen, keeping its proportions, and touches are brought back to the picture's pixels. Nothing changes over
+  the cable (1920x1080), nor on screens 1280 pixels wide or less
+  ([#190](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/190), tried wireless on an F52: picture on the whole
+  screen, touch right). Tested on PC.
 - Sound: the phone's audio focus requests are decoded as protobuf messages, even when their fields come in another
   order or their value takes several bytes ([#121](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/121)). Tested on PC.
 - Picture: a focus request from the car that came before the video was set up is now sent as soon as the video is
