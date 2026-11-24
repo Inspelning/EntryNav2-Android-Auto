@@ -73,8 +73,9 @@ panne : activer les journaux, reproduire, les récupérer, puis les couper.
 3. Brancher une clé USB (FAT32, exFAT ou NTFS), puis choisir *Copier les journaux sur clé USB*. La ligne dit ce qui
    s'est passé : *Copie des journaux...*, puis *Journaux copiés sur la clé USB*, *Aucune clé USB trouvée*, *Aucun
    journal : cochez Garder* ou *Copie impossible* (clé pleine, protégée ou retirée). Les journaux sont dans le dossier
-   `EntryAA-logs/<date>` de la clé, avec la version du logiciel de l'unité et un `info.txt` qui les liste. Rien n'est
-   effacé ni changé sur l'unité.
+   `EntryAA-logs/<date>` de la clé, avec la version du logiciel de l'unité, le rapport de la dernière mise à jour par
+   clé USB s'il y en a eu une ([installation](INSTALLATION.md#par-clé-usb-sans-pc)) et un `info.txt` qui les liste.
+   Rien n'est effacé ni changé sur l'unité.
 4. Décocher *Garder les journaux*. Les journaux déjà écrits restent sur l'unité, pour une copie plus tard.
 
 Les journaux ne contiennent ni mot de passe ni adresse Wi-Fi ou Bluetooth ; ils peuvent contenir le nom Bluetooth du

@@ -72,6 +72,11 @@ Installation is a short manual procedure over SSH, described step by step in
    `/opt/hmi/data/ro/Plugins/EntryAad`), then the unit restarts.
 5. On iDrive: *Media*, *Android Auto*, *Démarrer*.
 
+After that, newer versions install without a PC: the archive copied as is onto a USB stick, then *Mettre à jour par
+clé USB* (*Update from USB stick*) in the Android Auto menu. Only an archive signed by the project is accepted,
+everything is checked before anything is written, and an update cut by a power failure is finished by the next one
+([updating](docs/INSTALLATION.md#mettre-à-jour)).
+
 Settings and logs live in `/var/local/data/AA` ([docs/MAINTENANCE.md](docs/MAINTENANCE.md)). Uninstalling removes the two
 folders.
 
@@ -111,7 +116,7 @@ docker build -t entrynav2-tc:4.7 toolchain              # once: GCC 4.7 for ARMv
 bash toolchain/tc.sh make -j4 all hmiapp test-arm-all   # ARM programs, linked against the car's libraries
 python3 -I tests/run_qemu.py                            # ARM tests under QEMU with the car's libraries
 make verify_binary verify_wireless                      # record the programs that passed
-python3 tools/package_release.py                        # artifacts/entrynav2-android-auto-<version>-armhf.tar
+python3 tools/package_release.py --unsigned             # artifacts/entrynav2-android-auto-<version>-armhf.tar
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full test list and the project's rules.

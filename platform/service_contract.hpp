@@ -39,6 +39,10 @@ constexpr char kServiceLogKeptOld[] = "/var/local/data/AA/service.old.log";
 constexpr char kAppDisable[] = "/var/local/data/AA/app.disable";  // present: the app stays off (set by hand)
 constexpr char kAppGuard[] = "/var/local/data/AA/app-guard";   // crash guard: 3 short iDrive runs and the app stays off
 constexpr char kBootGuard[] = "/var/local/data/AA/bootguard";  // automatic starts within 15 minutes
+// The update from a USB stick (update_install.hpp): what its last run found and did, and its journal while an update
+// is being swapped in (the signed list and its signature).
+constexpr char kUpdateReport[] = "/var/local/data/AA/update-report.txt";
+constexpr char kUpdatePending[] = "/var/local/data/AA/update-pending";
 
 // ---- run time, in /tmp (memory, gone at the next start) -----------------------------------------------------------
 constexpr char kServiceDir[] = "/tmp/entry-aa-service";
@@ -57,6 +61,11 @@ constexpr char kSeriesFile[] = "/tmp/entry-aad-series";
 constexpr char kWirelessLock[] = "/tmp/entry-aad-wireless.lock";  // one wireless start at a time
 // One-shot double-MEDIA recall request: process id and monotonic timestamp, checked by the iDrive app.
 constexpr char kMediaRecallFile[] = "/tmp/entry-aad-media-recall";
+// One update from a USB stick at a time, the programs it holds for the car's loader to check, and the archive the last
+// check offered (the install takes that one only).
+constexpr char kUpdateLock[] = "/tmp/entry-aa-update.lock";
+constexpr char kUpdateStaging[] = "/tmp/entry-aa-update";
+constexpr char kUpdateChecked[] = "/tmp/entry-aa-update.checked";
 
 // ---- control messages from the app to the service: a Unix datagram socket, abstract name (control_address.hpp) ----
 constexpr char kControlName[] = "entry-aad-control";

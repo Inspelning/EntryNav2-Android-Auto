@@ -15,6 +15,20 @@ QEMU with the car's libraries).
 
 ### Added
 
+- **Update from a USB stick**, with neither a PC nor SSH: the archive of a published version, copied as is to the root
+  of a stick, then *Mettre à jour par clé USB* (*Update from USB stick*) in the Android Auto menu. A first press checks
+  everything without installing anything (the project's signature, the hash of every file, programs built for this
+  unit, the libraries and functions they need present on the car) and says what a second press installs: a newer
+  version, an older one, or the same one again. The second press, never during a call or in reverse gear, stops
+  Android Auto, takes exactly the archive that was checked, writes the new files beside the old ones, reads them back,
+  then puts them in place one by one by renaming; the unit restarts by itself. Refused without any change, the
+  install starts Android Auto again. A power cut during the swap is finished by the next update, from the list kept on
+  the data partition. Report in `EntryAA-update.txt` on the stick and in the
+  copied logs ([installation](docs/INSTALLATION.md#par-clé-usb-sans-pc)). Published archives now hold an `UPDATE` list
+  signed by the project's key; an archive built by oneself (`tools/package_release.py --unsigned`) installs by SSH
+  only. The first installation stays over SSH, once. Tested on PC and under QEMU with the car's libcrypto, not yet in
+  a car.
+
 - Version number in the title of the *Help* page of the Android Auto menu in iDrive (for example "Help -
   0.13.0-rc.10"): a photo of the page is enough to know which version runs in the car. Its six lines stay the
   same. Tested on PC.

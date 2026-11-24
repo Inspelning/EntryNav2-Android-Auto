@@ -42,6 +42,9 @@ void phoneStep() {
 }
 }  // namespace
 namespace evo {
+int updateFromUsb(bool, const char*) {  // tests/test_update_install.cpp
+    return 0;
+}
 unsigned hotspotRequests = 0;
 bool requestWlanAccessPoint(unsigned, WlanRequestResult*) {
     ++hotspotRequests;

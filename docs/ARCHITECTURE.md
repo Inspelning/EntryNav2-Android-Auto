@@ -71,7 +71,10 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `evo_mic` | Micro de la voiture pour l'Assistant, lu sans blocage ; réouvert au plus une fois par seconde après un échec |
 | `evo_wlan`, `evo_ap` | Wi-Fi de la voiture, allumé comme le fait CarPlay |
 | `kept_log.hpp` | Journal du service gardé sur la partition de données en profil maintenance, borné à 512 Ko plus l'ancien |
-| `log_copy` | Journaux copiés sur une clé USB depuis le menu de l'iDrive (`aa-supervisor --copy-logs`) |
+| `log_copy` | Journaux copiés sur une clé USB depuis le menu de l'iDrive (`aa-supervisor --copy-logs`) ; clés USB montées par la voiture |
+| `update_package`, `update_key.hpp` | Archive de mise à jour lue sur la clé USB : lecteur tar borné, liste signée `UPDATE`, versions, empreintes et signature (libcrypto de la voiture), clés publiques du projet |
+| `update_install` | Mise à jour par clé USB (`aa-supervisor --update-check`, `--update-install`) : vérification sans rien écrire, fichiers `.new` relus puis renommés un à un, journal qui termine une mise à jour coupée, rapport ; sur une fausse voiture dans les tests |
+| `update_car.cpp` | La même sur la voiture : `/proc/mounts`, remontage du système comme à l'installation, chargeur de l'unité, redémarrage, verrous |
 | `ap_uapsd.hpp` | Point d'accès de la voiture sans U-APSD pour le téléphone qui le rejoint (réglage en mémoire de hostapd, balise reconstruite seulement sans station connectée) |
 | `wifi_link` | Qualité de la liaison Wi-Fi avec le téléphone, lue dans le noyau pour les journaux, avec l'état du lien Bluetooth des BMW Apps (testé sur PC) |
 | `alps_spp`, `evo_spp_snapshot` | Pile Bluetooth de la voiture : commandes, et lecture de son état en mémoire |
@@ -95,7 +98,8 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `bmw_framework` | Déclarations de l'interface BMW des applis, accroches de la table virtuelle |
 | `hold_machine` | Quand demander la page vide de l'iDrive sous Android Auto (classe pure, testée sur PC) |
 | `pending_restart.hpp` | Redémarrage d'Android Auto quand la case du câble USB change en marche (testé sur PC) |
-| `service_link` | Lancement du superviseur, commandes au service, arrêt, copie des journaux sur clé USB |
+| `service_link` | Lancement du superviseur, commandes au service, arrêt, copie des journaux et mise à jour par clé USB |
+| `update_flow.hpp` | Ligne *Mettre à jour par clé USB* : vérification au premier appui, installation au second, arrêt d'Android Auto avant, textes affichés (classe pure, testée sur PC) |
 | `car_signals` | Marche arrière, appels, jour et nuit, mode de conduite, lus dans l'iDrive |
 | `idrive_coding` | Codage de la voiture lu dans l'iDrive au démarrage de l'appli et écrit pour le service : touches du contrôleur, marque (BMW ou MINI) ; réglage de la fenêtre du mode de conduite, lu pour l'appli |
 | `app_guards` | Interrupteur, garde-fou contre les plantages, démarrage automatique, cases du menu |
@@ -108,8 +112,8 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 
 | Fichier | Rôle |
 |---|---|
-| `aa_supervisor.cpp` | Le superviseur `aa-supervisor` ; `--compat` répète le démarrage à blanc pour le contrôle de compatibilité ; `--copy-logs` copie les journaux sur une clé USB |
-| `package_release.py` | L'archive d'une version, à copier dans la voiture ([installation](INSTALLATION.md)) |
+| `aa_supervisor.cpp` | Le superviseur `aa-supervisor` ; `--compat` répète le démarrage à blanc pour le contrôle de compatibilité ; `--copy-logs` copie les journaux sur une clé USB ; `--update-check` et `--update-install` mettent à jour depuis une clé USB |
+| `package_release.py` | L'archive d'une version, à copier dans la voiture ([installation](INSTALLATION.md)), avec sa liste `UPDATE` signée par la clé du projet (`.secrets/`, jamais dans git) pour la mise à jour par clé USB |
 | `verify_*.py`, `format_sources.py` | Contrôles du dépôt, des programmes ARM et du style |
 
 ## Tests
@@ -131,5 +135,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `tests/test_hold_machine.cpp` | Page vide de l'iDrive : ouverture, démarrage automatique, fenêtres, modes, appels, touches |
 | `tests/test_media_recall.cpp` | Double appui sur MEDIA : geste lu par le vrai décodeur, conditions, demande à usage unique |
 | `tests/test_aa_frame.cpp`, `tests/test_aa_messages.cpp`, `tests/test_tcp_server.cpp` | Trames hostiles, messages construits, écoute TCP |
+| `tests/test_update_package.cpp`, `tests/test_update_release.py` | Archive de mise à jour : versions, archives tar hostiles, liste, signatures, clé du projet ; archive écrite par `package_release.py` relue par le code de la voiture |
+| `tests/test_update_install.cpp`, `tests/test_update_flow.cpp` | Mise à jour par clé USB sur une fausse voiture : vérification qui ne change rien, installation, refus sans changement, coupure de courant après chaque renommage terminée par le journal ; ligne du menu |
 | `make verify_binary verify_wireless` | Programmes ARM : bibliothèques résolues sur la voiture, empreintes des programmes validés |
-| `tools/verify_repo.py`, `tools/verify_core.py` | Contenu de git : ni mot de passe, ni programme compilé, ni fichier BMW ; licence |
+| `tools/verify_repo.py`, `tools/verify_core.py` | Contenu de git : ni mot de passe, ni clé de signature, ni programme compilé, ni fichier BMW ; licence |
