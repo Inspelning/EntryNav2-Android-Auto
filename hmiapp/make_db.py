@@ -208,7 +208,7 @@ LANG_TEXTS = {  # ASCII only
         61: "Niedokonczono: zainstaluj ponownie",
         62: "Zajety: sprobuj ponownie za chwile",
         63: "Instalacja nierozpoznana",
-        64: "Nie przy rozmowie i biegu wstecznym",
+        64: "Nie w trakcie rozmowy lub cofania",
         20: "NAV, MAP: nawigacja Android Auto",
         21: "MEDIA: muzyka Android Auto",
         22: "COM: telefon Android Auto",
