@@ -13,6 +13,24 @@ QEMU with the car's libraries).
 
 ## [Unreleased]
 
+### Added
+
+- Polish translation of the Android Auto menu in iDrive, shown when iDrive is set to Polish (instead of English). As
+  in the other languages, the texts stay ASCII, without diacritics ("laczenie" for "łączenie")
+  ([#176](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/176), tried on an F44). Tested on PC.
+- Italian translation of the Android Auto menu in iDrive ([#77](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/77)). Tested on PC.
+
+### Fixed
+
+- Sound: the phone's audio focus requests are decoded as protobuf messages, even when their fields come in another
+  order or their value takes several bytes ([#121](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/121)). Tested on PC.
+- Picture: a focus request from the car that came before the video was set up is now sent as soon as the video is
+  ready, instead of waiting for another event and risking overwriting a newer state
+  ([#123](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/123)). Tested on PC.
+- Wireless: at start, when the car's Bluetooth stack answered "busy" (status 4) to the renewal of Android Auto's
+  advertisement, the service stopped and gave Bluetooth back. It now waits for the next renewal
+  ([#97](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/97), X1 F48, where the stack stays busy for about a minute at start). Tested on PC.
+
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
 Release candidate: updates from a USB stick, without a PC (archive signed by the project, everything checked before
@@ -50,8 +68,6 @@ installed from a USB stick. Tested on PC and under QEMU, **not yet tried in a ca
   ([compatibility](docs/COMPATIBILITE.md#flèches-sur-le-compteur-des-série-f),
   [#79](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/79)). Tested on PC only, from the description of a
   6WA cluster (F52).
-- Polish translation of the Android Auto menu in iDrive, shown when iDrive is set to Polish (instead of English). As
-  in the other languages, the texts stay ASCII, without diacritics ("laczenie" for "łączenie"). Tested on PC.
 
 ### Fixed
 
