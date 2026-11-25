@@ -31,7 +31,8 @@ public:
     bool established() const { return established_; }
 
     // Application data, once established. False when nothing came out: for open, also while a record is cut over
-    // frames and its rest is still to come; for seal, records is then empty.
+    // frames and its rest is still to come; for seal, records is then empty. open can be true and leave TLS broken:
+    // the records before one that failed, or before the phone's close_notify, came out; check broken() either way.
     bool seal(const uint8_t* plain, size_t size, std::vector<uint8_t>& records);
     bool open(const uint8_t* records, size_t size, std::vector<uint8_t>& plain);
     // OpenSSL failed for good (a handshake that failed, a record that failed its check, or refused by the phone's

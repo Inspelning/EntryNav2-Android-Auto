@@ -500,13 +500,15 @@ AASession::Received AASession::receive(uint8_t& channel, Message& wire, Message&
     g_trail.stage = kTrailDecrypt;
     const bool encrypted = header.encrypted();
     if (encrypted) {
-        if (!tls_.open(wire.data(), wire.size(), plain)) {
-            if (tls_.broken()) {
-                // No later frame can decrypt, and nothing more can be sealed: no ack, no ping, the session ends.
-                printf("[AASession] Encrypted frame on channel %u (%u bytes) broke TLS: session ends.\n", channel,
-                       header.length);
-                return kLost;
-            }
+        const bool opened = tls_.open(wire.data(), wire.size(), plain);
+        if (tls_.broken()) {
+            // No later frame can decrypt, and nothing more can be sealed: no ack, no ping, the session ends. Also when
+            // the frame gave a message first: its next record failed its check, or was the phone's close_notify.
+            printf("[AASession] Encrypted frame on channel %u (%u bytes) broke TLS: session ends.\n", channel,
+                   header.length);
+            return kLost;
+        }
+        if (!opened) {
             printf("[AASession] Failed to decrypt encrypted frame (%u bytes).\n", header.length);
             assembler_.lose(header);
             ackDropped(header);

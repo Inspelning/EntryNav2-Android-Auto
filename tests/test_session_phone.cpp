@@ -336,6 +336,11 @@ public:
         SSL_write(ssl_, &plain[0], static_cast<int>(plain.size()));
         return pending();
     }
+    // The phone closing its TLS: the close_notify alert record.
+    Bytes closeNotify() {
+        SSL_shutdown(ssl_);
+        return pending();
+    }
     bool open(const Bytes& records, Bytes& plain) {
         BIO_write(in_, &records[0], static_cast<int>(records.size()));
         plain.clear();
@@ -402,6 +407,12 @@ public:
         Bytes records = tls_.seal(message);
         records[records.size() - 1] ^= 0x01;
         frame(channel, kSealed, records, nullptr);
+    }
+    // A whole encrypted message whose frame also carries, after its record, the phone's close_notify.
+    void sealedThenClosed(uint8_t channel, const Bytes& message) {
+        log_.push_back(format("ph ch=%u fl=%02x ", channel, kSealed) + hex(message) + ", then close_notify");
+        const Bytes records = tls_.seal(message);
+        frame(channel, kSealed, records + tls_.closeNotify(), nullptr);
     }
     // A ping, then every head unit frame up to its answer: whatever was sent or posted before has been handled.
     void settle() {
@@ -1237,6 +1248,29 @@ std::string handshakeFailures() {
     return std::string();
 }
 
+// A frame whose first record decrypts and whose next one ends TLS (the phone's close_notify): TLS is broken all the
+// same, so the session ends at that frame, and the message before is not answered (here an encrypted ping, whose
+// answer would go in clear).
+std::string closedAfterMessage() {
+    std::vector<std::string> log;
+    Link link;
+    Phone phone(link.phoneFd, log);
+    phone.handshake();
+    phone.discover();
+    log.clear();
+    phone.sealedThenClosed(0, bytes({0x00, 0x0b, 0x08, 0x81, 0x7f}));
+    if (!waitEnded(link.session)) {
+        return "TLS closed by the phone after a message did not end the session";
+    }
+    phone.untilClosed();
+    for (size_t i = 0; i < log.size(); ++i) {
+        if (log[i].compare(0, 3, "hu ") == 0 && log[i] != "hu <closed>") {
+            return "the head unit still sent \"" + log[i] + "\" after TLS was closed";
+        }
+    }
+    return std::string();
+}
+
 // A phone whose Wi-Fi stalls takes nothing in while it still speaks: the head unit's send gives up partway through a
 // frame, and whatever followed would be garbage to the phone. The session must end there, as lost and not as a
 // goodbye. The head unit gives a stuck send 5 s (set by start()); to stay fast, the test shortens that on the head
@@ -1667,6 +1701,7 @@ int main(int argc, char** argv) {
     const std::string corrupted = writing ? std::string() : corruptedRecord();
     takeEvents();
     const std::string handshake = writing ? std::string() : handshakeFailures();
+    const std::string closedTls = writing ? std::string() : closedAfterMessage();
     takeEvents();
     const std::string stalled = writing ? std::string() : stalledSend();
     const std::string keyframe = writing ? std::string() : keyframeAfterLoss();
@@ -1737,6 +1772,11 @@ int main(int argc, char** argv) {
         return 1;
     }
     puts("PASS session, TLS handshake: a failed one ends it at once, one after TLS is ignored, 64 KiB at most");
+    if (!closedTls.empty()) {
+        printf("FAIL session, TLS closed after a message: %s\n", closedTls.c_str());
+        return 1;
+    }
+    puts("PASS session, TLS closed after a message in the same frame: it ends there, the message is not answered");
     if (!stalled.empty()) {
         printf("FAIL session, stalled send: %s\n", stalled.c_str());
         return 1;

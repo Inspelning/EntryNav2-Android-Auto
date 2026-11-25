@@ -135,6 +135,9 @@ QEMU avec les bibliothèques de la voiture).
   suite, au lieu d'attendre 5 secondes de silence du téléphone. Un message de négociation reçu une fois la séance
   sécurisée est ignoré, au lieu de casser la séance au message suivant ; un message de négociation de plus de 64 Kio
   est refusé. Testé sur PC.
+- Séance Android Auto : quand le téléphone ferme la liaison sécurisée (TLS), ou qu'un enregistrement abîmé suit un
+  message lisible dans la même trame, la séance se termine à cette trame, au lieu de continuer jusqu'à la trame
+  chiffrée suivante ou jusqu'à 5 secondes de silence. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

@@ -133,6 +133,9 @@ QEMU with the car's libraries).
 - Android Auto session: when the secure handshake (TLS) with the phone fails, the session ends at once, instead of
   after 5 seconds of silence from the phone. A handshake message that comes once the session is secured is ignored,
   instead of breaking the session at the next message; a handshake message over 64 KiB is refused. Tested on PC.
+- Android Auto session: when the phone closes the secure link (TLS), or a damaged record follows a readable message
+  in the same frame, the session ends at that frame, instead of going on until the next encrypted frame or until 5
+  seconds of silence. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
