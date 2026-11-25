@@ -94,6 +94,10 @@ QEMU with the car's libraries).
   from elsewhere, for example from a phone on the car's Wi-Fi, could make it ignore the touchscreen for the whole
   session. The touchscreen is now recognised by its first touch frame, from the unit's wired network, never from the
   Wi-Fi. Tested on PC.
+- Picture: the thread that reads the messages of the car's video decoder did not check that their queue was still
+  open. Had the decoder closed it, every read would have come back at once with nothing, and that thread would have
+  kept a processor core at 100 % until the end of the session. It now stops; without those messages no buffer comes
+  back, and the session ends as for a stalled decoder. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

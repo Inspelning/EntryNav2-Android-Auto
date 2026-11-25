@@ -93,6 +93,10 @@ QEMU avec les bibliothèques de la voiture).
   venu d'ailleurs, par exemple d'un téléphone sur le Wi-Fi de la voiture, pouvait le lui faire ignorer pour toute la
   séance. L'écran est maintenant reconnu à sa première trame de toucher, arrivée par le réseau filaire de l'unité,
   jamais par le Wi-Fi. Testé sur PC.
+- Image : le fil qui lit les messages du décodeur vidéo de la voiture ne regardait pas si leur file était encore
+  ouverte. Si le décodeur la fermait, chaque lecture revenait aussitôt sans rien, et ce fil occupait un cœur du
+  processeur à 100 % jusqu'à la fin de la séance. Il s'arrête maintenant ; sans ces messages, aucun tampon ne revient,
+  et la séance se termine comme pour un décodeur bloqué. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Actual EvoVideo lifecycle with fake hardware boundaries. No DRM, compositor or vehicle connection.
 #include <assert.h>
+#include <poll.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#include <atomic>
 
 #include "evo_video.hpp"
 
@@ -56,11 +59,24 @@ bool EvoIlm::setSurfaceOpacity(uint32_t, float v) {
     return true;
 }
 }  // namespace evo
+// The decoder's event queue, a pipe as in the car's library: [0] read by the event thread, [1] written by the test.
+static int queue[2] = {-1, -1};
+static std::atomic<unsigned> receives(0);  // calls of xsv_receive_event
+static void closeQueueEnd(int end) {
+    if (queue[end] >= 0) {
+        close(queue[end]);
+        queue[end] = -1;
+    }
+}
 extern "C" {
 xsv_handle xsv_open(int, uint32_t, const char*) {
+    assert(queue[0] < 0 && pipe(queue) == 0);
     return reinterpret_cast<void*>(1);
 }
-void xsv_close(xsv_handle) {}
+void xsv_close(xsv_handle) {
+    closeQueueEnd(0);
+    closeQueueEnd(1);
+}
 int xsv_configure_stream(xsv_handle, uint32_t, uint32_t, float) {
     return 0;
 }
@@ -88,10 +104,28 @@ int xsv_decode_video_frame(xsv_handle, int fd, uint32_t len) {
     }
     return 0;
 }
-int xsv_receive_event(xsv_handle, int*, int) {
-    usleep(1000);
-    return 0;
+// As the car's library does it: an event read when the pipe has one, 0 at once when it has hung up, -1 when poll fails.
+int xsv_receive_event(xsv_handle, int* event, int timeoutMs) {
+    ++receives;
+    struct pollfd p = {queue[0], POLLIN, 0};
+    int got = poll(&p, 1, timeoutMs);
+    if (got > 0) {
+        if (!(p.revents & POLLIN)) {
+            return 0;
+        }
+        got = static_cast<int>(read(queue[0], event, 20));
+    }
+    return got < 0 ? -1 : got != 0;
 }
+int xsv_get_event_queue_fd(xsv_handle) {
+    return queue[0];
+}
+}
+
+// One decoder event, written as the library does: 20 bytes, [0] type.
+static void decoderEvent(int type) {
+    int event[5] = {type, 0, 0, 0, 0};
+    assert(write(queue[1], event, sizeof(event)) == static_cast<ssize_t>(sizeof(event)));
 }
 
 static const uint8_t kSpsPps[] = {0, 0, 0, 1, 0x67, 1, 2, 3, 0, 0, 0, 1, 0x68, 4};
@@ -165,6 +199,27 @@ static void stalledDecoder(evo::EvoVideo& video, const evo::EvoVideoConfig& cfg)
     video.setVisible(true);
     assert(video.postVideoFrame(kIdr, sizeof(kIdr), 0) == Fate::kDecoding);
     video.stop();
+}
+
+// The decoder's events reach EvoVideo; once its queue has hung up, the event thread ends instead of asking it again
+// and again, each call returning at once without an event (a core at 100 %).
+static void brokenEventQueue(evo::EvoVideo& video, const evo::EvoVideoConfig& cfg) {
+    assert(video.init(cfg) && video.start());
+    assert(video.postVideoFrame(kIdr, sizeof(kIdr), 0) == evo::FrameFate::kDecoding && !video.firstFrameSeen());
+    decoderEvent(XSV_EVENT_FRAME);
+    long long since = nowMs();
+    while (!video.firstFrameSeen() && nowMs() - since < 2000) {
+        usleep(1000);
+    }
+    assert(video.firstFrameSeen());
+    closeQueueEnd(1);  // the library's own end of the pipe goes
+    usleep(100000);
+    const unsigned before = receives;
+    usleep(300000);
+    assert(receives - before == 0);
+    since = nowMs();
+    video.stop();
+    assert(nowMs() - since < 100);  // the event thread had already ended
 }
 
 // Which frames FrameGap holds, and for how long, on a clock of our own.
@@ -288,6 +343,8 @@ int main() {
     decoderStallRule();
     stalledDecoder(video, cfg);
     puts("PASS video presentation: a decoder that keeps every buffer 3 s on screen is reported once, then no waiting");
+    brokenEventQueue(video, cfg);
+    puts("PASS video presentation: decoder events read from its queue; a queue that hung up ends the event thread");
     frameGapRule();
     framesSpread(video, cfg);
     puts(

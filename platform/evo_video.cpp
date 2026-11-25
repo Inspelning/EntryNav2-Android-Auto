@@ -3,6 +3,7 @@
 // Android Auto video: libxsvideo decoder, dma-buf feeding and surface visibility (see evo_video.hpp).
 #include "evo_video.hpp"
 
+#include <poll.h>
 #include <unistd.h>
 
 #include <cerrno>
@@ -354,14 +355,43 @@ void* EvoVideo::eventStub(void* self) {
     return nullptr;
 }
 
+// The decoder's events. Their queue is a pipe of the library: xsv_receive_event polls it and returns at once, with no
+// event, when the pipe has hung up or is no longer open, and -1 when poll() fails (read in the car's
+// libxsvideo.so.4.1.3). Called in a loop, it would then spin a core for good. The queue is waited on here instead: a
+// queue that can no longer bring an event ends this thread, and the decoder stall (DecoderStall) ends the picture.
 void EvoVideo::eventLoop() {
+    const int queue = xsv_get_event_queue_fd(h_);
+    if (queue < 0) {
+        ELOG("Video", "the decoder has no event queue: no buffer will come back");
+        return;
+    }
     int evt[5];
     while (running_) {
+        struct pollfd p;
+        p.fd = queue;
+        p.events = POLLIN;
+        p.revents = 0;
+        const int ready = poll(&p, 1, 200);
+        if (ready < 0 && errno != EINTR) {
+            ELOG("Video", "the decoder's event queue cannot be waited on (%s): no more decoder events",
+                 strerror(errno));
+            return;
+        }
+        if (ready <= 0) {
+            continue;  // nothing within 200 ms, or a signal: running_ is looked at again
+        }
+        if (!(p.revents & POLLIN)) {
+            ELOG("Video", "the decoder's event queue is closed (poll 0x%x): no more decoder events", p.revents);
+            return;
+        }
         memset(evt, 0, sizeof(evt));
-        xsv_receive_event(h_, evt, 200);  // 20 bytes: [0] type, [1] data
+        if (xsv_receive_event(h_, evt, 0) < 0 && errno != EINTR) {  // 20 bytes: [0] type, [1] data
+            ELOG("Video", "the decoder's event queue cannot be read: no more decoder events");
+            return;
+        }
         switch (evt[0]) {
             case 0:
-                break;  // timeout, nothing received
+                break;  // nothing read (a signal)
             case XSV_EVENT_PLAYING:
                 ELOG("Video", "player PLAYING; waiting for H.264 frames");
                 break;
