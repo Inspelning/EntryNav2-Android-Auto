@@ -7,7 +7,8 @@
 //   communication.callStatus0 / 1    "call 1" / "call 0": the phone keys follow iDrive's call
 //   vehicle.dayNightChangeOver       "daynight <n>" (1 day, 2 night), also written to /tmp/entry-aad-daynight
 //   driving.mode / driving.mode35up  "drivemode <n>", for a real change between two valid modes only
-//   hmi.graphicalContext             logged only: the number of each iDrive screen, to learn those of the cameras
+//   hmi.graphicalContext             the number of each iDrive screen: logged (those of the cameras are not known
+//                                    yet), and to the hold machine, which knows iDrive's radio page (#138)
 // Every handler runs on the app thread.
 #ifndef ENTRY_AAD_HMIAPP_CAR_SIGNALS_HPP
 #define ENTRY_AAD_HMIAPP_CAR_SIGNALS_HPP

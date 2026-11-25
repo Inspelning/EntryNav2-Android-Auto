@@ -40,6 +40,12 @@ QEMU with the car's libraries).
   ([#97](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/97), X1 F48, where the stack stays busy for about a minute at start). Tested on PC.
 - Compatibility check: a 1440x540 screen is no longer flagged with `@warn|screen|` as never tried in a car. It has
   worked on an F52, by cable and wireless ([#190](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/190)); the warning stays for other sizes. Tested on PC.
+- FM radio: while driving, iDrive raises its radio page by itself when the tuner follows the station to another
+  frequency, and Android Auto stepped aside as after a key (X1 F48, up to about twenty times a drive). With no key
+  left to iDrive in the 6 seconds before, iDrive is now put back at once on Android Auto's blank page, at most 4
+  times in 10 s. Only for that page (screen 523, seen in the car's log): another screen iDrive opens without a key
+  still makes Android Auto step aside ([#138](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/138), after the idea of [#139](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/139)).
+  Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

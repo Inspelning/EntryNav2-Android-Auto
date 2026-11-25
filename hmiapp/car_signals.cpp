@@ -71,7 +71,7 @@ bool onPdcChanged(void*, const bmw::BasicString<unsigned short>& value) {
     return true;
 }
 
-// ---- the iDrive screen shown: logged, nothing decided on it yet -----------------------------------------------------
+// ---- the iDrive screen shown: logged, and told to the hold machine (its radio page, #138) ---------------------------
 // Which numbers the camera and panorama views have on this head unit is not known: the log tells, screen by screen.
 int g_lastScreen = -1000;
 bool onScreenChanged(void*, const bmw::BasicString<unsigned short>& value) {
@@ -81,6 +81,7 @@ bool onScreenChanged(void*, const bmw::BasicString<unsigned short>& value) {
     if (screen != g_lastScreen) {
         g_lastScreen = screen;
         alog("CDS %s = '%s'", kScreenProperty, text);
+        g_hold->screenChanged(screen);
     }
     return true;
 }

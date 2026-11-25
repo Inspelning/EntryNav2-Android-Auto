@@ -36,6 +36,12 @@ QEMU avec les bibliothèques de la voiture).
 - Contrôle de compatibilité : un écran 1440x540 n'est plus signalé `@warn|screen|` comme jamais essayé en voiture. Il
   a marché sur une F52, par câble et sans fil ([#190](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/190)) ; l'avertissement reste pour les autres tailles.
   Testé sur PC.
+- Radio FM : en roulant, l'iDrive remonte lui-même sa page radio quand le tuner suit la station sur une autre
+  fréquence, et Android Auto lui cédait la place comme après une touche (X1 F48, jusqu'à une vingtaine de fois par
+  trajet). Sans touche laissée à l'iDrive dans les 6 secondes d'avant, l'iDrive est maintenant remis tout de suite
+  sur la page vide d'Android Auto, au plus 4 fois en 10 s. Seulement pour cette page (écran 523, vu dans le journal
+  de la voiture) : un autre écran que l'iDrive ouvre sans touche fait toujours céder la place à Android Auto
+  ([#138](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/138), d'après l'idée de [#139](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/139)). Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

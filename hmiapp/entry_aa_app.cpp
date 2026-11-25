@@ -77,16 +77,21 @@ public:
     void send(const char* message) override { sendToService(message); }
     void log(const char* line) override { alog("%s", line); }
     ServiceState readService() override { return readServiceState(); }
-    // The one delay read from a date, the file's: 2 s, between the service writing it and this app seeing it.
-    bool appKeyAge(long* seconds) override {
+    // The only delays read from a date, the files': a few seconds between the service writing one and this app
+    // seeing it.
+    bool appKeyAge(long* seconds) override { return fileAge(contract::kAppKeyFile, seconds); }
+    void removeAppKey() override { unlink(contract::kAppKeyFile); }
+    bool hardKeyAge(long* seconds) override { return fileAge(contract::kHardKeyFile, seconds); }
+
+private:
+    static bool fileAge(const char* path, long* seconds) {
         struct stat st;
-        if (stat(contract::kAppKeyFile, &st) != 0) {
+        if (stat(path, &st) != 0) {
             return false;
         }
         *seconds = static_cast<long>(time(nullptr) - st.st_mtime);
         return true;
     }
-    void removeAppKey() override { unlink(contract::kAppKeyFile); }
 };
 AppHoldIo g_holdIo;
 HoldMachine g_hold(g_holdIo);

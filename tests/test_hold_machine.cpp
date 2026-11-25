@@ -41,7 +41,7 @@ int g_failures = 0;
 
 class Recorder : public HoldIo {
 public:
-    Recorder() : appKey(false), appKeyAt(0), now(nullptr), reads(0) {}
+    Recorder() : appKey(false), appKeyAt(0), hardKey(false), hardKeyAt(0), now(nullptr), reads(0) {}
     void triggerEvent(unsigned event) override {
         char text[16];
         snprintf(text, sizeof(text), "event %u", event);
@@ -65,12 +65,21 @@ public:
         appKey = false;
         out.push_back("app key removed");
     }
+    bool hardKeyAge(long* seconds) override {
+        if (!hardKey) {
+            return false;
+        }
+        *seconds = *now - hardKeyAt;
+        return true;
+    }
 
     std::vector<std::string> out;
     std::vector<std::string> logs;
     ServiceState service;
     bool appKey;
-    long appKeyAt;    // when the service wrote the file, on the car's clock below
+    long appKeyAt;  // when the service wrote the file, on the car's clock below
+    bool hardKey;   // the service's file of the last key left to iDrive
+    long hardKeyAt;
     const long* now;  // that clock
     int reads;
 };
@@ -115,6 +124,12 @@ struct Car {
         blankVisible(false);
     }
     void call(bool on) { hold.callChanged(on, now); }
+    void screen(int visibleContext) { hold.screenChanged(visibleContext); }
+    // iDrive raises its FM station page by itself: the screen is reported, then the blank state loses the focus.
+    void radioPage() {
+        screen(evo::app::kRadioStationScreen);
+        blankLeft();
+    }
     bool gear(int value) { return hold.gearChanged(value, now); }
 
     std::string take() {
@@ -854,6 +869,119 @@ void appKeys() {
     }
 }
 
+// #138: on an X1 F48 once moving, iDrive raised its FM station page by itself whenever the tuner followed the station
+// to another frequency, and Android Auto stepped aside as for a hard key.
+void radioPage() {
+    {  // no key: back to the blank state at the first poll, no step aside
+        Car c;
+        heldOnBlank(c);
+        c.radioPage();
+        CHECK_OUT(c, "");
+        c.poll();
+        CHECK_OUT(c, "event 52");
+        CHECK(c.logged("hold: iDrive raised its radio page (screen 523) without a key: back to state 13, 1 of 4"));
+        c.blankShown();
+        c.polls(5);
+        CHECK_OUT(c, "");
+        CHECK(c.hold.holding());
+    }
+    {  // a key left to iDrive 2 s before: the driver's choice, the hard key step aside
+        Car c;
+        heldOnBlank(c);
+        c.io.hardKey = true;
+        c.io.hardKeyAt = c.now - 2;
+        c.radioPage();
+        c.poll();
+        CHECK_OUT(c, "");
+        c.poll();
+        CHECK_OUT(c, "hide");
+        CHECK(c.logged("radio page 3 s after a key left to iDrive"));
+    }
+    {  // a key file older than 6 s does not explain it
+        Car c;
+        heldOnBlank(c);
+        c.io.hardKey = true;
+        c.io.hardKeyAt = c.now - 7;
+        c.radioPage();
+        c.poll();
+        CHECK_OUT(c, "event 52");
+    }
+    {  // another iDrive screen without a key (a warning, BMW navigation): still the step aside
+        Car c;
+        heldOnBlank(c);
+        c.screen(300);
+        c.blankLeft();
+        c.poll();
+        CHECK_OUT(c, "");
+        c.poll();
+        CHECK_OUT(c, "hide");
+    }
+    {  // no screen reported (a car whose iDrive does not publish it): as before
+        Car c;
+        heldOnBlank(c);
+        c.blankLeft();
+        c.poll();
+        c.poll();
+        CHECK_OUT(c, "hide");
+    }
+    {  // the radio page seen before the blank state showed is forgotten: a later departure is a hard key
+        Car c;
+        connected(c);
+        c.menu(true);
+        c.screen(evo::app::kRadioStationScreen);
+        c.hold.showAndHold("Open row", c.now);
+        c.blankShown();
+        c.overlay(1);
+        c.poll();
+        CHECK_OUT(c, "show, event 52");
+        c.blankLeft();
+        c.poll();
+        CHECK_OUT(c, "");
+        c.poll();
+        CHECK_OUT(c, "hide");
+    }
+    {  // 4 times in 10 s, then Android Auto steps aside; 10 s later it is won back again
+        Car c;
+        heldOnBlank(c);
+        for (int i = 0; i < 4; ++i) {
+            c.radioPage();
+            c.poll();
+            CHECK_OUT(c, "event 52");
+            c.blankShown();
+            c.poll();
+        }
+        c.radioPage();  // the 5th, 8 s after the first
+        c.poll();
+        CHECK_OUT(c, "");
+        CHECK(c.logged("radio page again, 4 times in 10 s: Android Auto steps aside this time"));
+        c.poll();
+        CHECK_OUT(c, "hide");
+    }
+    {  // the window starts over
+        Car c;
+        heldOnBlank(c);
+        for (int i = 0; i < 4; ++i) {
+            c.radioPage();
+            c.poll();
+            c.blankShown();
+            c.poll();
+        }
+        CHECK_OUT(c, "event 52, event 52, event 52, event 52");
+        c.now += 10;
+        c.radioPage();
+        c.poll();
+        CHECK_OUT(c, "event 52");
+    }
+    {  // during a call iDrive's screens are not fought
+        Car c;
+        heldOnBlank(c);
+        c.call(true);
+        c.radioPage();
+        c.polls(3);
+        CHECK_OUT(c, "");
+    }
+}
+
 void hardKeys() {
     {  // MENU: confirmed on a second poll, Android Auto steps aside; no event when it does
         Car c;
@@ -1100,6 +1228,7 @@ int main() {
     parkAssist();
     calls();
     appKeys();
+    radioPage();
     hardKeys();
     stepsAsideByItself();
     backToBlankWhileMinimized();
@@ -1112,6 +1241,7 @@ int main() {
     puts(
         "PASS hold machine: manual open, automatic start through the menu, refusals, waiting aside, recall over an "
         "iDrive screen, BACK, popups, driving mode, "
-        "reverse, park assist, calls, app keys, hard keys, stepping aside, service restart");
+        "reverse, park assist, calls, app keys, radio page raised by iDrive, hard keys, stepping aside, service "
+        "restart");
     return 0;
 }

@@ -46,6 +46,9 @@ HoldMachine::HoldMachine(HoldIo& io)
       pdc_(kPdcUnknown),
       parkDismissed_(false),
       driveModeAt_(0),
+      screen_(kScreenUnknown),
+      radioBacks_(0),
+      radioSince_(0),
       serviceReachable_(false) {
     memset(prevState_, 0, sizeof(prevState_));
     strcpy(prevState_, "idle");
@@ -125,6 +128,12 @@ void HoldMachine::driveModeChanged(long now) {
     driveModeAt_ = now;
 }
 
+// Only kept for a departure from the blank state: forgotten each time it shows again, so a screen seen before Android
+// Auto was opened cannot pass for the one iDrive raises later.
+void HoldMachine::screenChanged(int screen) {
+    screen_ = screen;
+}
+
 // ---- events 52 and 51 -----------------------------------------------------------------------------------------------
 void HoldMachine::fireHold(const char* why, long now) {
     if (holdTries_ >= kMaxHoldTries) {
@@ -191,6 +200,43 @@ bool HoldMachine::appKeyRecent() {
     return io_.appKeyAge(&age) && age <= kAppKeyS;
 }
 
+// iDrive left the blank state for its FM station page with no key left to iDrive just before: the tuner followed the
+// station to another frequency and iDrive raised that page by itself (#138). Back to the blank state at once, a
+// bounded number of times per window so a page raised over and over cannot start a fight. A key pressed just before
+// (the service's file) is the driver's choice: the hard key step aside.
+bool HoldMachine::winBackRadioPage(long now) {
+    if (screen_ != kRadioStationScreen) {
+        return false;
+    }
+    long age = 0;
+    if (io_.hardKeyAge(&age) && age <= kHardKeyS) {
+        if (!leftSeen_) {
+            say("hold: iDrive's radio page %ld s after a key left to iDrive: the driver's choice", age);
+        }
+        return false;
+    }
+    if (!radioSince_ || now - radioSince_ >= kRadioWindowS) {
+        radioSince_ = now;
+        radioBacks_ = 0;
+    }
+    if (radioBacks_ >= kRadioBacksMax) {
+        if (!leftSeen_) {
+            say("hold: iDrive's radio page again, %d times in %d s: Android Auto steps aside this time", radioBacks_,
+                kRadioWindowS);
+        }
+        return false;
+    }
+    ++radioBacks_;
+    leftSeen_ = 0;
+    holdTries_ = 0;
+    menuRouteTries_ = 0;
+    popupTried_ = false;
+    say("hold: iDrive raised its radio page (screen %d) without a key: back to state %u, %d of %d in %d s", screen_,
+        kAaState, radioBacks_, kRadioBacksMax, kRadioWindowS);
+    fireHold("iDrive raised its radio page", now);
+    return true;
+}
+
 bool HoldMachine::keepForAppKey(const char* why, long now) {
     if (!appKeyRecent() || inCall_ || cameraWins()) {
         return false;
@@ -209,6 +255,7 @@ bool HoldMachine::keepForAppKey(const char* why, long now) {
 void HoldMachine::aaFocus(bool focused) {
     aaFocused_ = focused;
     if (focused) {
+        screen_ = kScreenUnknown;
         // The blank state has the focus: it is shown, whatever visibility notification was or was not sent. The hold
         // worked, so its tries start over (a focus lost and given back without "visible" used them up for good, and
         // the next BACK then left the menu under Android Auto for the rest of the session).
@@ -233,6 +280,7 @@ void HoldMachine::aaFocus(bool focused) {
 void HoldMachine::aaVisible(bool visible, long now) {
     aaVisible_ = visible;
     if (visible) {
+        screen_ = kScreenUnknown;
         aaSeen_ = true;
         holdTries_ = 0;
         menuRouteTries_ = 0;
@@ -582,6 +630,9 @@ void HoldMachine::poll(const ServiceState& service, long now) {
         return;
     }
     if (keepForAppKey("a key kept Android Auto on screen (poll)", now)) {
+        return;
+    }
+    if (winBackRadioPage(now)) {
         return;
     }
     if (!leftSeen_ || now - leftSeen_ > 3) {
