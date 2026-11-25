@@ -1323,6 +1323,46 @@ std::string tlsDeadline() {
     return verdict;
 }
 
+// The head unit's TLS client on its own: its ClientHello offers no compression (null only, whatever the libssl
+// finds), and one call of open() never gives more than a whole message may hold: 9 MiB of records in one go break TLS
+// instead. An empty verdict: passed.
+std::string tlsBounds() {
+    aa::TlsClient car;
+    PhoneTls phone;
+    std::vector<uint8_t> hello, answer;
+    if (!car.start() || !car.hello(hello)) {
+        return "no ClientHello";
+    }
+    // Record header 5, handshake header 4, version 2, random 32, then the session id, the cipher suites and the
+    // compression methods, each after its length.
+    size_t at = 5 + 4 + 2 + 32;
+    at += at < hello.size() ? 1 + hello[at] : 0;
+    at += at + 1 < hello.size() ? 2 + ((hello[at] << 8) | hello[at + 1]) : 0;
+    if (at + 1 >= hello.size() || hello[at] != 1 || hello[at + 1] != 0) {
+        return format("the ClientHello offers %d compression method(s), the first %d",
+                      at < hello.size() ? hello[at] : -1, at + 1 < hello.size() ? hello[at + 1] : -1);
+    }
+    Bytes flight = phone.step(Bytes(hello.begin(), hello.end()));
+    car.handshake(&flight[0], flight.size(), answer);
+    flight = phone.step(Bytes(answer.begin(), answer.end()));
+    car.handshake(&flight[0], flight.size(), answer);
+    if (!car.established()) {
+        return "no TLS between the two";
+    }
+    const Bytes small = phone.seal(bytes({0x00, 0x0b, 0x08, 0x01}));
+    std::vector<uint8_t> plain;
+    if (!car.open(&small[0], small.size(), plain) || plain.size() != 4) {
+        return "a small record did not open";
+    }
+    const Bytes records = phone.seal(Bytes(9 * 1024 * 1024, 0x42));
+    const bool opened = car.open(&records[0], records.size(), plain);
+    if (opened || !car.broken() || !plain.empty()) {
+        return format("9 MiB from one call: opened=%d broken=%d, %u bytes out", opened ? 1 : 0, car.broken() ? 1 : 0,
+                      static_cast<unsigned>(plain.size()));
+    }
+    return std::string();
+}
+
 // A phone whose Wi-Fi stalls takes nothing in while it still speaks: the head unit's send gives up partway through a
 // frame, and whatever followed would be garbage to the phone. The session must end there, as lost and not as a
 // goodbye. The head unit gives a stuck send 5 s (set by start()); to stay fast, the test shortens that on the head
@@ -1755,6 +1795,7 @@ int main(int argc, char** argv) {
     const std::string handshake = writing ? std::string() : handshakeFailures();
     const std::string closedTls = writing ? std::string() : closedAfterMessage();
     const std::string deadline = writing ? std::string() : tlsDeadline();
+    const std::string tlsLimits = writing ? std::string() : tlsBounds();
     takeEvents();
     const std::string stalled = writing ? std::string() : stalledSend();
     const std::string keyframe = writing ? std::string() : keyframeAfterLoss();
@@ -1835,6 +1876,11 @@ int main(int argc, char** argv) {
         return 1;
     }
     puts("PASS session, TLS deadline: a peer that never does TLS loses the connection 10 s after it came");
+    if (!tlsLimits.empty()) {
+        printf("FAIL session, TLS bounds: %s\n", tlsLimits.c_str());
+        return 1;
+    }
+    puts("PASS session, TLS bounds: no compression offered, one frame never opens into more than a message");
     if (!stalled.empty()) {
         printf("FAIL session, stalled send: %s\n", stalled.c_str());
         return 1;

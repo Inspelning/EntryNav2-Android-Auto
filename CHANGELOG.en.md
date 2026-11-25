@@ -140,6 +140,8 @@ QEMU with the car's libraries).
   closed. A device on the car's Wi-Fi that sent an empty frame now and then without ever negotiating kept the only
   session place, and the phone could no longer connect. The previous phone's handshake no longer counts for the next
   connection. Tested on PC.
+- Android Auto session: the secure link (TLS) never offers compression, and a frame that would give more than 8 MiB
+  once decrypted ends the session. No phone uses the one or does the other: nothing changes for them. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

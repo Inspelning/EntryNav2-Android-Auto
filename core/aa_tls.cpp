@@ -8,6 +8,7 @@
 
 #include <cstdio>
 
+#include "aa_protocol.hpp"
 #include "hu_certificate.h"
 
 namespace aa {
@@ -84,7 +85,9 @@ bool TlsClient::start() {
 }
 
 bool TlsClient::configure(SSL_CTX* context) {
-    SSL_CTX_set_options(context, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3);
+    // Never compression: a libssl 1.0 that finds zlib offers DEFLATE (the car's finds none: null only, seen under
+    // QEMU), and decompressed records let a few bytes grow into megabytes. Phones never pick it; nothing else changes.
+    SSL_CTX_set_options(context, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION);
     SSL_CTX_set_verify(context, SSL_VERIFY_NONE, nullptr);
     SSL_CTX_set_cipher_list(context, kCipherList);
     // The context keeps references of its own: ours are released at the end of each block, used or not.
@@ -177,6 +180,14 @@ bool TlsClient::open(const uint8_t* records, size_t size, std::vector<uint8_t>& 
     int n;
     ERR_clear_error();
     while ((n = SSL_read(connection_.get(), chunk, sizeof(chunk))) > 0) {
+        // A frame brings 64 KiB of records at most: more data than a whole message from one call is no phone's.
+        if (static_cast<size_t>(n) > frame::kMaxMessage - plain.size()) {
+            printf("[AACryptor] encrypted frame of %u bytes gives more than %u bytes of data\n",
+                   static_cast<unsigned>(size), static_cast<unsigned>(frame::kMaxMessage));
+            endForGood("read");
+            plain.clear();
+            return false;
+        }
         plain.insert(plain.end(), chunk, chunk + n);
     }
     // Waiting for more: the rest of a record still to come in a later frame. Anything else is final: a record that

@@ -142,6 +142,9 @@ QEMU avec les bibliothèques de la voiture).
   est fermée. Un appareil du Wi-Fi de la voiture qui envoyait de temps en temps une trame vide sans jamais négocier
   gardait la seule place de séance, et le téléphone ne pouvait plus se connecter. La négociation du téléphone
   précédent ne compte plus pour la connexion suivante. Testé sur PC.
+- Séance Android Auto : la liaison sécurisée (TLS) ne propose jamais de compression, et une trame qui donnerait plus
+  de 8 Mio une fois déchiffrée termine la séance. Aucun téléphone ne se sert de l'une ni ne fait l'autre : pour eux,
+  rien ne change. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
