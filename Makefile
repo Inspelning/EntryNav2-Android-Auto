@@ -185,6 +185,8 @@ test-host: test-parsers test-spp-host test-kombi-host test-gps-host test-capture
 	./tests/test-hold-machine
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_child_reaper.cpp -o tests/test-child-reaper
 	./tests/test-child-reaper
+	$(HOST_CXX) $(HOST_FLAGS) tests/test_vtable_check.cpp -o tests/test-vtable-check
+	./tests/test-vtable-check
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_pending_restart.cpp -o tests/test-pending-restart
 	./tests/test-pending-restart
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_log_profile.cpp -o tests/test-log-profile

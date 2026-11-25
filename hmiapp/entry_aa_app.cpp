@@ -521,6 +521,14 @@ bmw::PluginApp* createApp(bmw::IDispatcher& dispatcher, const char* name, const 
     const PluginAppHooks hooks = {&appOnInit, &appOnError, &appOnFinalize};
     void* base = nullptr;
     bmw::PluginApp* app = newPluginApp(dispatcher, name, params, config, hooks, &base);
+    if (!app) {
+        alog(
+            "create: bmw::PluginApp's onError / onInit / onFinalize are not where this app expects them (vtable %p, "
+            "another "
+            "iDrive software?): not created",
+            base);
+        return nullptr;
+    }
     g_app = app;
     alog("create: app %p (PluginApp vtable %p)", static_cast<void*>(app), base);
     return app;

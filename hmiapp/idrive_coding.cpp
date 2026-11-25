@@ -15,6 +15,7 @@
 #include "../platform/driver_side.hpp"
 #include "../platform/service_contract.hpp"
 #include "app_log.hpp"
+#include "vtable_check.hpp"
 
 namespace evo {
 namespace app {
@@ -27,6 +28,10 @@ const char kGetUsage[] = "_ZN9hmiplugin3getI17IHmiVariantServerEENS_25CPluginIns
 const char kUsageGet[] = "_ZNK9hmiplugin25CPluginInstanceCacheUsageI17IHmiVariantServerE3getEv";
 const unsigned kIsVariantSetSlot = 3;  // CHmiVariantServer vtable (libhmicoding.so): isVariantSet(unsigned)
 const unsigned kGetRoleSlot = 21;      // getRole()
+// What those two slots hold on the car (R_ARM_ABS32 against these symbols, readelf -r on libhmicoding.so): a slot
+// holding anything else is another layout, and calling it could bring HmiMain3D down.
+const char kIsVariantSet[] = "_ZN17CHmiVariantServer12isVariantSetEj";
+const char kGetRole[] = "_ZN17CHmiVariantServer7getRoleEv";
 
 typedef uintptr_t (*GetUsageFn)();
 typedef void* (*UsageGetFn)(const uintptr_t* usage);
@@ -46,10 +51,16 @@ public:
             self_ = usageGet(&usage);
         }
         void** vtable = self_ ? *reinterpret_cast<void***>(self_) : nullptr;
-        if (!vtable || !vtable[kIsVariantSetSlot] || !vtable[kGetRoleSlot]) {
+        const VtableSlot expected[] = {
+            {static_cast<int>(kIsVariantSetSlot), dlsym(RTLD_DEFAULT, kIsVariantSet)},
+            {static_cast<int>(kGetRoleSlot), dlsym(RTLD_DEFAULT, kGetRole)},
+        };
+        if (!vtableSlotsHold(vtable, expected, 2)) {
             if (logMissing) {
-                alog("iDrive coding: variant server not found (%s %s): the service keeps G-style keys and a BMW",
-                     getUsage ? "get" : "no get", usageGet ? "usage" : "no usage");
+                alog(
+                    "iDrive coding: variant server not found or another layout (%s %s %s): the service keeps "
+                    "G-style keys and a BMW",
+                    getUsage ? "get" : "no get", usageGet ? "usage" : "no usage", vtable ? "vtable" : "no vtable");
             }
             return false;
         }

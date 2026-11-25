@@ -8,6 +8,8 @@
 
 #include <new>
 
+#include "vtable_check.hpp"
+
 namespace evo {
 namespace app {
 
@@ -17,7 +19,11 @@ enum { kSlotOnError = 21, kSlotOnInit = 22, kSlotOnFinalize = 23, kVtblSlots = 3
 
 void* g_vtbl[2 + kVtblSlots];  // the app's copy of bmw::PluginApp's primary vtable, with its offset and typeinfo
 
-void runnableNoop(void*) {}
+// The runnable's destructors (vtable slots 2 and 3): nothing to free. They return this, as ARM's C++ ABI has every
+// destructor do.
+void* runnableDestructor(void* self) {
+    return self;
+}
 
 }  // namespace
 
@@ -30,8 +36,8 @@ void makeRunnable(AppRunnable& r, void (*run)(void*)) {
         vtbl[0] = nullptr;
         vtbl[1] = nullptr;
     }
-    vtbl[2] = reinterpret_cast<void*>(&runnableNoop);
-    vtbl[3] = reinterpret_cast<void*>(&runnableNoop);
+    vtbl[2] = reinterpret_cast<void*>(&runnableDestructor);
+    vtbl[3] = reinterpret_cast<void*>(&runnableDestructor);
     vtbl[4] = reinterpret_cast<void*>(run);
     r.vptr = vtbl + 2;
 }
@@ -86,12 +92,23 @@ bmw::PluginApp* newPluginApp(bmw::IDispatcher& dispatcher, const char* name, con
                                                    bmw::RHMI_INTERFACE_VERSION_1, params, config);
     // Own copy of bmw::PluginApp's primary vtable with onInit / onError / onFinalize replaced (no BMW headers).
     void** base = *reinterpret_cast<void***>(app);
+    *bmwVtable = base;
+    // Only where BMW's onError, onInit and onFinalize are where this layout puts them: on a libAppFramework where they
+    // moved, no app rather than a wrong function called inside HmiMain3D (the names tests/test_hmiapp_load.cpp checks).
+    const VtableSlot expected[] = {
+        {kSlotOnError, dlsym(RTLD_DEFAULT, "_ZN3bmw9PluginApp7onErrorEjRKNS_11BasicStringIcEE")},
+        {kSlotOnInit, dlsym(RTLD_DEFAULT, "_ZN3bmw9PluginApp6onInitEv")},
+        {kSlotOnFinalize, dlsym(RTLD_DEFAULT, "_ZN3bmw9PluginApp10onFinalizeEv")},
+    };
+    if (!vtableSlotsHold(base, expected, 3)) {
+        deletePluginApp(app);
+        return nullptr;
+    }
     memcpy(g_vtbl, base - 2, sizeof(g_vtbl));
     g_vtbl[2 + kSlotOnInit] = reinterpret_cast<void*>(hooks.onInit);
     g_vtbl[2 + kSlotOnError] = reinterpret_cast<void*>(hooks.onError);
     g_vtbl[2 + kSlotOnFinalize] = reinterpret_cast<void*>(hooks.onFinalize);
     *reinterpret_cast<void***>(app) = g_vtbl + 2;
-    *bmwVtable = base;
     return app;
 }
 

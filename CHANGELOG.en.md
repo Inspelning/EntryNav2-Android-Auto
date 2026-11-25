@@ -50,6 +50,10 @@ QEMU with the car's libraries).
   faulty), the app waited for the stopped program on iDrive's own thread, which could freeze for as long as the
   kernel held that program. The programs the app starts are now collected at each status poll, never waited for;
   the thread that waited for the supervisor is gone too. Tested on PC.
+- iDrive app: before replacing functions of its object inside iDrive (start, error, end), or calling those that read
+  the car's coding, the app checks that they are where it expects them. On another iDrive software where they moved,
+  it is not created (iDrive starts without it, its log says why), or does not read the coding (G-series keys, BMW),
+  rather than risk bringing iDrive down. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

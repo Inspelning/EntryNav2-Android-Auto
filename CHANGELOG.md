@@ -46,6 +46,10 @@ QEMU avec les bibliothèques de la voiture).
   retirée ou défectueuse), l'appli attendait la fin du programme arrêté sur le fil de l'iDrive, qui pouvait geler
   tant que le noyau retenait ce programme. Les programmes lancés par l'appli sont maintenant récoltés à chaque tour
   de son état, sans jamais attendre ; le fil d'attente qui suivait le superviseur disparaît aussi. Testé sur PC.
+- Appli iDrive : avant de remplacer des fonctions de son objet dans l'iDrive (début, erreur, fin), ou d'appeler
+  celles qui lisent le codage de la voiture, l'appli vérifie qu'elles sont bien à l'endroit attendu. Sur une autre version du logiciel iDrive où elles auraient bougé, elle ne
+  se crée pas (l'iDrive démarre sans elle, son journal dit pourquoi), ou ne lit pas le codage (touches de Série G,
+  BMW), au lieu de risquer de le faire planter. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
