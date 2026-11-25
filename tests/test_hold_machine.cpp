@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Jiraiya43
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // hmiapp/hold_machine.cpp: which iDrive event and which control message, scenario by scenario, against a recorder.
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -8,7 +9,12 @@
 #include <vector>
 
 #include "../hmiapp/hold_machine.hpp"
+#include "../hmiapp/mono_clock.hpp"
 #include "../hmiapp/rhmi_ids.hpp"
+
+// The milliseconds of the app's monotonic clock reach 2^31 after 24.8 days: never in a long, 32 bits on the car (code
+// review of 25/11, M11).
+static_assert(sizeof(evo::app::monoMs()) == sizeof(int64_t), "monoMs() must not wrap on the car");
 
 namespace {
 
@@ -88,8 +94,8 @@ public:
 struct Car {
     Recorder io;
     HoldMachine hold;
-    long now;  // seconds since the head unit started
-    long ms;   // the same clock, milliseconds
+    long now;    // seconds since the head unit started
+    int64_t ms;  // the same clock, milliseconds (hmiapp/mono_clock.hpp)
 
     Car() : hold(io), now(1000), ms(50000) { io.now = &now; }
 
@@ -1318,8 +1324,64 @@ void ownPopupClosed() {
     }
 }
 
+// The clocks (code review of 25/11, M11): the files' ages come from the car's date, which can move back after the
+// service wrote them; the menu's milliseconds go past 2^31 after 24.8 days of the monotonic clock.
+void clockAndDates() {
+    {  // an app key file dated an hour after now: its age is unknown, not recent; a hard key steps aside as without it
+        Car c;
+        heldOnBlank(c);
+        c.io.appKey = true;
+        c.io.appKeyAt = c.now + 3600;
+        c.blankLeft();
+        CHECK_OUT(c, "");
+        c.poll();
+        CHECK_OUT(c, "");
+        c.poll();
+        CHECK_OUT(c, "hide");
+        CHECK(c.io.appKey);  // left to the service
+    }
+    {  // the last key left to iDrive dated an hour after now: it does not explain iDrive's radio page, won back
+        Car c;
+        heldOnBlank(c);
+        c.io.hardKey = true;
+        c.io.hardKeyAt = c.now + 3600;
+        c.radioPage();
+        c.poll();
+        CHECK_OUT(c, "event 52");
+    }
+    {  // the milliseconds past 2^31: BACK to our menu still asks for the blank state at once, at most every 300 ms
+        Car c;
+        c.ms = 2147483648LL + 500;
+        heldOnBlank(c);
+        c.blankVisible(false);
+        c.menu(true);
+        CHECK_OUT(c, "event 52");
+        c.ms += 100;
+        c.hold.menuFocus(kHelpState, true, c.now, c.ms);
+        CHECK_OUT(c, "");
+        c.ms += 200;
+        c.hold.menuFocus(kHelpState, true, c.now, c.ms);
+        CHECK_OUT(c, "event 52");
+    }
+    {  // and across 2^31
+        Car c;
+        c.ms = 2147483647LL - 100;
+        heldOnBlank(c);
+        c.blankVisible(false);
+        c.menu(true);
+        CHECK_OUT(c, "event 52");
+        c.ms += 100;
+        c.hold.menuFocus(kHelpState, true, c.now, c.ms);
+        CHECK_OUT(c, "");
+        c.ms += 200;  // past 2^31
+        c.hold.menuFocus(kHelpState, true, c.now, c.ms);
+        CHECK_OUT(c, "event 52");
+    }
+}
+
 int main() {
     shortlyAfterStart();
+    clockAndDates();
     manualOpen();
     openButNeverCame();
     automaticStartOverIdriveScreen();
@@ -1347,8 +1409,8 @@ int main() {
         return 1;
     }
     puts(
-        "PASS hold machine: manual open, automatic start through the menu, refusals, waiting aside, recall over an "
-        "iDrive screen, our own popup closed, BACK, popups, driving mode, "
+        "PASS hold machine: clocks and file dates, manual open, automatic start through the menu, refusals, waiting "
+        "aside, recall over an iDrive screen, our own popup closed, BACK, popups, driving mode, "
         "reverse, park assist, calls, app keys, radio page raised by iDrive, hard keys, stepping aside, service "
         "restart");
     return 0;

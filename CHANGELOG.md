@@ -72,6 +72,12 @@ QEMU avec les bibliothèques de la voiture).
   fenêtre de l'iDrive : Android Auto se retirait derrière une fenêtre vide que rien ne refermait. Elle est refermée
   dès que la page vide ou le menu de l'appli revient, qu'Android Auto est ramené à l'écran, ou qu'un appel ou la
   caméra arrive, et n'est plus jamais prise pour une fenêtre de l'iDrive. Testé sur PC.
+- Appli iDrive : quand la date de la voiture reculait (réglée par le GPS) après une touche, l'appli croyait cette
+  touche toute récente aussi longtemps que la date restait en retard : Android Auto restait à l'écran après une
+  touche qui devait le faire céder la place, ou cédait la place à la page radio que l'iDrive remonte seul. Une
+  touche datée après l'heure actuelle ne compte plus comme récente. Après 24,8 jours de marche de l'unité sans
+  redémarrage, son horloge en millisecondes débordait aussi : BACK vers le menu de l'appli ne ramenait plus la page
+  d'Android Auto tout de suite. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

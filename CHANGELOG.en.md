@@ -75,6 +75,11 @@ QEMU with the car's libraries).
   Auto stepped aside behind an empty popup that nothing closed. It is now closed as soon as the blank page or the
   app's menu comes back, Android Auto is brought to the screen, or a call or the camera comes up, and it is never
   taken for an iDrive popup again. Tested on PC.
+- iDrive app: when the car's date moved back (set from the GPS) after a key, the app took that key for a very recent
+  one for as long as the date lagged behind: Android Auto stayed on screen after a key meant to make it step aside,
+  or stepped aside for the radio page iDrive raises by itself. A key dated after the current time no longer counts as
+  recent. After 24.8 days of the unit running without a restart, its millisecond clock also overflowed: BACK to the
+  app's menu no longer brought Android Auto's page back at once. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

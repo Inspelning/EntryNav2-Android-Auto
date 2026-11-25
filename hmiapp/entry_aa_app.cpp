@@ -78,7 +78,7 @@ public:
     void log(const char* line) override { alog("%s", line); }
     ServiceState readService() override { return readServiceState(); }
     // The only delays read from a date, the files': a few seconds between the service writing one and this app
-    // seeing it.
+    // seeing it. Negative when the car's date moved back since: the hold machine takes it as not recent.
     bool appKeyAge(long* seconds) override { return fileAge(contract::kAppKeyFile, seconds); }
     void removeAppKey() override { unlink(contract::kAppKeyFile); }
     bool hardKeyAge(long* seconds) override { return fileAge(contract::kHardKeyFile, seconds); }

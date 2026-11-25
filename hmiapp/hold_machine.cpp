@@ -219,9 +219,11 @@ void HoldMachine::requestShow() {
 // Auto, or walked back its history to the screen one of those keys opened (F30, #43: Android Auto stepped aside after
 // BACK in its map); put it back on our blank state at once, so the knob does not act on that hidden screen. A key that
 // leaves Android Auto (MENU, OPTION) removes the file in the service first.
+// A file dated after now (the car's date moved back since it was written) is not recent: its age is unknown. Taken as
+// recent, an old app key file kept Android Auto on screen after a hard key.
 bool HoldMachine::appKeyRecent() {
     long age = 0;
-    return io_.appKeyAge(&age) && age <= kAppKeyS;
+    return io_.appKeyAge(&age) && age >= 0 && age <= kAppKeyS;
 }
 
 // iDrive left the blank state for its FM station page with no key left to iDrive just before: the tuner followed the
@@ -233,7 +235,7 @@ bool HoldMachine::winBackRadioPage(long now) {
         return false;
     }
     long age = 0;
-    if (io_.hardKeyAge(&age) && age <= kHardKeyS) {
+    if (io_.hardKeyAge(&age) && age >= 0 && age <= kHardKeyS) {  // dated after now: not recent (appKeyRecent)
         if (!leftSeen_) {
             say("hold: iDrive's radio page %ld s after a key left to iDrive: the driver's choice", age);
         }
@@ -332,7 +334,7 @@ void HoldMachine::aaVisible(bool visible, long now) {
     }
 }
 
-void HoldMachine::menuFocus(unsigned state, bool focused, long now, long nowMs) {
+void HoldMachine::menuFocus(unsigned state, bool focused, long now, int64_t nowMs) {
     menuFocused_ = focused;
     if (focused) {
         aaFocused_ = false;

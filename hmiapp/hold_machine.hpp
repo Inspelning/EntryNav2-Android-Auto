@@ -69,6 +69,8 @@
 #ifndef ENTRY_AAD_HMIAPP_HOLD_MACHINE_HPP
 #define ENTRY_AAD_HMIAPP_HOLD_MACHINE_HPP
 
+#include <stdint.h>
+
 #include "popup_peek.hpp"
 #include "service_state.hpp"
 
@@ -96,7 +98,9 @@ public:
     // and the app key file the service writes when NAV / MEDIA / COM opened an Android Auto app, or BACK / tilt left
     // went to it.
     virtual ServiceState readService() = 0;
-    virtual bool appKeyAge(long* seconds) = 0;  // how long ago the file was written; false: no app key file
+    // How long ago the file was written, from its date: negative when the car's date moved back since, an age the
+    // machine then takes as unknown, not recent. False: no app key file.
+    virtual bool appKeyAge(long* seconds) = 0;
     virtual void removeAppKey() = 0;
     virtual bool hardKeyAge(long* seconds) = 0;  // the same for the file of the last key left to iDrive
 
@@ -134,9 +138,9 @@ public:
     void requestShow();  // Android Auto to the front; the overlay that follows is new and held at the next poll
 
     // ---- iDrive's focus on the app's states ----
-    void aaFocus(bool focused);                                          // the blank state
-    void aaVisible(bool visible, long now);                              // the blank state
-    void menuFocus(unsigned state, bool focused, long now, long nowMs);  // the menu or Help; nowMs: milliseconds
+    void aaFocus(bool focused);                                             // the blank state
+    void aaVisible(bool visible, long now);                                 // the blank state
+    void menuFocus(unsigned state, bool focused, long now, int64_t nowMs);  // the menu or Help; nowMs: milliseconds
 
     // ---- the status poll, every second, with the service's state just read ----
     // First: tells a (re)started service, or one whose phone just connected, the call and the gear.
@@ -191,7 +195,7 @@ private:
     bool popupTried_;     // our own popup was opened for it since the blank state last showed
     int unfocusedPolls_;  // polls with the blank state shown but unfocused
     long leftSeen_;       // first poll that saw iDrive away from the blank state (hard key), 0: none
-    long menuHoldMs_;     // last event 52 fired by our menu's focus
+    int64_t menuHoldMs_;  // last event 52 fired by our menu's focus
 
     // Android Auto aside until iDrive opens our menu
     bool waiting_;
