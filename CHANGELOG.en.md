@@ -117,6 +117,10 @@ QEMU with the car's libraries).
 - USB cable: a phone that accepted the request to switch to accessory mode but never did was asked again every 5 to
   6 seconds, for ever. After 5 requests with no result, it is now left alone until it is unplugged and plugged in
   again, and the log says so. Tested on PC.
+- Android Auto session: messages being put together from pieces keep at most 12 MiB for all channels together (8 MiB
+  per message, as before), and a message announced larger than 8 MiB is dropped at its first piece. A device that
+  opened a message on each of the 256 channels could make the service hold more than 2 GiB and bring it down. Tested
+  on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

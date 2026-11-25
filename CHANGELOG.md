@@ -118,6 +118,10 @@ QEMU avec les bibliothèques de la voiture).
 - Câble USB : un téléphone qui acceptait la demande de passer en mode accessoire sans jamais le faire était
   sollicité à nouveau toutes les 5 à 6 secondes, sans fin. Après 5 demandes restées sans suite, il est maintenant
   laissé tranquille jusqu'à ce qu'il soit débranché puis rebranché, et le journal le dit. Testé sur PC.
+- Séance Android Auto : les messages en morceaux en cours d'assemblage gardent au plus 12 Mio pour tous les canaux
+  ensemble (8 Mio par message, comme avant), et un message annoncé plus grand que 8 Mio est écarté dès son premier
+  morceau. Un appareil qui ouvrait un message sur chacun des 256 canaux pouvait faire garder plus de 2 Gio au service
+  et le faire planter. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

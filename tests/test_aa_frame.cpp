@@ -175,6 +175,46 @@ void lostMessages() {
     CHECK(m == Bytes({1, 2}));
 }
 
+// Every channel together keeps at most frame::kMaxPending bytes: a message that would pass it is dropped and the rest
+// of it skipped, and what completed or was dropped no longer counts. A FIRST that announces more than a message may
+// hold is dropped at once.
+void globalBound() {
+    typedef aa::MessageAssembler A;
+    const size_t mib = 1024 * 1024;
+    const Bytes four(4 * mib, 1), two(2 * mib, 2);
+    A a;
+    Bytes m;
+    CHECK(aa::frame::kMaxPending == 12 * mib);
+    CHECK(a.add(header(6, aa::frame::kFirst, 1), four, m) == A::kPending);
+    CHECK(a.add(header(6, aa::frame::kMiddle, 1), two, m) == A::kPending);
+    CHECK(a.add(header(8, aa::frame::kFirst, 1), four, m) == A::kPending);
+    CHECK(a.add(header(8, aa::frame::kMiddle, 1), two, m) == A::kPending);
+    CHECK(a.heldBytes() == 12 * mib);
+    // A third channel finds no room: its message is dropped, the rest of it skipped.
+    CHECK(a.add(header(2, aa::frame::kFirst, 1), Bytes(1, 3), m) == A::kOverflow);
+    CHECK(a.add(header(2, aa::frame::kLast, 1), Bytes(1, 3), m) == A::kRestOfLost);
+    // Nor more on a channel already there: that message is dropped, its bytes freed.
+    CHECK(a.add(header(8, aa::frame::kMiddle, 1), Bytes(1, 3), m) == A::kOverflow);
+    CHECK(a.heldBytes() == 6 * mib);
+    CHECK(a.add(header(8, aa::frame::kLast, 1), Bytes(1, 3), m) == A::kRestOfLost);
+    // The room freed serves again, a replacing FIRST frees the message it replaces, a message that completes frees
+    // its bytes.
+    CHECK(a.add(header(2, aa::frame::kFirst, 1), four, m) == A::kPending);
+    CHECK(a.add(header(2, aa::frame::kFirst, 1), four, m) == A::kPending);
+    CHECK(a.heldBytes() == 10 * mib);
+    CHECK(a.add(header(6, aa::frame::kLast, 1), Bytes(1, 7), m) == A::kComplete);
+    CHECK(m.size() == 6 * mib + 1 && m.back() == 7);
+    CHECK(a.heldBytes() == 4 * mib);
+    // Announced past the bound of one message: dropped at its FIRST, nothing of it kept, the rest skipped.
+    CHECK(a.add(header(8, aa::frame::kFirst, 1, aa::frame::kMaxMessage + 1), Bytes(1, 3), m) == A::kOverflow);
+    CHECK(a.heldBytes() == 4 * mib);
+    CHECK(a.add(header(8, aa::frame::kMiddle, 1), Bytes(1, 3), m) == A::kRestOfLost);
+    CHECK(a.add(header(8, aa::frame::kLast, 1), Bytes(1, 3), m) == A::kRestOfLost);
+    CHECK(a.add(header(8, aa::frame::kFirst, 1, aa::frame::kMaxMessage), Bytes(1, 3), m) == A::kPending);
+    a.clear();
+    CHECK(a.heldBytes() == 0);
+}
+
 }  // namespace
 
 int main() {
@@ -183,5 +223,7 @@ int main() {
     puts("PASS frames: header both ways, 64 KiB limit, reassembly per channel, orphan fragments, size checks");
     lostMessages();
     puts("PASS frames: a message lost to an unreadable fragment is skipped up to its LAST, whole frames pass");
+    globalBound();
+    puts("PASS frames: 12 MiB kept at most for every channel together, a FIRST announcing past 8 MiB dropped at once");
     return 0;
 }

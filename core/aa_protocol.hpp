@@ -41,6 +41,9 @@ const size_t kHeaderSize = 4;
 const size_t kTotalSizeSize = 4;
 const size_t kMaxPayload = 0xFFFF;
 const size_t kMaxMessage = 8u * 1024u * 1024u;  // reassembly bound: a lost LAST must not grow a buffer for ever
+// The same for every channel together: each may hold a message being assembled, and 256 of them at kMaxMessage would
+// pass the memory of the head unit. A phone fragments one video frame at a time, far under this.
+const size_t kMaxPending = 12u * 1024u * 1024u;
 
 // Low two bits: where the frame sits in its message.
 const uint8_t kPositionMask = 0x03;

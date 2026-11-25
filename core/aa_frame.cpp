@@ -50,8 +50,10 @@ MessageAssembler::Outcome MessageAssembler::add(const FrameHeader& header, const
         return kComplete;
     }
     if (position == frame::kFirst) {
-        // Replaces an unfinished message, or ends the tail of a lost one whose LAST never came.
-        if (payload.size() > frame::kMaxMessage) {
+        // Replaces an unfinished message, or ends the tail of a lost one whose LAST never came: freed before this one
+        // is weighed. One announced larger than a message may be is dropped before any of it is kept.
+        release(header.channel);
+        if (header.totalSize > frame::kMaxMessage || !fits(payload.size(), 0)) {
             forget(header.channel, position);
             return kOverflow;
         }
@@ -60,6 +62,7 @@ MessageAssembler::Outcome MessageAssembler::add(const FrameHeader& header, const
         pending.lostTail = false;
         pending.size = header.totalSize;
         pending.onWire = header.length;
+        held_ += payload.size();
         return kPending;
     }
     const std::map<uint8_t, Pending>::iterator it = pending_.find(header.channel);
@@ -74,18 +77,20 @@ MessageAssembler::Outcome MessageAssembler::add(const FrameHeader& header, const
         }
         return kRestOfLost;
     }
-    if (payload.size() > frame::kMaxMessage - pending.data.size()) {
+    if (!fits(payload.size(), pending.data.size())) {
         forget(header.channel, position);
         return kOverflow;
     }
     if (position == frame::kMiddle) {
         pending.data.insert(pending.data.end(), payload.begin(), payload.end());
         pending.onWire += header.length;
+        held_ += payload.size();
         return kPending;
     }
-    // LAST closes the message started by FIRST.
+    // LAST closes the message started by FIRST, which then leaves the pending ones.
     const uint32_t onWire = pending.onWire + header.length;
     const uint32_t size = pending.size;
+    held_ -= pending.data.size();
     pending.data.insert(pending.data.end(), payload.begin(), payload.end());
     message.swap(pending.data);
     pending_.erase(it);
@@ -105,9 +110,23 @@ void MessageAssembler::lose(const FrameHeader& header) {
     }
 }
 
-// Erased first, so that what was gathered is freed; a LAST leaves nothing of its message to skip.
+// The bound of the message itself, and that of all channels together. Both hold the bytes kept so far (held_ at most
+// frame::kMaxPending, a message at most frame::kMaxMessage), so the subtractions cannot wrap.
+bool MessageAssembler::fits(size_t more, size_t holding) const {
+    return more <= frame::kMaxMessage - holding && more <= frame::kMaxPending - held_;
+}
+
+void MessageAssembler::release(uint8_t channel) {
+    const std::map<uint8_t, Pending>::iterator it = pending_.find(channel);
+    if (it != pending_.end()) {
+        held_ -= it->second.data.size();
+        pending_.erase(it);
+    }
+}
+
+// Released first, so that what was gathered is freed; a LAST leaves nothing of its message to skip.
 void MessageAssembler::forget(uint8_t channel, uint8_t position) {
-    pending_.erase(channel);
+    release(channel);
     if (position != frame::kLast) {
         pending_[channel].lostTail = true;
     }
