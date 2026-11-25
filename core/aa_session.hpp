@@ -182,6 +182,7 @@ private:
     std::atomic<bool> goodbye_;  // set on the session thread, read by the ended callback
     // Session thread only.
     uint64_t lastReceivedMs_;  // when the phone last sent anything, 0 before its first byte
+    uint64_t connectedMs_;     // when the session thread started on this connection
     bool givenUp_;             // giveUp() was called
     TlsClient tls_;
     MessageAssembler assembler_;

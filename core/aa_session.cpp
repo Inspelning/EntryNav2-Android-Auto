@@ -30,6 +30,10 @@ const uint64_t kSilenceMs = 5000;
 // any other; unanswered, the silence limit above still ends the session. Only data from the phone resets it.
 const uint64_t kPingAfterMs = 2000;
 const uint64_t kPingEveryMs = 1000;
+// The phone's whole TLS handshake, from the connection: a version exchange and two flights, under a second even on a
+// slow Wi-Fi. The head unit takes one connection at a time; a peer that keeps it busy with frames (an empty one resets
+// the silence above) without ever finishing TLS would keep the phone out for good.
+const uint64_t kTlsDeadlineMs = 10000;
 const unsigned kOwnPingsLogged = 5;  // then one in kOwnPingsLogEvery
 const unsigned kOwnPingsLogEvery = 300;
 const unsigned kFramesLoggedFirst = 40;  // per channel, then one frame in kFramesLoggedEvery
@@ -71,6 +75,7 @@ AASession::AASession()
       longestSilenceMs_(0),
       goodbye_(false),
       lastReceivedMs_(0),
+      connectedMs_(0),
       givenUp_(false),
       videoReady_(false),
       projected_(false),
@@ -228,6 +233,9 @@ bool AASession::start(int client_fd) {
         setsockopt(client_fd, SOL_SOCKET, SO_SNDTIMEO, &sendLimit, sizeof(sendLimit));
     }
     assembler_.clear();
+    // The previous phone's TLS is no use to this one, and while it stayed established nothing waited for this
+    // phone's handshake (kTlsDeadlineMs), and a silent phone could get pings sealed with it.
+    tls_.reset();
     inbox_.reset();
     videoReady_ = false;
     projected_ = false;
@@ -273,6 +281,7 @@ void* AASession::threadMain(void* self) {
 }
 
 void AASession::run() {
+    connectedMs_ = locationClockMs();
     printf("[AASession] Protocol thread active on fd %d.\n", socket_);
     printf("[AASession] Sending VersionRequest (v%u.%u)...\n", kVersionMajor, kVersionMinor);
     if (!sendPlain(channel::kControl, message::versionRequest())) {
@@ -329,6 +338,12 @@ bool AASession::receiveExactly(uint8_t* to, size_t size) {
     while (got < size && running() && !sendBroken_) {
         const int fd = socket_;
         if (fd < 0) {
+            return false;
+        }
+        // Checked at every turn, data or not: bytes that trickle in keep the silence from ever counting.
+        if (!tls_.established() && locationClockMs() - connectedMs_ >= kTlsDeadlineMs) {
+            printf("[AASession] TLS still not established %u s after the connection: session ends.\n",
+                   static_cast<unsigned>(kTlsDeadlineMs / 1000));
             return false;
         }
         fd_set readable;

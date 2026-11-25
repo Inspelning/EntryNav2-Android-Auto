@@ -1271,6 +1271,58 @@ std::string closedAfterMessage() {
     return std::string();
 }
 
+// A peer that keeps the head unit's only connection busy with an empty frame every second, never doing TLS, loses it
+// 10 s after it connected; the silence limit alone would never end it. Here on a session object that ran a whole
+// handshake with a phone before, as the service's one session does from phone to phone: that phone's TLS must not
+// count for this connection. Run on the clock, kept out of the golden. An empty verdict: passed.
+std::string tlsDeadline() {
+    int first[2], second[2];
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, first) != 0 || socketpair(AF_UNIX, SOCK_STREAM, 0, second) != 0) {
+        return "socketpair";
+    }
+    aa::AASession session;
+    watch(session, true);
+    std::string verdict;
+    if (!session.start(first[0])) {
+        verdict = "first session start";
+    } else {
+        std::vector<std::string> log;
+        Phone phone(first[1], log);
+        phone.handshake();
+        phone.settle();
+        if (phone.lost() || std::find(log.begin(), log.end(), "hu ch=0 fl=03 0004 0800") == log.end()) {
+            verdict = "the first phone did not get through TLS";
+        }
+    }
+    long long lasted = -1;
+    if (verdict.empty() && !session.start(second[0])) {
+        verdict = "second session start";
+    } else if (verdict.empty()) {
+        const uint8_t empty[] = {0x00, 0x03, 0x00, 0x00};  // a whole frame of no bytes on the control channel
+        const long long since = monotonicMs();
+        long long lastFrame = 0;
+        while (session.isActive() && monotonicMs() - since < 14000) {
+            if (monotonicMs() - lastFrame >= 1000) {
+                lastFrame = monotonicMs();
+                if (write(second[1], empty, sizeof(empty)) != static_cast<ssize_t>(sizeof(empty))) {
+                    break;
+                }
+            }
+            usleep(50000);
+        }
+        lasted = monotonicMs() - since;
+        if (session.isActive() || lasted < 9500 || lasted > 12500) {
+            verdict = format("a peer without TLS kept the connection for %lld ms (active=%d), want about 10 s", lasted,
+                             session.isActive() ? 1 : 0);
+        }
+    }
+    session.stop();
+    close(first[1]);
+    close(second[1]);
+    takeEvents();
+    return verdict;
+}
+
 // A phone whose Wi-Fi stalls takes nothing in while it still speaks: the head unit's send gives up partway through a
 // frame, and whatever followed would be garbage to the phone. The session must end there, as lost and not as a
 // goodbye. The head unit gives a stuck send 5 s (set by start()); to stay fast, the test shortens that on the head
@@ -1702,6 +1754,7 @@ int main(int argc, char** argv) {
     takeEvents();
     const std::string handshake = writing ? std::string() : handshakeFailures();
     const std::string closedTls = writing ? std::string() : closedAfterMessage();
+    const std::string deadline = writing ? std::string() : tlsDeadline();
     takeEvents();
     const std::string stalled = writing ? std::string() : stalledSend();
     const std::string keyframe = writing ? std::string() : keyframeAfterLoss();
@@ -1777,6 +1830,11 @@ int main(int argc, char** argv) {
         return 1;
     }
     puts("PASS session, TLS closed after a message in the same frame: it ends there, the message is not answered");
+    if (!deadline.empty()) {
+        printf("FAIL session, TLS deadline: %s\n", deadline.c_str());
+        return 1;
+    }
+    puts("PASS session, TLS deadline: a peer that never does TLS loses the connection 10 s after it came");
     if (!stalled.empty()) {
         printf("FAIL session, stalled send: %s\n", stalled.c_str());
         return 1;

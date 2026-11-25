@@ -136,6 +136,10 @@ QEMU with the car's libraries).
 - Android Auto session: when the phone closes the secure link (TLS), or a damaged record follows a readable message
   in the same frame, the session ends at that frame, instead of going on until the next encrypted frame or until 5
   seconds of silence. Tested on PC.
+- Android Auto session: a connection that has not finished the secure handshake (TLS) 10 seconds after it opened is
+  closed. A device on the car's Wi-Fi that sent an empty frame now and then without ever negotiating kept the only
+  session place, and the phone could no longer connect. The previous phone's handshake no longer counts for the next
+  connection. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

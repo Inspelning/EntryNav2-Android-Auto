@@ -43,13 +43,16 @@ TlsClient::TlsClient()
       established_(false),
       broken_(false) {}
 
-bool TlsClient::start() {
+void TlsClient::reset() {
     connection_.reset();  // the memory BIOs go with it
     context_.reset();
     fromPhone_ = toPhone_ = nullptr;
     established_ = false;
     broken_ = false;
+}
 
+bool TlsClient::start() {
+    reset();
     SSL_library_init();
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();

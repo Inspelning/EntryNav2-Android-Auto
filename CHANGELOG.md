@@ -138,6 +138,10 @@ QEMU avec les bibliothèques de la voiture).
 - Séance Android Auto : quand le téléphone ferme la liaison sécurisée (TLS), ou qu'un enregistrement abîmé suit un
   message lisible dans la même trame, la séance se termine à cette trame, au lieu de continuer jusqu'à la trame
   chiffrée suivante ou jusqu'à 5 secondes de silence. Testé sur PC.
+- Séance Android Auto : une connexion qui n'a pas fini la négociation sécurisée (TLS) 10 secondes après son ouverture
+  est fermée. Un appareil du Wi-Fi de la voiture qui envoyait de temps en temps une trame vide sans jamais négocier
+  gardait la seule place de séance, et le téléphone ne pouvait plus se connecter. La négociation du téléphone
+  précédent ne compte plus pour la connexion suivante. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

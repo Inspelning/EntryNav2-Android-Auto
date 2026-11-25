@@ -21,6 +21,8 @@ public:
 
     // A fresh engine for a new handshake; any previous one is freed first. False, and logged, when OpenSSL refuses.
     bool start();
+    // No engine, nothing established: as before the first start(). For a new connection, before its handshake.
+    void reset();
     // The ClientHello. False without an engine, or when OpenSSL wrote nothing.
     bool hello(std::vector<uint8_t>& records);
     // The phone's handshake records in, the answer for the phone out (empty when there is none; OpenSSL's alert when
