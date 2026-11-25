@@ -54,6 +54,10 @@ QEMU with the car's libraries).
   the car's coding, the app checks that they are where it expects them. On another iDrive software where they moved,
   it is not created (iDrive starts without it, its log says why), or does not read the coding (G-series keys, BMW),
   rather than risk bringing iDrive down. Tested on PC.
+- Wireless: during an Android Auto session, a Bluetooth link that opened and turned out to be the My BMW app's (BMW
+  Apps) could be sent Android Auto's wireless start request, above all on cars where Android Auto shares the BMW
+  Apps' Bluetooth slot. That link is now left to My BMW with nothing written into it, as outside a session. Tested on
+  PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

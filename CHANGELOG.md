@@ -50,6 +50,10 @@ QEMU avec les bibliothèques de la voiture).
   celles qui lisent le codage de la voiture, l'appli vérifie qu'elles sont bien à l'endroit attendu. Sur une autre version du logiciel iDrive où elles auraient bougé, elle ne
   se crée pas (l'iDrive démarre sans elle, son journal dit pourquoi), ou ne lit pas le codage (touches de Série G,
   BMW), au lieu de risquer de le faire planter. Testé sur PC.
+- Sans-fil : pendant une séance Android Auto, un lien Bluetooth qui s'ouvrait et se révélait être celui de l'appli
+  My BMW (BMW Apps) pouvait recevoir la demande de démarrage sans fil d'Android Auto, surtout sur les voitures où
+  Android Auto partage l'emplacement Bluetooth des BMW Apps. Ce lien est maintenant laissé à My BMW sans rien y
+  écrire, comme hors séance. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
