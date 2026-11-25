@@ -44,8 +44,10 @@ struct DisplayPlan {
     uint32_t phoneWidth() const { return canvasWidth - leftInset() - rightInset(); }
     uint32_t phoneHeight() const { return canvasHeight - bottomInset(); }
     bool reference() const { return width == 1280 && height == 480; }
-    // A panel size already run in a car: the reference one, and 800x480 (docs/COMPATIBILITE.md).
-    bool triedInCar() const { return reference() || (width == 800 && height == 480); }
+    // A panel size already run in a car: the reference one, 800x480 and 1440x540 (docs/COMPATIBILITE.md).
+    bool triedInCar() const {
+        return reference() || (width == 800 && height == 480) || (width == 1440 && height == 540);
+    }
 };
 
 // The plan for a panel; false for an empty panel or one larger than every canvas.

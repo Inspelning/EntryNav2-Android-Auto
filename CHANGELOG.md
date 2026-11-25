@@ -33,6 +33,9 @@ QEMU avec les bibliothèques de la voiture).
 - Sans-fil : au démarrage, quand la pile Bluetooth de la voiture répondait « occupée » (statut 4) au renouvellement
   de l'annonce d'Android Auto, le service s'arrêtait et rendait le Bluetooth. Il attend maintenant le renouvellement
   suivant ([#97](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/97), X1 F48, où la pile reste occupée près d'une minute au démarrage). Testé sur PC.
+- Contrôle de compatibilité : un écran 1440x540 n'est plus signalé `@warn|screen|` comme jamais essayé en voiture. Il
+  a marché sur une F52, par câble et sans fil ([#190](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/190)) ; l'avertissement reste pour les autres tailles.
+  Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

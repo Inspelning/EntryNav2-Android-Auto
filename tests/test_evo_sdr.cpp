@@ -330,8 +330,8 @@ int main() {
           tall.bottomInset() == 120);  // one pixel too tall for the small canvas
     CHECK(aa::planDisplay(1920, 1080, full) && full.resolution == 3 && full.bottomInset() == 0);
     // Sizes already run in a car pass the check without a warning; any other size gets one.
-    CHECK(plan.triedInCar() && same.triedInCar() && small.triedInCar());
-    CHECK(!exact.triedInCar() && !wide.triedInCar() && !tall.triedInCar() && !full.triedInCar());
+    CHECK(plan.triedInCar() && same.triedInCar() && small.triedInCar() && wide.triedInCar());
+    CHECK(!exact.triedInCar() && !tall.triedInCar() && !full.triedInCar());
     aa::DisplayPlan refused;
     CHECK(!aa::planDisplay(1921, 720, refused) && !aa::planDisplay(1280, 1081, refused) &&
           !aa::planDisplay(0, 480, refused) && !aa::planDisplay(800, 0, refused) &&

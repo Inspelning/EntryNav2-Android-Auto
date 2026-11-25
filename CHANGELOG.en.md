@@ -38,6 +38,8 @@ QEMU with the car's libraries).
 - Wireless: at start, when the car's Bluetooth stack answered "busy" (status 4) to the renewal of Android Auto's
   advertisement, the service stopped and gave Bluetooth back. It now waits for the next renewal
   ([#97](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/97), X1 F48, where the stack stays busy for about a minute at start). Tested on PC.
+- Compatibility check: a 1440x540 screen is no longer flagged with `@warn|screen|` as never tried in a car. It has
+  worked on an F52, by cable and wireless ([#190](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/190)); the warning stays for other sizes. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
