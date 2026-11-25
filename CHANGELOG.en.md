@@ -80,6 +80,11 @@ QEMU with the car's libraries).
   or stepped aside for the radio page iDrive raises by itself. A key dated after the current time no longer counts as
   recent. After 24.8 days of the unit running without a restart, its millisecond clock also overflowed: BACK to the
   app's menu no longer brought Android Auto's page back at once. Tested on PC.
+- iDrive app: the crash guard counted every iDrive start that ended within 2 minutes, however old. Three very short
+  trips, even days apart, turned the app (and its menu) off until someone stepped in over SSH. Only the starts of the
+  last 15 minutes count now, as for the automatic start, and the app comes back by itself afterwards; the files of
+  both guards can no longer be left half written by a power cut
+  ([#4](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/4)). Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

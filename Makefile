@@ -189,6 +189,8 @@ test-host: test-parsers test-spp-host test-kombi-host test-gps-host test-capture
 	./tests/test-vtable-check
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_pending_restart.cpp -o tests/test-pending-restart
 	./tests/test-pending-restart
+	$(HOST_CXX) $(HOST_FLAGS) tests/test_guard_file.cpp -o tests/test-guard-file
+	./tests/test-guard-file
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_log_profile.cpp -o tests/test-log-profile
 	./tests/test-log-profile
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_kept_log.cpp -o tests/test-kept-log

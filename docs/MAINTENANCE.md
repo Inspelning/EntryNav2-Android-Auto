@@ -171,10 +171,12 @@ cd /var/local/data/AA && rm -f maintenance app.log app.old.log service.log servi
 
 ## Garde-fou
 
-Si l'iDrive redémarre trois fois de suite moins de 2 minutes après avoir chargé l'appli, celle-ci ne se lance plus et
-l'iDrive repart sans elle : le fichier `/var/local/data/AA/app-guard` compte ces démarrages, et s'efface tout seul après
-2 minutes sans incident. Le fichier `app.disable`, posé à la main, garde aussi l'appli éteinte. Pour la réactiver, après
-avoir trouvé la cause :
+Si l'iDrive redémarre trois fois en 15 minutes, chaque fois moins de 2 minutes après avoir chargé l'appli, celle-ci ne
+se lance plus et l'iDrive repart sans elle : le fichier `/var/local/data/AA/app-guard` compte ces démarrages, et
+s'efface tout seul après 2 minutes sans incident. Seuls ceux des 15 dernières minutes comptent : l'appli se relance
+d'elle-même à un démarrage de l'iDrive 15 minutes plus tard (et si la cause est toujours là, l'iDrive peut redémarrer
+encore trois fois). Le fichier `app.disable`, posé à la main, garde l'appli éteinte. Pour la réactiver tout de suite,
+après avoir trouvé la cause :
 
 ```sh
 rm -f /var/local/data/AA/app.disable /var/local/data/AA/app-guard

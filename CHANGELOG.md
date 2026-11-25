@@ -78,6 +78,12 @@ QEMU avec les bibliothèques de la voiture).
   touche datée après l'heure actuelle ne compte plus comme récente. Après 24,8 jours de marche de l'unité sans
   redémarrage, son horloge en millisecondes débordait aussi : BACK vers le menu de l'appli ne ramenait plus la page
   d'Android Auto tout de suite. Testé sur PC.
+- Appli iDrive : le garde-fou contre les plantages comptait chaque démarrage de l'iDrive arrêté en moins de 2 minutes,
+  quel que soit son âge. Trois trajets très courts, même à plusieurs jours d'écart, éteignaient l'appli (et son menu)
+  jusqu'à une intervention en SSH. Seuls les démarrages des 15 dernières minutes comptent maintenant, comme pour le
+  démarrage automatique, et l'appli revient d'elle-même ensuite ; les fichiers des deux garde-fous ne peuvent plus
+  rester à moitié écrits après une coupure de courant ([#4](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/4)).
+  Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

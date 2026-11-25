@@ -230,7 +230,7 @@ removes it too (before `sync`). Keeping `/var/local/data/AA` keeps the settings 
 | Symptom | What to do |
 |---|---|
 | No Android Auto row in *Media* | Check step 3 (`md5sum -c`), then restart the head unit: iDrive reads its apps only at start. |
-| iDrive restarts several times right after loading it | The app no longer starts at the third try and iDrive comes back without it. To enable it again after a fix: `rm -f /var/local/data/AA/app.disable /var/local/data/AA/app-guard`, then restart. |
+| iDrive restarts several times right after loading it | The app no longer starts at the third try within 15 minutes and iDrive comes back without it; it starts again by itself at an iDrive start 15 minutes later. To enable it at once after a fix: `rm -f /var/local/data/AA/app.disable /var/local/data/AA/app-guard`, then restart. |
 | Wireless: the phone, paired with the car, never starts Android Auto | Pair the phone again while Android Auto is running (*Start Android Auto* first). A phone paired while the service was not running keeps a list of the car's services without Android Auto ([#72](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/72)). |
 | Android Auto does not start | Tick *Keep logs* in the menu ([maintenance](MAINTENANCE.md), in French), reproduce, press *Copy logs to USB stick*, then open an [issue](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/new/choose) with the logs. |
 | The system stayed writable | `mount -o remount,ro /`, or restart the head unit. |

@@ -103,6 +103,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `car_signals` | Marche arrière, appels, jour et nuit, mode de conduite, lus dans l'iDrive |
 | `idrive_coding` | Codage de la voiture lu dans l'iDrive au démarrage de l'appli et écrit pour le service : touches du contrôleur, marque (BMW ou MINI) ; réglage de la fenêtre du mode de conduite, lu pour l'appli |
 | `app_guards` | Interrupteur, garde-fou contre les plantages, démarrage automatique, cases du menu |
+| `guard_file.hpp` | Fichiers des deux garde-fous : seuls les démarrages des 15 dernières minutes comptent, fichier remplacé d'un coup (testé sur PC) |
 | `app_log`, `log_profile.hpp` | Journal de l'appli, profil maintenance |
 | `popup_peek.hpp`, `cds_parse.hpp` | Fenêtres de l'iDrive par-dessus Android Auto, lecture des données de l'iDrive |
 | `mono_clock.hpp` | Temps écoulé depuis le démarrage de l'unité, pour les délais |
@@ -132,6 +133,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `tests/test_evo_mic.cpp` | Micro de la voiture sur une fausse libasound (`tests/fake_libasound.c`) : son transmis, arrêt immédiat avec un micro muet ou en panne, réouverture espacée |
 | `tests/test_wifi_link.cpp` | Qualité du Wi-Fi : messages du noyau, ligne de journal, connexion rendue en fin de session |
 | `tests/test_pending_restart.cpp` | Redémarrage d'Android Auto quand la case du câble USB change en marche |
+| `tests/test_guard_file.cpp` | Garde-fous : démarrages d'autres jours ignorés, boucle de plantages, date qui recule, ligne coupée, fichier remplacé d'un coup |
 | `tests/test_hold_machine.cpp` | Page vide de l'iDrive : ouverture, démarrage automatique, fenêtres, modes, appels, touches |
 | `tests/test_media_recall.cpp` | Double appui sur MEDIA : geste lu par le vrai décodeur, conditions, demande à usage unique |
 | `tests/test_aa_frame.cpp`, `tests/test_aa_messages.cpp`, `tests/test_tcp_server.cpp` | Trames hostiles, messages construits, écoute TCP |
