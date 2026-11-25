@@ -8462,7 +8462,7 @@ t=5.000
   state shown=1 sent=1 stop=0 cancel=1
 == core: nothing listening
 t=0.000
-  state shown=0 sent=0 stop=1 cancel=0
+  state shown=0 sent=0 stop=1 cancel=1
 == core: older messages
 t=0.000
   c1 0001 #62

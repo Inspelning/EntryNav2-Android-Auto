@@ -101,6 +101,10 @@ QEMU with the car's libraries).
 - Picture: a video configuration from the phone far bigger than a real one (which fits in a few tens of bytes) was
   kept and put in front of each key frame; when both no longer fitted in the decoder's buffer, every key frame was
   lost while it stayed. A configuration over 4 KiB is now refused, and the previous one stays. Tested on PC.
+- Cluster arrows: with no cluster on the Ethernet network (F-series, where the cluster is on MOST), every try to send
+  an arrow ended in a cancel retried for a minute, although nothing could have gone out: up to several minutes of
+  useless connection tries per session. A cancel is now tried only when something was really sent to the cluster.
+  Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

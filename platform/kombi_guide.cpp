@@ -287,7 +287,9 @@ void Guide::keepSection(const ClusterLanes& lanes, const LaneSection& section) {
 SendOutcome Guide::deliver(const char* what, const std::vector<Request>& requests, bool quiet) {
     std::string why;
     const SendOutcome outcome = output_.send(requests, &why);
-    sentAny_ = true;
+    // Only what reached a connection can be on the cluster: nothing to cancel after a KOMBI that cannot be reached
+    // (each cancel would retry for a minute, the arrows' thread blocked, on every try of an F-series car).
+    sentAny_ = sentAny_ || outcome != kUnreachable;
     if (outcome == kSent && !quiet) {
         ELOG(kTag, "%s: %u request(s) sent", what, static_cast<unsigned>(requests.size()));
     } else if (outcome != kSent) {
@@ -303,7 +305,9 @@ bool Guide::sendOrStop(const char* what, const std::vector<Request>& requests, b
         return true;
     }
     stop_ = outcome == kRefused ? kStoppedRefused : kStoppedLink;
-    clear(outcome == kRefused ? "KOMBI rejected a frame" : "KOMBI link failed");
+    clear(outcome == kRefused       ? "KOMBI rejected a frame"
+          : outcome == kUnreachable ? "KOMBI unreachable, nothing sent"
+                                    : "KOMBI link failed");
     return false;
 }
 

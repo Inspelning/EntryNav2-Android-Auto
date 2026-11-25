@@ -1,12 +1,18 @@
 // Copyright (c) 2026 Jiraiya43
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Tests platform/kombi_guide.cpp: what the guidance state machine sends, tick by tick, to a recorder.
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
 
+#include "kombi_client.hpp"
 #include "kombi_guide.hpp"
 #include "kombi_test_util.hpp"
 
@@ -427,11 +433,62 @@ void lanesInPlace() {
     CHECK(r.count() == 128 + 1 && r.out.sent.back().method == 0x000A);
 }
 
+// The cluster link of the service, counting its cancels.
+class LinkOutput : public GuideOutput {
+public:
+    LinkOutput(uint16_t port) : link("127.0.0.1", port, 500), cancels(0) {}
+    SendOutcome send(const std::vector<Request>& requests, std::string* why) override {
+        return link.send(requests, why);
+    }
+    bool cancel(std::string* why) override {
+        ++cancels;
+        return link.cancel(graph, 0.0, 0.2, nullptr, nullptr, why);
+    }
+    RouteGraph graph;
+    ClusterLink link;
+    int cancels;
+};
+
+// No KOMBI on the Ethernet (an F-series car): nothing was written, so there is nothing to cancel. Before, every try
+// ended in the cancel, retried for a minute by the service with the arrows' thread blocked.
+void noKombiNoCancel() {
+    const int closed = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in a;
+    memset(&a, 0, sizeof(a));
+    a.sin_family = AF_INET;
+    a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    socklen_t size = sizeof(a);
+    CHECK(bind(closed, reinterpret_cast<struct sockaddr*>(&a), sizeof(a)) == 0 &&
+          getsockname(closed, reinterpret_cast<struct sockaddr*>(&a), &size) == 0);  // bound, not listening
+    LinkOutput out(ntohs(a.sin_port));
+    Guide guide(out.graph, out, fullGraphs());
+    const NavInbox in = kombitest::inbox(kombitest::state(Step(7, "TEST ST")), kombitest::position(400, "0.3", 5));
+    Maneuver m;
+    CHECK(in.guiding() && in.nextManeuver(m));
+    guide.step(&m, 0);
+    CHECK(guide.stopped() == Guide::kStoppedLink && !guide.showing() && !guide.sentAny() && out.cancels == 0);
+    // Written, then the link lost: the cancel goes.
+    {
+        Rig r;
+        r.tick(0, Step(7, "TEST ST"), 800, "0.5", 5);
+        r.out.script.push_back(kLinkDown);
+        r.tick(1, Step(7, "TEST ST"), 600, "0.3", 5);
+        CHECK(r.guide.stopped() == Guide::kStoppedLink && r.out.cancels == 1);
+        // A route start that could not reach the cluster: no cancel.
+        r.guide.resumeAfterStop();
+        r.out.script.push_back(kUnreachable);
+        r.tick(2, Step(7, "TEST ST"), 500, "0.3", 5);
+        CHECK(r.guide.stopped() == Guide::kStoppedLink && r.out.cancels == 1 && !r.guide.sentAny());
+    }
+    close(closed);
+}
+
 }  // namespace
 
 int main() {
     demoDriveInPlace();
     gapsAndRefusals();
+    noKombiNoCancel();
     distancesAndNames();
     graceAndYield();
     approach();

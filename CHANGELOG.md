@@ -101,6 +101,10 @@ QEMU avec les bibliothèques de la voiture).
   d'octets) était gardée et placée devant chaque image clé ; quand l'ensemble ne tenait plus dans le tampon du
   décodeur, toutes les images clés étaient perdues tant qu'elle restait. Une configuration de plus de 4 Kio est
   maintenant refusée, et la précédente reste. Testé sur PC.
+- Flèches au compteur : sans compteur sur le réseau Ethernet (Série F, où le compteur passe par MOST), chaque essai
+  d'envoi de flèche finissait par une annulation tentée pendant une minute, alors que rien n'avait pu partir :
+  jusqu'à plusieurs minutes d'essais de connexion inutiles par séance. Une annulation n'est plus tentée que si
+  quelque chose a vraiment été envoyé au compteur. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
