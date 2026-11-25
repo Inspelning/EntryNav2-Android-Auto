@@ -70,6 +70,11 @@ QEMU with the car's libraries).
   My BMW connected, the check called Bluetooth busy (`@warn|alps|`), and another app's UUID on slot 0 could block it
   (`@block|uuid|`) with nothing to do with Android Auto. It now reads the slot a start would take, chosen the same way,
   and names it (`@ok|alps|SPP 5`). Tested on PC.
+- iDrive app: the empty popup the app opens for a moment to bring iDrive back to Android Auto's page could stay open
+  when iDrive went back there by itself just before, and the app then took it for one of iDrive's popups: Android
+  Auto stepped aside behind an empty popup that nothing closed. It is now closed as soon as the blank page or the
+  app's menu comes back, Android Auto is brought to the screen, or a call or the camera comes up, and it is never
+  taken for an iDrive popup again. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

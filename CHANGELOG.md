@@ -67,6 +67,11 @@ QEMU avec les bibliothèques de la voiture).
   l'identifiant d'une autre appli sur le 0 pouvait le bloquer (`@block|uuid|`) sans rapport avec Android Auto. Il lit
   maintenant l'emplacement qu'un démarrage prendrait, choisi de la même façon, et le nomme (`@ok|alps|SPP 5`). Testé
   sur PC.
+- Appli iDrive : la fenêtre vide que l'appli ouvre un instant pour ramener l'iDrive sur la page d'Android Auto
+  pouvait rester ouverte quand l'iDrive y revenait de lui-même juste avant, et l'appli la prenait alors pour une
+  fenêtre de l'iDrive : Android Auto se retirait derrière une fenêtre vide que rien ne refermait. Elle est refermée
+  dès que la page vide ou le menu de l'appli revient, qu'Android Auto est ramené à l'écran, ou qu'un appel ou la
+  caméra arrive, et n'est plus jamais prise pour une fenêtre de l'iDrive. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

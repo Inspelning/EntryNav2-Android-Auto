@@ -1211,6 +1211,113 @@ void recallOverIdriveScreen() {
     }
 }
 
+// Our own popup only serves to ask for the blank state under it at the next poll. Seen in the code review (audit of
+// 25/11, H10): iDrive showed the blank state under it before that poll, the popup stayed open, and the blank state,
+// visible without the focus (our popup had it), was taken for an iDrive popup: "popup 1", Android Auto hidden behind an
+// empty popup that nothing closed.
+static void popupOverIdriveScreen(Car& c) {
+    connected(c);
+    c.overlay(1);  // Android Auto came up by itself over an iDrive screen
+    c.polls(2);
+    CHECK_OUT(c, "event 51, own popup 1");
+}
+void ownPopupClosed() {
+    {  // the blank state shows under our popup before the next poll: closed at once, never an iDrive popup
+        Car c;
+        popupOverIdriveScreen(c);
+        c.blankVisible(true);
+        CHECK_OUT(c, "own popup 0");
+        c.polls(30);
+        CHECK_OUT(c, "");  // held: no "popup 1", no event while the blank state has not had the focus
+        CHECK(c.hold.holding() && c.hold.blankShown() && !c.hold.popupPeek());
+        c.blankFocus(true);
+        c.blankFocus(false);  // from now on a lost focus is an iDrive popup again
+        c.polls(2);
+        CHECK_OUT(c, "popup 1");
+    }
+    {  // the blank state takes the focus under it
+        Car c;
+        popupOverIdriveScreen(c);
+        c.blankFocus(true);
+        CHECK_OUT(c, "own popup 0");
+        c.polls(10);
+        CHECK_OUT(c, "");
+        CHECK(c.hold.holding() && c.hold.blankShown() && !c.hold.popupPeek());
+    }
+    {  // our menu takes the focus: closed, then the blank state at once
+        Car c;
+        popupOverIdriveScreen(c);
+        c.menu(true);
+        CHECK_OUT(c, "own popup 0, event 52");
+        c.blankShown();
+        c.polls(10);
+        CHECK_OUT(c, "");
+    }
+    {  // a call: not left over iDrive's call screen; tried again once the call is over
+        Car c;
+        popupOverIdriveScreen(c);
+        c.call(true);
+        c.poll();
+        CHECK_OUT(c, "own popup 0");
+        c.polls(10);
+        CHECK_OUT(c, "");
+        c.call(false);
+        c.poll();
+        CHECK_OUT(c, "event 52");  // the call ended
+        c.poll();
+        CHECK_OUT(c, "own popup 1");
+        c.poll();
+        CHECK_OUT(c, "event 52, own popup 0");
+        c.blankVisible(true);
+        c.polls(5);
+        CHECK_OUT(c, "");
+    }
+    {  // reverse gear: not left over the camera
+        Car c;
+        popupOverIdriveScreen(c);
+        CHECK(c.gear(evo::app::kReverseGear));
+        c.poll();
+        CHECK_OUT(c, "own popup 0");
+        c.overlay(0);  // Android Auto steps aside for the camera
+        c.polls(5);
+        CHECK_OUT(c, "");
+    }
+    {  // Start while it is open (Android Auto asked to the front): closed
+        Car c;
+        popupOverIdriveScreen(c);
+        c.hold.requestShow();
+        CHECK_OUT(c, "own popup 0, show");
+    }
+    {  // waiting aside: a call while it is open closes it; afterwards our menu is asked for again, then the popup
+        Car c;
+        connected(c);
+        c.overlay(2);
+        c.polls(2);
+        CHECK_OUT(c, "event 51, own popup 1");
+        c.call(true);
+        c.poll();
+        CHECK_OUT(c, "own popup 0");
+        c.polls(10);
+        CHECK_OUT(c, "");
+        c.call(false);
+        c.polls(3);
+        CHECK_OUT(c, "event 51, own popup 1, event 52, own popup 0, show");
+    }
+    {  // waiting aside: the blank state shows under it before the next poll; Android Auto comes up on it
+        Car c;
+        connected(c);
+        c.overlay(2);
+        c.polls(2);
+        CHECK_OUT(c, "event 51, own popup 1");
+        c.blankVisible(true);
+        CHECK_OUT(c, "own popup 0, show");
+        c.overlay(1);
+        c.polls(10);
+        CHECK_OUT(c, "");  // held, no popup peek, the popup not closed twice
+        CHECK(c.hold.holding() && c.hold.blankShown() && !c.hold.popupPeek());
+    }
+}
+
 int main() {
     shortlyAfterStart();
     manualOpen();
@@ -1220,6 +1327,7 @@ int main() {
     waitsAsideForIdrive();
     olderServiceRefused();
     recallOverIdriveScreen();
+    ownPopupClosed();
     comesUpOverOurMenu();
     backToOurMenu();
     popupOverBlank();
@@ -1240,7 +1348,7 @@ int main() {
     }
     puts(
         "PASS hold machine: manual open, automatic start through the menu, refusals, waiting aside, recall over an "
-        "iDrive screen, BACK, popups, driving mode, "
+        "iDrive screen, our own popup closed, BACK, popups, driving mode, "
         "reverse, park assist, calls, app keys, radio page raised by iDrive, hard keys, stepping aside, service "
         "restart");
     return 0;

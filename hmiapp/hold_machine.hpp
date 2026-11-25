@@ -23,6 +23,9 @@
 //   state under it a second later, closes it and sends "show". Should iDrive refuse even that, Android Auto
 //   is on screen without the hold: the touchscreen is the phone's, the knob also reaches the iDrive screen
 //   underneath, and our menu is asked for once a second until it opens (event 52 then).
+// - Our own popup is never left open for anything else: closed as soon as the blank state shows or has the focus, our
+//   menu has the focus, Android Auto is asked to the front, a call or the camera comes up (opened again once they are
+//   gone), and never taken for an iDrive popup over the blank state.
 // - A service that did not wait (an older one) shows Android Auto by itself: the same events, then the same
 //   asking without the hold.
 // - BACK or tilt to our menu: event 52 at once (at most every 300 ms), and at each poll while the menu keeps the focus;
@@ -154,6 +157,8 @@ public:
 private:
     void fireHold(const char* why, long now);
     void holdViaMenu(const char* why, long now);
+    void closeOwnPopup();
+    void dropOwnPopup();
     bool appKeyRecent();
     bool keepForAppKey(const char* why, long now);
     bool winBackRadioPage(long now);

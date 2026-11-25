@@ -160,6 +160,32 @@ void HoldMachine::holdViaMenu(const char* why, long now) {
     say("hold: event %u -> our menu, then state %u (%s, try %d)", kEvOpenMenu, kAaState, why, menuRouteTries_);
 }
 
+// ---- our own popup --------------------------------------------------------------------------------------------------
+// It only serves to ask for the blank state under it at the next poll. Closed as soon as that is pointless: one of our
+// states shows or has the focus, Android Auto is brought to the front another way, it steps aside, the session ends.
+// Left open, it kept the focus over the blank state, which then looked covered by an iDrive popup: Android Auto was
+// hidden behind an empty popup that nothing closed (code review of 25/11, H10).
+void HoldMachine::closeOwnPopup() {
+    if (popupOpen_) {
+        popupOpen_ = false;
+        io_.ownPopup(false);
+    }
+}
+
+// iDrive's call screen or the camera came up before it was used: not left over them. Nothing was asked under it, so
+// the step that opened it comes again once they are gone (while waiting aside, from our menu: iDrive may take it now).
+void HoldMachine::dropOwnPopup() {
+    if (!popupOpen_) {
+        return;
+    }
+    closeOwnPopup();
+    popupTried_ = false;
+    if (waiting_) {
+        asks_ = 0;
+    }
+    say("hold: our own popup closed: %s on top", inCall_ ? "iDrive's call screen" : "the camera");
+}
+
 // ---- the app's own requests -----------------------------------------------------------------------------------------
 // Android Auto comes to the front: iDrive goes to the blank state at once, not at the next status poll, so the knob
 // never reaches the screen underneath (entry button and the menu's Open row).
@@ -169,10 +195,7 @@ void HoldMachine::showAndHold(const char* why, long now) {
     leaveParkAssist("Android Auto chosen over it");
     waiting_ = false;
     unheld_ = false;
-    if (popupOpen_) {
-        popupOpen_ = false;
-        io_.ownPopup(false);  // our menu opened by itself meanwhile
-    }
+    closeOwnPopup();  // our menu opened by itself meanwhile
     io_.send("show");
     prevOverlay_ = false;  // the coming overlay is new
     holding_ = true;
@@ -185,6 +208,7 @@ void HoldMachine::showAndHold(const char* why, long now) {
 void HoldMachine::requestShow() {
     waiting_ = false;
     unheld_ = false;
+    closeOwnPopup();
     io_.send("show");
     prevOverlay_ = false;  // the coming overlay is new: hold iDrive on the blank state
 }
@@ -255,6 +279,7 @@ bool HoldMachine::keepForAppKey(const char* why, long now) {
 void HoldMachine::aaFocus(bool focused) {
     aaFocused_ = focused;
     if (focused) {
+        closeOwnPopup();
         screen_ = kScreenUnknown;
         // The blank state has the focus: it is shown, whatever visibility notification was or was not sent. The hold
         // worked, so its tries start over (a focus lost and given back without "visible" used them up for good, and
@@ -280,6 +305,12 @@ void HoldMachine::aaFocus(bool focused) {
 void HoldMachine::aaVisible(bool visible, long now) {
     aaVisible_ = visible;
     if (visible) {
+        if (popupOpen_) {
+            // Shown under our popup, which has the focus: what refused our pages may still be on top of the blank
+            // state once it is closed, as after event 52 under it.
+            closeOwnPopup();
+            underPopup_ = true;
+        }
         screen_ = kScreenUnknown;
         aaSeen_ = true;
         holdTries_ = 0;
@@ -305,6 +336,7 @@ void HoldMachine::menuFocus(unsigned state, bool focused, long now, long nowMs) 
     menuFocused_ = focused;
     if (focused) {
         aaFocused_ = false;
+        closeOwnPopup();
         flushGear("our menu has the focus");
     }
     say("menu state %u focus -> %d", state, static_cast<int>(focused));
@@ -382,10 +414,7 @@ void HoldMachine::beginWait(long now) {
 void HoldMachine::bringIdrive(const ServiceState& service, long now) {
     if (service.onScreen() || service.pid <= 0 || !service.is("connected") || !service.asks()) {
         waiting_ = false;  // shown another way, the session is over, or the service no longer waits
-        if (popupOpen_) {
-            popupOpen_ = false;
-            io_.ownPopup(false);
-        }
+        closeOwnPopup();
         return;
     }
     if (inCall_ || cameraWins()) {
@@ -411,8 +440,7 @@ void HoldMachine::bringIdrive(const ServiceState& service, long now) {
     }
     if (asks_ >= 2) {
         io_.triggerEvent(kEvHoldAa);
-        io_.ownPopup(false);
-        popupOpen_ = false;
+        closeOwnPopup();
         underPopup_ = true;
         askedAt_ = now;
         waiting_ = false;
@@ -454,6 +482,9 @@ void HoldMachine::poll(const ServiceState& service, long now) {
     if (gearPending_ && now - gearPendingSince_ >= kCameraWaitS) {
         flushGear("camera focus wait timed out");
     }
+    if (inCall_ || cameraWins()) {
+        dropOwnPopup();
+    }
     const bool overlay = service.onScreen();
     const bool rose = overlay && !prevOverlay_, fell = !overlay && prevOverlay_;
     prevOverlay_ = overlay;
@@ -465,10 +496,10 @@ void HoldMachine::poll(const ServiceState& service, long now) {
     }
     // Covered: the blank state is still shown but none of our states has the focus (an iDrive popup over it).
     // Not while the blank state, taken under our own popup, has not had the focus yet: what refused our pages is
-    // still on top of it, and it is not a popup the driver can see.
-    updatePopupPeek(
-        !rose && !fell && overlay && holding_ && blank && !aaFocused_ && !inCall_ && !cameraWins() && !underPopup_,
-        now);
+    // still on top of it, and it is not a popup the driver can see. Never our own popup itself.
+    updatePopupPeek(!rose && !fell && overlay && holding_ && blank && !aaFocused_ && !inCall_ && !cameraWins() &&
+                        !underPopup_ && !popupOpen_,
+                    now);
     if (rose) {
         waiting_ = false;
         if (unheld_) {
@@ -492,10 +523,7 @@ void HoldMachine::poll(const ServiceState& service, long now) {
         return;
     }
     if (fell) {
-        if (popupOpen_) {
-            popupOpen_ = false;  // opened to hold Android Auto, which is gone
-            io_.ownPopup(false);
-        }
+        closeOwnPopup();  // opened to hold Android Auto, which is gone
         // Android Auto stepped aside by itself (phone's exit icon, signal lost) while iDrive shows our blank state:
         // give the driver the iDrive main menu. Not in reverse, not when a hard key already took iDrive elsewhere.
         if (blank && !aaFocused_ && !cameraWins()) {
@@ -587,6 +615,9 @@ void HoldMachine::poll(const ServiceState& service, long now) {
         fireHold("call ended", now);
         return;
     }
+    if (cameraWins()) {
+        return;  // the camera or the park assist view: nothing is asked over it, not even our own popup
+    }
     if (!aaSeen_) {
         // Still on an iDrive screen a second after asking: through our menu (holdViaMenu), then event 52 once if the
         // menu never opened. After the first refused menu, our own popup, as for a phone waiting aside
@@ -595,8 +626,7 @@ void HoldMachine::poll(const ServiceState& service, long now) {
         // refused, and the knob driving that screen underneath.
         if (popupOpen_) {
             io_.triggerEvent(kEvHoldAa);
-            io_.ownPopup(false);
-            popupOpen_ = false;
+            closeOwnPopup();
             underPopup_ = true;
             aaSeen_ = false;
             holdTime_ = now;
@@ -626,9 +656,6 @@ void HoldMachine::poll(const ServiceState& service, long now) {
     }
     // A hard key (MENU / MEDIA / NAV / COM / MAP / OPTION) took iDrive elsewhere, the way MENU leaves native CarPlay:
     // Android Auto steps aside; the Android Auto entry brings it back. Confirmed on a second poll.
-    if (cameraWins()) {
-        return;
-    }
     if (keepForAppKey("a key kept Android Auto on screen (poll)", now)) {
         return;
     }
