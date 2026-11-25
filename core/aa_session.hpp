@@ -140,7 +140,7 @@ private:
     bool dispatch(uint8_t channel, const Message& message);
     bool onControl(uint16_t id, const Message& message);
     void onVersion(const Message& message);
-    void onTlsHandshake(const Message& message);
+    bool onTlsHandshake(const Message& message);
     void onDiscovery();
     void onAudioFocus(const Message& message);
     void onNavigationFocus(const Message& message);

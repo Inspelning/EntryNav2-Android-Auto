@@ -420,8 +420,9 @@ public:
             }
         } while (channel != 0 || message != answer);
     }
-    // Version exchange, then TLS as the server, up to the head unit's AuthComplete.
-    void handshake() {
+    // Version exchange, then TLS as the server, up to the head unit's AuthComplete. `tail` follows the phone's last
+    // flight in the same message, sent in two fragments when it no longer fits one frame.
+    void handshake(const Bytes& tail = Bytes()) {
         uint8_t channel = 0, flags = 0;
         Bytes message;
         receive(channel, flags, message);  // VersionRequest
@@ -430,9 +431,26 @@ public:
             if (receive(channel, flags, message) <= 0 || message.size() < 3) {
                 return;
             }
-            send(0, kPlain, bytes({0x00, 0x03}) + tls_.step(Bytes(message.begin() + 2, message.end())));
+            const Bytes answer = bytes({0x00, 0x03}) + tls_.step(Bytes(message.begin() + 2, message.end())) +
+                                 (flight == 1 ? tail : Bytes());
+            if (answer.size() <= 0xffff) {
+                send(0, kPlain, answer);
+            } else {
+                piece(0, 0x01, Bytes(answer.begin(), answer.begin() + 0xffff), static_cast<uint32_t>(answer.size()));
+                piece(0, 0x02, Bytes(answer.begin() + 0xffff, answer.end()));
+            }
         }
         receive(channel, flags, message);  // AuthComplete
+    }
+    // Version exchange, then `records` as the phone's answer to the head unit's ClientHello.
+    void answerHello(const Bytes& records) {
+        uint8_t channel = 0, flags = 0;
+        Bytes message;
+        receive(channel, flags, message);  // VersionRequest
+        send(0, kPlain, bytes({0x00, 0x02, 0x00, 0x01, 0x00, 0x06, 0x00, 0x00}));
+        if (receive(channel, flags, message) > 0) {  // ClientHello
+            send(0, kPlain, bytes({0x00, 0x03}) + records);
+        }
     }
     void discover() {
         send(0, kSealed, bytes({0x00, 0x05, 0x22, 0x05}) + text("Phone"));
@@ -1157,6 +1175,68 @@ std::string corruptedRecord() {
     return std::string();
 }
 
+size_t linesStarting(const std::vector<std::string>& log, const std::string& head) {
+    size_t count = 0;
+    for (size_t i = 0; i < log.size(); ++i) {
+        count += log[i].compare(0, head.size(), head) == 0 ? 1 : 0;
+    }
+    return count;
+}
+
+// A phone's handshake answer that OpenSSL cannot take ends the session at once, rather than when the phone goes
+// silent; a handshake message once TLS is established is ignored, and TLS stays whole; a last flight followed by more
+// than 64 KiB is no handshake. An empty verdict: passed.
+std::string handshakeFailures() {
+    struct Refusal {
+        const char* name;
+        Bytes records;
+    };
+    const Refusal refusals[] = {
+        {"garbage for a handshake", bytes({1, 2, 3, 4, 5, 6, 7, 8})},
+        {"the phone's fatal alert", bytes({0x15, 0x03, 0x03, 0x00, 0x02, 0x02, 0x28})},  // handshake_failure
+    };
+    for (size_t i = 0; i < sizeof(refusals) / sizeof(refusals[0]); ++i) {
+        std::vector<std::string> log;
+        Link link;
+        Phone phone(link.phoneFd, log);
+        phone.answerHello(refusals[i].records);
+        phone.settle();  // a plain ping: answered only by a session still running
+        if (linesStarting(log, "hu ch=0 fl=03 000c") != 0 || !waitEnded(link.session)) {
+            return format("%s: the session carried on (ping answered=%u, active=%d)", refusals[i].name,
+                          static_cast<unsigned>(linesStarting(log, "hu ch=0 fl=03 000c")),
+                          link.session.isActive() ? 1 : 0);
+        }
+    }
+    {
+        std::vector<std::string> log;
+        Link link;
+        Phone phone(link.phoneFd, log);
+        phone.handshake();
+        phone.send(0, kPlain, bytes({0x00, 0x03, 0x16, 0x03, 0x03, 0x00, 0x05, 1, 2, 3, 4, 5}));
+        phone.discover();  // encrypted: answered only while TLS is whole
+        const size_t authCompletes = linesStarting(log, "hu ch=0 fl=03 0004");
+        const size_t discoveries = linesStarting(log, "hu ch=0 fl=0b 0006");
+        phone.leave();
+        if (authCompletes != 1 || discoveries != 1 || !waitEnded(link.session)) {
+            return format("handshake after TLS: %u AuthComplete, %u discovery answers", unsigned(authCompletes),
+                          unsigned(discoveries));
+        }
+    }
+    {
+        std::vector<std::string> log;
+        Link link;
+        Phone phone(link.phoneFd, log);
+        phone.handshake(Bytes(70 * 1024, 0));
+        phone.settle();
+        if (linesStarting(log, "hu ch=0 fl=03 0004") != 0 || !waitEnded(link.session)) {
+            return format("70 KiB after the last flight: AuthComplete sent=%u, active=%d",
+                          static_cast<unsigned>(linesStarting(log, "hu ch=0 fl=03 0004")),
+                          link.session.isActive() ? 1 : 0);
+        }
+    }
+    return std::string();
+}
+
 // A phone whose Wi-Fi stalls takes nothing in while it still speaks: the head unit's send gives up partway through a
 // frame, and whatever followed would be garbage to the phone. The session must end there, as lost and not as a
 // goodbye. The head unit gives a stuck send 5 s (set by start()); to stay fast, the test shortens that on the head
@@ -1586,6 +1666,8 @@ int main(int argc, char** argv) {
     takeEvents();
     const std::string corrupted = writing ? std::string() : corruptedRecord();
     takeEvents();
+    const std::string handshake = writing ? std::string() : handshakeFailures();
+    takeEvents();
     const std::string stalled = writing ? std::string() : stalledSend();
     const std::string keyframe = writing ? std::string() : keyframeAfterLoss();
     takeEvents();
@@ -1650,6 +1732,11 @@ int main(int argc, char** argv) {
         return 1;
     }
     puts("PASS session, corrupted record: it ends the session at once, nothing more is sent");
+    if (!handshake.empty()) {
+        printf("FAIL session, TLS handshake: %s\n", handshake.c_str());
+        return 1;
+    }
+    puts("PASS session, TLS handshake: a failed one ends it at once, one after TLS is ignored, 64 KiB at most");
     if (!stalled.empty()) {
         printf("FAIL session, stalled send: %s\n", stalled.c_str());
         return 1;

@@ -14,6 +14,9 @@ namespace aa {
 namespace {
 
 const char kCipherList[] = "ALL:!aNULL:!eNULL:!LOW:!EXP:!RC4:!MD5";
+// Handshake bytes from the phone that OpenSSL may hold unread at once. A phone's flight is a few KB (its certificates);
+// more is no handshake, and would otherwise pile up in memory for as long as the session lasts.
+const size_t kMaxHandshakeInput = 64 * 1024;
 
 // One object parsed from PEM text, or null.
 template <typename T>
@@ -110,15 +113,36 @@ bool TlsClient::hello(std::vector<uint8_t>& records) {
 }
 
 bool TlsClient::handshake(const uint8_t* records, size_t size, std::vector<uint8_t>& answer) {
-    if (!connection_ || size == 0) {
+    answer.clear();
+    // Once established (or broken), more handshake bytes would only wait in the input buffer, and the next encrypted
+    // frame would be read after them: refused, the buffer stays as it was.
+    if (!connection_ || established_ || broken_ || size == 0) {
         return false;
     }
-    BIO_write(fromPhone_, records, static_cast<int>(size));
-    SSL_do_handshake(connection_.get());
+    const size_t unread = static_cast<size_t>(BIO_ctrl_pending(fromPhone_));
+    if (size > kMaxHandshakeInput || unread > kMaxHandshakeInput - size) {
+        printf("[AACryptor] %u handshake bytes from the phone, %u still unread: more than a handshake\n",
+               static_cast<unsigned>(size), static_cast<unsigned>(unread));
+        endForGood("handshake");
+        return false;
+    }
+    ERR_clear_error();
+    if (BIO_write(fromPhone_, records, static_cast<int>(size)) != static_cast<int>(size)) {
+        endForGood("handshake input");
+        return false;
+    }
+    const int result = SSL_do_handshake(connection_.get());
+    // With a failure, what OpenSSL wrote is its alert for the phone: handed out all the same.
     takeOutput(answer);
-    if (SSL_is_init_finished(connection_.get())) {
+    if (result == 1) {
         established_ = true;
         printf("[AACryptor] TLS established, cipher %s\n", SSL_get_cipher(connection_.get()));
+        return true;
+    }
+    // Waiting for the phone's next flight. Anything else is final: OpenSSL does not take the handshake up again.
+    if (SSL_get_error(connection_.get(), result) != SSL_ERROR_WANT_READ) {
+        endForGood("handshake");
+        return false;
     }
     return true;
 }

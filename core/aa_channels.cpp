@@ -102,8 +102,7 @@ bool AASession::onControl(uint16_t id, const Message& message) {
             onVersion(message);
             break;
         case msg::kTlsHandshake:
-            onTlsHandshake(message);
-            break;
+            return onTlsHandshake(message);
         case msg::kDiscoveryRequest:
             onDiscovery();
             break;
@@ -156,10 +155,17 @@ void AASession::onVersion(const Message& message) {
     }
 }
 
-void AASession::onTlsHandshake(const Message& message) {
+// False when the handshake failed for good: nothing can be sealed or decrypted any more, the session ends.
+bool AASession::onTlsHandshake(const Message& message) {
     if (message.size() < kMessageIdSize + 1) {
         printf("[AASession] Ignoring empty SSL handshake message.\n");
-        return;
+        return true;
+    }
+    if (tls_.established()) {
+        // Its bytes would wait in front of the next encrypted frame and break TLS there; AuthComplete went already.
+        printf("[AASession] SSL handshake message after TLS was established (%u bytes): ignored\n",
+               static_cast<unsigned>(bodySize(message)));
+        return true;
     }
     printf("[AASession] >>> Received SSL Handshake from phone (%u bytes)\n", static_cast<unsigned>(bodySize(message)));
     std::vector<uint8_t> answer;
@@ -168,12 +174,17 @@ void AASession::onTlsHandshake(const Message& message) {
         sendPlain(channel::kControl, message::tlsHandshake(answer));
         printf("[AASession] Sent TLS Handshake response (%u bytes).\n", static_cast<unsigned>(answer.size()));
     }
+    if (tls_.broken()) {
+        printf("[AASession] TLS handshake failed: session ends.\n");
+        return false;
+    }
     if (tls_.established()) {
         // AuthComplete goes in clear, as every head unit sends it.
         printf("[AASession] >>> TLS Handshake Complete! Sending AuthCompleteNotification...\n");
         sendPlain(channel::kControl, message::authComplete());
         printf("[AASession] >>> Awaiting ServiceDiscoveryRequest from phone...\n");
     }
+    return true;
 }
 
 // The description of this car: Google's Desktop Head Unit template, adapted by core/sdr_builder.cpp.

@@ -23,8 +23,10 @@ public:
     bool start();
     // The ClientHello. False without an engine, or when OpenSSL wrote nothing.
     bool hello(std::vector<uint8_t>& records);
-    // The phone's handshake records in, the answer for the phone out (empty when there is none). False without an
-    // engine or without input.
+    // The phone's handshake records in, the answer for the phone out (empty when there is none; OpenSSL's alert when
+    // the handshake failed). False when they were not taken: without an engine or without input, once established,
+    // and when the handshake failed for good (broken() then tells), or would hold more than 64 KiB of the phone's
+    // bytes unread.
     bool handshake(const uint8_t* records, size_t size, std::vector<uint8_t>& answer);
     bool established() const { return established_; }
 
@@ -32,8 +34,8 @@ public:
     // frames and its rest is still to come; for seal, records is then empty.
     bool seal(const uint8_t* plain, size_t size, std::vector<uint8_t>& records);
     bool open(const uint8_t* records, size_t size, std::vector<uint8_t>& plain);
-    // OpenSSL failed for good (a record that failed its check, or refused by the phone's TLS): no later record can be
-    // decrypted, nothing more is sealed. Logged once. A new start() clears it.
+    // OpenSSL failed for good (a handshake that failed, a record that failed its check, or refused by the phone's
+    // TLS): no later record can be decrypted, nothing more is sealed. Logged once. A new start() clears it.
     bool broken() const { return broken_; }
 
 private:

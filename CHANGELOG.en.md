@@ -130,6 +130,9 @@ QEMU with the car's libraries).
   a session. Once the session is secured, a message that comes in clear, other than a ping, is still handled as
   before, but the service log notes it (once per kind of message), to learn whether real phones send any before
   refusing them. Tested on PC.
+- Android Auto session: when the secure handshake (TLS) with the phone fails, the session ends at once, instead of
+  after 5 seconds of silence from the phone. A handshake message that comes once the session is secured is ignored,
+  instead of breaking the session at the next message; a handshake message over 64 KiB is refused. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
