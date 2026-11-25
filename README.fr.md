@@ -30,7 +30,8 @@ Sans boîtier, sans câble obligatoire, sans remplacer aucun fichier BMW.
 - **Mises à jour sans PC** (depuis la 0.13.0-rc.10) : après la première installation par SSH, une nouvelle version
   s'installe depuis une clé USB, par le menu Android Auto. Seule une archive signée par le projet est acceptée
   ([mettre à jour](docs/INSTALLATION.md#par-clé-usb-sans-pc)).
-- **Commandes d'origine** : molette, touches, écran tactile, boutons du volant, bouton vocal vers l'Assistant.
+- **Commandes d'origine** : molette, touches, écran tactile, boutons du volant. L'Assistant se lance par le bouton
+  micro d'Android Auto ; le bouton vocal du volant reste à l'iDrive.
 - **Micro de la voiture** pour l'Assistant Google, **son par le Bluetooth** de la voiture.
 - **GPS de la voiture** transmis au téléphone, avec retour au GPS du téléphone si besoin.
 - **Guidage sur la tête haute et le compteur** : flèche, distance, rue, sortie de rond-point (Série G ; Série F en
@@ -43,7 +44,7 @@ Sans boîtier, sans câble obligatoire, sans remplacer aucun fichier BMW.
 
 | | |
 |---|---|
-| Dernière version | [0.12.0](https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/latest), essayée en voiture (avant 1.0 : des défauts restent) |
+| Dernière version | [0.12.0](https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/latest), essayée en voiture (avant 1.0 : des défauts restent) ; des [pré-versions](https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases) plus récentes sont à l'essai |
 | Essayé en voiture | la voiture de référence, une BMW G20 de 2019 (logiciel iDrive `202111011321`) |
 | Autres voitures | signalées fonctionnelles par leurs propriétaires : G20, G21, G30, X3 G01, F20, F21, F30, F40, F44, F45, X1 F48, F52 (câble), i3, MINI F54, F56, F57 ([liste](docs/COMPATIBILITE.md#voitures-essayées)) ; contrôle de compatibilité intégré |
 

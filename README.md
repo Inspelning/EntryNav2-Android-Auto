@@ -29,8 +29,8 @@ English · [Français](README.fr.md)
 - **Updates without a PC** (from 0.13.0-rc.10). After the first installation over SSH, a new version installs from a
   USB stick, through the Android Auto menu. Only an archive signed by the project is accepted
   ([updating](docs/INSTALLATION.md#par-clé-usb-sans-pc), in French).
-- **Original controls.** iDrive controller, hard keys, touch screen, steering wheel buttons, voice button for the
-  Assistant.
+- **Original controls.** iDrive controller, hard keys, touch screen, steering wheel buttons. The Assistant starts
+  from Android Auto's microphone button; the steering wheel voice button stays with iDrive.
 - **Car microphone** for the Google Assistant, **car speakers** over Bluetooth.
 - **Car GPS** sent to the phone, with a fallback to the phone's own GPS.
 - **Turn-by-turn on the head-up display and cluster**: arrow, distance, street name, roundabout exit (G series; F
@@ -43,7 +43,7 @@ English · [Français](README.fr.md)
 
 | | |
 |---|---|
-| Latest release | [0.12.0](https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/latest), tried in a car (pre-1.0: expect rough edges) |
+| Latest release | [0.12.0](https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases/latest), tried in a car (pre-1.0: expect rough edges); newer [pre-releases](https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases) are being tried |
 | Tried in a car | the reference car, a 2019 BMW G20 (iDrive software `202111011321`) |
 | Other cars | reported working by their owners: G20, G21, G30, X3 G01, F20, F21, F30, F40, F44, F45, X1 F48, F52 (cable), i3, MINI F54, F56, F57 ([list](docs/COMPATIBILITE.md#voitures-essayées)); a compatibility check is built in |
 
