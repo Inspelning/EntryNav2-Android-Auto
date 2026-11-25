@@ -5,10 +5,8 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <pthread.h>
 #include <signal.h>
 #include <spawn.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/file.h>
@@ -22,6 +20,7 @@
 #include "../platform/kept_log.hpp"
 #include "../platform/service_contract.hpp"
 #include "app_log.hpp"
+#include "child_reaper.hpp"
 #include "mono_clock.hpp"
 #include "spawn_attr.hpp"
 
@@ -58,20 +57,20 @@ bool pidAlive(int pid) {
     return errno == EPERM;
 }
 
-void* reaper(void* p) {
-    pid_t pid = static_cast<pid_t>(reinterpret_cast<intptr_t>(p));
-    int status = 0;
-    pid_t r;
-    do {
-        r = waitpid(pid, &status, 0);
-    } while (r < 0 && errno == EINTR);
-    if (r == pid) {
+// The supervisor and the jobs stopped after their limit, collected at each status poll, never waited for.
+ChildReaper g_children;
+
+void childEnded(pid_t pid, int status, void*) {
+    if (pid != g_launchPid) {
+        alog("child pid %d collected", static_cast<int>(pid));
+        return;
+    }
+    if (status >= 0) {
         alog("service supervisor pid %d ended (%s %d)%s", static_cast<int>(pid), WIFEXITED(status) ? "exit" : "signal",
              WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status),
              WIFEXITED(status) && WEXITSTATUS(status) == 127 ? " : 127 = start refused before/at exec" : "");
-        __sync_bool_compare_and_swap(&g_launchPid, pid, 0);  // a reused pid must not look like a starting service
     }
-    return nullptr;
+    g_launchPid = 0;  // a reused pid must not look like a starting service
 }
 
 // True when a service answers on the control channel. With none, the answer comes at once, not after a 200 ms
@@ -94,6 +93,7 @@ void launchService() {
         return;
     }
     g_lastLaunch = now;
+    reapChildren();  // an ended supervisor not collected yet must not look still running
     struct stat sst;
     if (stat(contract::kSupervisor, &sst) != 0) {
         alog("launch: %s not found", contract::kSupervisor);
@@ -158,14 +158,13 @@ void launchService() {
     }
     g_launchPid = pid;
     alog("launch: started %s --service pid %d (log %s)", contract::kSupervisor, static_cast<int>(pid), logPath);
-    pthread_t t;
-    pthread_attr_t ta;
-    pthread_attr_init(&ta);
-    pthread_attr_setdetachstate(&ta, PTHREAD_CREATE_DETACHED);
-    if (pthread_create(&t, &ta, reaper, reinterpret_cast<void*>(static_cast<intptr_t>(pid))) != 0) {
-        alog("launch: no reaper thread");
+    if (!g_children.keep(pid)) {
+        alog("launch: no slot left to collect pid %d", static_cast<int>(pid));
     }
-    pthread_attr_destroy(&ta);
+}
+
+void reapChildren() {
+    g_children.reap(childEnded, nullptr);
 }
 
 // ---- control messages and state -------------------------------------------------------------------------------------
@@ -316,9 +315,11 @@ int jobEnded(pid_t* pid, long started, long now, long limit, const char* what) {
     if (r == 0 && limit > 0 && now - started >= limit) {
         alog("%s: still running after %ld s, stopped", what, limit);
         kill(*pid, SIGKILL);
-        do {
-            r = waitpid(*pid, &status, 0);
-        } while (r < 0 && errno == EINTR);
+        // Not waited for: a job stuck in the kernel (USB stick pulled out mid-write) dies only when the kernel lets go,
+        // and waiting here would freeze the iDrive meanwhile. The status poll collects it.
+        if (!g_children.keep(*pid)) {
+            alog("%s: no slot left to collect pid %d", what, static_cast<int>(*pid));
+        }
         *pid = 0;
         return -2;
     }

@@ -42,6 +42,10 @@ QEMU avec les bibliothèques de la voiture).
   sur la page vide d'Android Auto, au plus 4 fois en 10 s. Seulement pour cette page (écran 523, vu dans le journal
   de la voiture) : un autre écran que l'iDrive ouvre sans touche fait toujours céder la place à Android Auto
   ([#138](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/138), d'après l'idée de [#139](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/139)). Testé sur PC.
+- Appli iDrive : quand la copie des journaux ou la vérification d'une mise à jour dépassait son délai (clé USB
+  retirée ou défectueuse), l'appli attendait la fin du programme arrêté sur le fil de l'iDrive, qui pouvait geler
+  tant que le noyau retenait ce programme. Les programmes lancés par l'appli sont maintenant récoltés à chaque tour
+  de son état, sans jamais attendre ; le fil d'attente qui suivait le superviseur disparaît aussi. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

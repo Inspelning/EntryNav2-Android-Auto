@@ -396,6 +396,7 @@ void statusRun(void*) {
     if (!app) {
         return;
     }
+    reapChildren();
     if (!g_settingsShown) {
         showSettings(app);
     }

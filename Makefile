@@ -183,6 +183,8 @@ test-host: test-parsers test-spp-host test-kombi-host test-gps-host test-capture
 	./tests/test-popup-peek
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_hold_machine.cpp hmiapp/hold_machine.cpp -o tests/test-hold-machine
 	./tests/test-hold-machine
+	$(HOST_CXX) $(HOST_FLAGS) tests/test_child_reaper.cpp -o tests/test-child-reaper
+	./tests/test-child-reaper
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_pending_restart.cpp -o tests/test-pending-restart
 	./tests/test-pending-restart
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_log_profile.cpp -o tests/test-log-profile

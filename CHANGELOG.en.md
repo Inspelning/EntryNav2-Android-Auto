@@ -46,6 +46,10 @@ QEMU with the car's libraries).
   times in 10 s. Only for that page (screen 523, seen in the car's log): another screen iDrive opens without a key
   still makes Android Auto step aside ([#138](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/138), after the idea of [#139](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/139)).
   Tested on PC.
+- iDrive app: when copying the logs or checking an update went past its time limit (USB stick pulled out or
+  faulty), the app waited for the stopped program on iDrive's own thread, which could freeze for as long as the
+  kernel held that program. The programs the app starts are now collected at each status poll, never waited for;
+  the thread that waited for the supervisor is gone too. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
