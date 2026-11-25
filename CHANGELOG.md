@@ -89,6 +89,10 @@ QEMU avec les bibliothèques de la voiture).
   relance était demandée trop tôt, refusée, et Android Auto restait arrêté sans rien dire. Il repart maintenant une
   fois complètement arrêté ; Démarrer ou Arrêter dans le menu entre-temps annule cette relance, et s'il n'est
   toujours pas arrêté 45 s plus tard, le journal le dit. Testé sur PC.
+- Toucher : le service reconnaissait l'écran tactile au premier paquet reçu sur son port, quel qu'il soit. Un paquet
+  venu d'ailleurs, par exemple d'un téléphone sur le Wi-Fi de la voiture, pouvait le lui faire ignorer pour toute la
+  séance. L'écran est maintenant reconnu à sa première trame de toucher, arrivée par le réseau filaire de l'unité,
+  jamais par le Wi-Fi. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

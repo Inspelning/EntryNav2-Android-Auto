@@ -6,9 +6,9 @@
 // Reading: a read-only AF_PACKET socket with a BPF filter on UDP 30567 copies each datagram, taking nothing away from
 // iDrive and never sending. Enough to observe and decode.
 // Forward mode: only while the Android Auto picture is on screen, a UDP 30567 socket (SO_REUSEADDR/SO_REUSEPORT) is
-// connected to the touch sender. The kernel prefers a connected socket (exact match), so the hidden iDrive stops
-// receiving the touches. The socket is closed as soon as the picture goes away, or on stop, and iDrive gets the
-// touchscreen back. When the bind is refused, only the copy is used.
+// connected to the touch sender (TouchSource). The kernel prefers a connected socket (exact match), so the hidden
+// iDrive stops receiving the touches. The socket is closed as soon as the picture goes away, or on stop, and iDrive
+// gets the touchscreen back. When the bind is refused, only the copy is used.
 #ifndef ENTRY_AAD_PLATFORM_EVO_TOUCH_HPP
 #define ENTRY_AAD_PLATFORM_EVO_TOUCH_HPP
 
@@ -34,6 +34,36 @@ struct UdpView {
 };
 bool parseIpv4Udp(const uint8_t* p, size_t n, UdpView& out);
 bool isTouchPdu(const uint8_t* b, size_t n);
+// A Wi-Fi interface by its name: the car's access point (wlan0), its Wi-Fi Direct group (wlan1, p2p-*). The
+// touchscreen is never behind one.
+bool isWifiInterface(const char* name);
+
+// Which copied datagrams to UDP 30567 are the touchscreen's, no I/O. The first touch frame from a wired interface
+// fixes that interface and its sender for the session (vbr0.73 on the G20). Nothing else fixes them: neither another
+// PDU, nor a datagram on a bridge twin, nor anything from the car's Wi-Fi, where a phone could otherwise leave the
+// real touchscreen ignored for the whole session.
+class TouchSource {
+public:
+    enum Verdict {
+        kTouch,        // a touch frame from the touchscreen
+        kOther,        // not a touch frame (another PDU of the touchscreen, or anything before it is known)
+        kTwin,         // from another interface once the touchscreen's is known: a bridge/VLAN twin, the Wi-Fi
+        kOtherSender,  // a touch frame from another sender on the touchscreen's interface
+        kUntrusted,    // a touch frame from a Wi-Fi interface (or one without a name) before the touchscreen is known
+    };
+    TouchSource() : ifindex_(0), ip_(0), port_(0) {}
+    // u came in on interface ifindex; wired: that interface is neither Wi-Fi nor unknown.
+    Verdict judge(int ifindex, bool wired, const UdpView& u);
+    bool known() const { return ifindex_ > 0; }
+    int ifindex() const { return ifindex_; }
+    uint32_t ip() const { return ip_; }
+    uint16_t port() const { return port_; }
+
+private:
+    int ifindex_;
+    uint32_t ip_;
+    uint16_t port_;
+};
 
 // Touch state machine, no I/O.
 class TouchTracker {
@@ -124,7 +154,7 @@ private:
     void run();
     bool openTap();
     void updateSteal(bool want);
-    void handle(const UdpView& u, uint32_t now);
+    void handle(const UdpView& u, int ifindex, uint32_t now);
     void emit(const aa::TouchEventOut* ev, int n);
     InputMode mode_;
     Callback cb_;
@@ -132,10 +162,9 @@ private:
     pthread_t thread_;
     bool started_;
     std::atomic<bool> running_, owned_, pictureStarted_;
-    int tap_, steal_, ifindex_;
-    uint32_t peerIp_;
-    uint16_t peerPort_;
-    bool havePeer_, stealRefused_;
+    int tap_, steal_;
+    TouchSource source_;  // touch thread; read by summary() once it has stopped
+    bool stealRefused_;
     uint32_t lastFrameMs_;
     TouchTracker tracker_;
     unsigned tapped_, touchPdus_, otherPdus_, events_, sent_, stolen_, rawLogged_, eventsLogged_;

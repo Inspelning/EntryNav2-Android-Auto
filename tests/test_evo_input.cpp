@@ -44,6 +44,15 @@ static size_t ipUdp(uint8_t* p, const uint8_t* payload, size_t n, uint16_t sport
     return total;
 }
 
+// The datagram comes from a phone on the car's Wi-Fi (192.168.1.20) instead of the touch controller.
+static size_t fromPhone(uint8_t* p, size_t n) {
+    p[12] = 192;
+    p[13] = 168;
+    p[14] = 1;
+    p[15] = 20;
+    return n;
+}
+
 static int frame(evo::TouchTracker& t, int x, int y, int state, unsigned char seq, aa::TouchEventOut* ev) {
     unsigned char f[112];
     aa::TouchContact c;
@@ -92,6 +101,38 @@ int main() {
     CHECK(!evo::parseIpv4Udp(pkt, n, u));
     pkt[0] = 0x45;
     CHECK(evo::parseIpv4Udp(pkt, n, u));
+
+    // The touchscreen is the sender of the first touch frame on a wired interface; nothing else fixes it.
+    {
+        typedef evo::TouchSource S;
+        const int kVbr = 7, kTwin = 3, kWlan = 5;
+        uint8_t other[8] = {0x12, 0x34, 0x56, 0x78, 1, 2, 3, 4};
+        uint8_t wifiPkt[256], wifiTouchPkt[256], otherPkt[256], touchPkt[256], twinPkt[256];
+        evo::UdpView wifiOther, wifiTouch, otherPdu, touch, twin;
+        // From a phone on the car's Wi-Fi: first a datagram that is no touch frame, then a touch frame.
+        CHECK(evo::parseIpv4Udp(wifiPkt, fromPhone(wifiPkt, ipUdp(wifiPkt, other, sizeof(other), 40000, 30567)),
+                                wifiOther));
+        CHECK(evo::parseIpv4Udp(
+            wifiTouchPkt, fromPhone(wifiTouchPkt, ipUdp(wifiTouchPkt, pdu, sizeof(pdu), 40000, 30567)), wifiTouch));
+        CHECK(evo::parseIpv4Udp(otherPkt, ipUdp(otherPkt, other, sizeof(other), 30501, 30567), otherPdu));
+        CHECK(evo::parseIpv4Udp(touchPkt, ipUdp(touchPkt, pdu, sizeof(pdu), 30501, 30567), touch));
+        CHECK(evo::parseIpv4Udp(twinPkt, ipUdp(twinPkt, pdu, sizeof(pdu), 30502, 30567), twin));
+        S source;
+        CHECK(source.judge(kWlan, false, wifiOther) == S::kOther && !source.known());
+        CHECK(source.judge(kWlan, false, wifiTouch) == S::kUntrusted && !source.known());
+        CHECK(source.judge(kTwin, true, otherPdu) == S::kOther && !source.known());  // another PDU, on a twin
+        CHECK(source.judge(0, true, touch) == S::kUntrusted && !source.known());     // no interface
+        // The touchscreen's first frame: its interface and sender from now on.
+        CHECK(source.judge(kVbr, true, touch) == S::kTouch && source.known() && source.ifindex() == kVbr);
+        CHECK(source.ip() == ((160u << 24) | (48u << 16) | (199u << 8) | 115u) && source.port() == 30501);
+        CHECK(source.judge(kVbr, true, touch) == S::kTouch);
+        CHECK(source.judge(kTwin, true, touch) == S::kTwin && source.judge(kWlan, false, wifiTouch) == S::kTwin);
+        CHECK(source.judge(kVbr, true, twin) == S::kOtherSender && source.judge(kVbr, true, otherPdu) == S::kOther);
+        CHECK(source.ifindex() == kVbr && source.port() == 30501);
+        CHECK(evo::isWifiInterface("wlan0") && evo::isWifiInterface("wlan1") && evo::isWifiInterface("p2p-wlan0-0"));
+        CHECK(!evo::isWifiInterface("vbr0.73") && !evo::isWifiInterface("eth0") && !evo::isWifiInterface("lo"));
+        CHECK(!evo::isWifiInterface(nullptr));
+    }
 
     // Touch state machine: one tap = PRESS, DRAG, RELEASE; a duplicate is never a second tap.
     evo::TouchTracker t;

@@ -90,6 +90,10 @@ QEMU with the car's libraries).
   too early, refused, and Android Auto stayed stopped without a word. It now starts again once fully stopped; Start
   or Stop in the menu meanwhile cancels that restart, and if it has still not stopped 45 s later, the log says so.
   Tested on PC.
+- Touch: the service recognised the touchscreen by the first packet that reached its port, whatever it was. A packet
+  from elsewhere, for example from a phone on the car's Wi-Fi, could make it ignore the touchscreen for the whole
+  session. The touchscreen is now recognised by its first touch frame, from the unit's wired network, never from the
+  Wi-Fi. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
