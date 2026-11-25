@@ -105,6 +105,11 @@ QEMU avec les bibliothèques de la voiture).
   d'envoi de flèche finissait par une annulation tentée pendant une minute, alors que rien n'avait pu partir :
   jusqu'à plusieurs minutes d'essais de connexion inutiles par séance. Une annulation n'est plus tentée que si
   quelque chose a vraiment été envoyé au compteur. Testé sur PC.
+- Flèches au compteur et à la tête haute : une distance du téléphone qui n'était pas un nombre (« inf », « nan »),
+  négative ou démesurée partait telle quelle, ou donnait au compteur une position calculée au hasard. Une telle
+  distance compte maintenant comme absente : le compteur affiche la distance tirée des mètres, sinon « - ». Un texte
+  court n'est plus affiché tel quel que s'il est fait de chiffres (« 0.3 », « 1,5 »), et un nom de rue qui n'est pas
+  de l'UTF-8 valide n'arrive plus au compteur en caractères invalides. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

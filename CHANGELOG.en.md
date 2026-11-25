@@ -105,6 +105,11 @@ QEMU with the car's libraries).
   an arrow ended in a cancel retried for a minute, although nothing could have gone out: up to several minutes of
   useless connection tries per session. A cancel is now tried only when something was really sent to the cluster.
   Tested on PC.
+- Cluster and head-up arrows: a distance from the phone that was no number ("inf", "nan"), negative or absurdly
+  large went through as it was, or gave the cluster a position computed at random. Such a distance now counts as
+  missing: the cluster shows the distance worked out from the metres, else "-". A short text is shown as sent only
+  when it is made of digits ("0.3", "1,5"), and a street name that is not valid UTF-8 no longer reaches the cluster
+  as invalid characters. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

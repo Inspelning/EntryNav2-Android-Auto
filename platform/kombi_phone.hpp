@@ -46,6 +46,10 @@ enum DisplayUnit {
     kUnitYards = 7,
 };
 
+// The farthest distance to a maneuver taken from the phone, in metres (100 000 km). A farther one, a negative one or
+// one that is no number at all (inf, nan) is no distance: never passed on to the cluster.
+const int64_t kFarthestMetres = 100000000;
+
 // One direction of a lane: LaneDirection.Shape (0 unknown, 1 straight, 2/3 slight left/right, 4/5 left/right, 6/7 sharp
 // left/right, 8/9 U-turn left/right), and whether the phone highlights it as a lane to take.
 struct LaneShape {
@@ -63,9 +67,9 @@ struct Maneuver {
     int exitNumber;   // NavigationManeuver's roundabout exit number as sent; -1 when absent
     bool hasExitAngle;
     int64_t exitAngle;
-    std::string distanceText;  // the phone's display value: "0.3", "600"
-    int distanceUnit;          // DisplayUnit
-    bool hasMetres;
+    std::string distanceText;      // the phone's display value: "0.3", "600"
+    int distanceUnit;              // DisplayUnit
+    bool hasMetres;                // metres was sent, and is from 0 to kFarthestMetres
     int64_t metres;                // to the maneuver
     std::vector<PhoneLane> lanes;  // left to right; phones send them near the junction only
 
