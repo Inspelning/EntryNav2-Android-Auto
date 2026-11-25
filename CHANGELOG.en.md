@@ -66,6 +66,10 @@ QEMU with the car's libraries).
   while the service was still closing the old one was no longer heard: its messages were dropped, and Android Auto
   only came back at its next connection, or after a Stop/Start. The new link now opens as soon as the old one is
   closed, with what the phone already sent. Tested on PC.
+- Compatibility check: Bluetooth was read on the BMW Apps' slot (0) only, while Android Auto takes slot 5 first. With
+  My BMW connected, the check called Bluetooth busy (`@warn|alps|`), and another app's UUID on slot 0 could block it
+  (`@block|uuid|`) with nothing to do with Android Auto. It now reads the slot a start would take, chosen the same way,
+  and names it (`@ok|alps|SPP 5`). Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

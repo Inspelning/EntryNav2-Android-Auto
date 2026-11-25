@@ -63,7 +63,7 @@ programmes restent dans `/tmp`, en mémoire.
 | `mic` | Fonctions du micro | Douteux |
 | `video`, `order` | **Démarrage à blanc :** taille de l'écran, emplacement de l'image, superposition des couches | Bloquant |
 | `screen` | Écran d'une autre taille que 1280x480, 800x480 et 1440x540 : accepté, mais jamais essayé en voiture | Douteux |
-| `alps`, `uuid`, `spp` | **Démarrage à blanc :** bibliothèque Bluetooth de même structure, profil reconnu, état lisible | Bloquant pour le sans-fil seulement ; Bluetooth occupé : douteux. En mode USB : information |
+| `alps`, `uuid`, `spp` | **Démarrage à blanc :** bibliothèque Bluetooth de même structure, profil reconnu, état lisible, sur l'emplacement que prendrait Android Auto (détail de `alps` : `SPP 5`, ou `SPP 0` là où le 5 n'est pas disponible) | Bloquant pour le sans-fil seulement ; Bluetooth occupé : douteux. En mode USB : information |
 | `usb` | Mode USB choisi : fichier `/var/local/data/AA/usb` présent ([USB](USB.md)) | Information ; fichier qui contient autre chose qu'un nom de prise : bloquant |
 | `running` | Android Auto tourne déjà : l'écran et le Bluetooth ne sont pas contrôlés | Information |
 | `hotspot`, `gps` | Wi-Fi de la voiture disponible, GPS de la voiture reconnu | Information |
@@ -128,7 +128,10 @@ Android Auto emprunte un emplacement de la pile Bluetooth BMW, puis le rend. La 
 règle que deux : le 0, celui des BMW Apps, où se connecte l'appli My BMW, et le 1, celui de CarPlay. Android Auto prend le
 5, et laisse le 0 à My BMW. Sur une voiture où le 5 n'est pas démarré ou porte un autre identifiant, il prend le 0, comme
 avant : My BMW ne trouve alors plus la voiture tant qu'Android Auto tourne. Le journal du superviseur dit lequel il a pris
-(`Android Auto takes SPP 5` ou `takes SPP 0`).
+(`Android Auto takes SPP 5` ou `takes SPP 0`). Le contrôle regarde le même emplacement, choisi de la même façon
+(`@ok|alps|SPP 5` ou `SPP 0`) : My BMW connecté sur le 0 ne le rend plus douteux quand Android Auto prend le 5. Un
+emplacement 5 encore connecté, ou qui porte encore Android Auto, sort en `@warn|alps|` : un démarrage attend qu'il se
+libère.
 
 Pour vérifier cet emplacement, Android Auto lit les tables de la pile en mémoire. Sur une autre voiture :
 

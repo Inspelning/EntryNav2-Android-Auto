@@ -62,6 +62,11 @@ QEMU avec les bibliothèques de la voiture).
   séance perdue) pendant que le service finissait de fermer l'ancien n'était plus entendu : ses messages étaient
   jetés, et Android Auto ne revenait qu'à sa connexion suivante, ou après un Arrêter/Démarrer. Le nouveau lien
   s'ouvre maintenant dès que l'ancien est fermé, avec ce que le téléphone a déjà envoyé. Testé sur PC.
+- Contrôle de compatibilité : le Bluetooth était lu sur l'emplacement des BMW Apps (0) seulement, alors qu'Android
+  Auto prend d'abord le 5. Avec My BMW connecté, le contrôle disait le Bluetooth occupé (`@warn|alps|`), et
+  l'identifiant d'une autre appli sur le 0 pouvait le bloquer (`@block|uuid|`) sans rapport avec Android Auto. Il lit
+  maintenant l'emplacement qu'un démarrage prendrait, choisi de la même façon, et le nomme (`@ok|alps|SPP 5`). Testé
+  sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

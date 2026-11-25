@@ -355,18 +355,23 @@ bool slotInterface(unsigned slot, std::vector<uint8_t>& cfg) {
     const uint8_t id = static_cast<uint8_t>(slot);
     return bt.start(id) && bt.readConfiguration(id, 0x6203, cfg, 2000) && cfg.size() == 1 && cfg[0] <= 1;
 }
+// What slot 5 offers a start (spp_baseline.hpp), read as the start reads it; --compat uses the same rule.
+evo::SlotOffer readSpareSlot(evo::SppSnapshotReader& reader, evo::SppSlotSnapshot& spare, bool& spareRead) {
+    spareRead = reader.read(evo::kAaSlot, spare);
+    return evo::spareSlotOffer(spareRead, spare, aaPayload());
+}
 // Slot 5 when BMW started it and nobody uses it (spp_baseline.hpp), slot 0 as before otherwise. Only reads.
 bool chooseSlot(evo::SppSnapshotReader& reader, unsigned& slotId, evo::SppSlotSnapshot& slot,
                 std::vector<uint8_t>& cfg) {
     evo::SppSlotSnapshot spare;
-    const bool spareRead = reader.read(evo::kAaSlot, spare);
+    bool spareRead = false;
+    const evo::SlotOffer offer = readSpareSlot(reader, spare, spareRead);
     if (spareRead) {
         ELOG("Supervisor", "preflight: SPP %u: state=%u transport=%u connected=%u UUID=%s", evo::kAaSlot, spare.state,
              spare.transportState, spare.connected ? 1 : 0, hex(spare.uuidPayload).c_str());
     } else {
         ELOG("Supervisor", "preflight: SPP %u unreadable: %s", evo::kAaSlot, reader.error().c_str());
     }
-    evo::SlotOffer offer = evo::spareSlotOffer(spareRead, spare, aaPayload());
     if (offer == evo::kSlotBusy) {
         ELOG("Supervisor", "preflight: SPP %u connected or already holding Android Auto: start refused for now",
              evo::kAaSlot);
@@ -457,6 +462,36 @@ void bluetoothLine(bool usb, const char* level, const char* id, std::string deta
     level = bluetoothLevel(level, usb, detail);
     compatLine(level, id, detail);
 }
+// The Bluetooth points on the slot a start would take, chosen by the same rule (readSpareSlot): slot 5 while it is
+// free, slot 0 where 5 is not available. Slot 0 alone said nothing about a car where Android Auto takes 5: My BMW
+// connected on it read as a busy Bluetooth, another app's UUID there as a block.
+void compatBluetooth(evo::SppSnapshotReader& reader, bool usb) {
+    if (!reader.open()) {
+        bluetoothLine(usb, "block", "alps", reader.error());
+        return;
+    }
+    evo::SppSlotSnapshot slot;
+    bool spareRead = false;
+    const evo::SlotOffer offer = readSpareSlot(reader, slot, spareRead);
+    if (offer == evo::kSlotBusy) {
+        bluetoothLine(usb, "warn", "alps",
+                      "SPP 5 connected or still holding Android Auto: a start waits until it is free (uuid, spp not "
+                      "checked)");
+        return;
+    }
+    const unsigned slotId = offer == evo::kSlotFree ? evo::kAaSlot : evo::kAaFallbackSlot;
+    if (offer != evo::kSlotFree && !reader.read(slotId, slot)) {
+        bluetoothLine(usb, "block", "alps", reader.error());
+        return;
+    }
+    char where[16];
+    snprintf(where, sizeof(where), "SPP %u", slotId);
+    bluetoothLine(usb, slot.idle() ? "ok" : "warn", "alps", where);
+    bluetoothLine(usb, evo::baselineSupported(slot.uuidPayload) ? "ok" : "block", "uuid", hex(slot.uuidPayload));
+    // On slot 5 the stack answers slot 0's value (slotConfigurationReadable): the read shows that it answers.
+    std::vector<uint8_t> cfg;
+    bluetoothLine(usb, slotInterface(slotId, cfg) ? "ok" : "block", "spp");
+}
 // Functions found at run time (dlopen) escape the loader's own check.
 std::string missingFunctions(const char* library, const char* const* names, size_t count) {
     evo::ElfFile elf;
@@ -533,19 +568,7 @@ int compatReport() {
         compatLine("block", "order");
     }
     evo::SppSnapshotReader reader;
-    evo::SppSlotSnapshot slot;
-    if (!reader.open() || !reader.read(0, slot)) {
-        bluetoothLine(usb, "block", "alps", reader.error());
-    } else {
-        bluetoothLine(usb, slot.idle() ? "ok" : "warn", "alps");
-        bluetoothLine(usb, evo::baselineSupported(slot.uuidPayload) ? "ok" : "block", "uuid", hex(slot.uuidPayload));
-        evo::AlpsSppLink bt;
-        bt.setMonitorOnly(true);
-        std::vector<uint8_t> cfg;
-        const bool readable =
-            bt.start(0) && bt.readConfiguration(0, 0x6203, cfg, 2000) && cfg.size() == 1 && cfg[0] <= 1;
-        bluetoothLine(usb, readable ? "ok" : "block", "spp");
-    }
+    compatBluetooth(reader, usb);
     aa::ApInfo ap;
     std::string source;
     compatLine(evo::loadAccessPoint(ap, source) ? "ok" : "info", "hotspot");

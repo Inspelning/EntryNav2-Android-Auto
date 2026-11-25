@@ -587,6 +587,86 @@ void compatBluetoothCases() {
     assert(!strcmp(bluetoothLevel("block", false, detail), "block"));
     assert(detail == "wireless only, USB mode does not use Bluetooth");
 }
+// --compat's whole report, as printed.
+static std::string compatOutput() {
+    fflush(stdout);
+    char path[] = "/tmp/entry-aa-compat-test-XXXXXX";
+    const int fd = mkstemp(path);
+    const int saved = dup(1);
+    assert(fd >= 0 && saved >= 0 && dup2(fd, 1) == 1);
+    assert(compatReport() == 0);
+    alarm(0);  // set by the report for the car
+    fflush(stdout);
+    assert(dup2(saved, 1) == 1 && close(saved) == 0);
+    std::string text;
+    char chunk[512];
+    ssize_t n;
+    assert(lseek(fd, 0, SEEK_SET) == 0);
+    while ((n = read(fd, chunk, sizeof(chunk))) > 0) {
+        text.append(chunk, static_cast<size_t>(n));
+    }
+    assert(close(fd) == 0 && unlink(path) == 0);
+    return "\n" + text;
+}
+static bool reported(const std::string& text, const char* line) {
+    return text.find("\n" + std::string(line) + "\n") != std::string::npos;
+}
+// --compat reads the Bluetooth slot a start would take, by the same rule (spp_baseline.hpp): with slot 5 free, My
+// BMW connected on slot 0 or a UUID of another app there says nothing about Android Auto.
+static void compatSlotCases(const std::vector<uint8_t>& bmw, const std::vector<uint8_t>& generic) {
+    const std::vector<uint8_t> other(bmw.size(), 0x22);
+    phoneComing = false;
+    failRead = false;
+    transientReads = 0;
+    // Slot 5 free, My BMW connected on slot 0: Android Auto takes 5.
+    testSlot = 5;
+    simulated = evo::SppSlotSnapshot();
+    simulated.state = 1;
+    simulated.uuidPayload = simulated.transportUuidPayload = generic;
+    spare = evo::SppSlotSnapshot();
+    spare.state = 2;
+    spare.transportState = 1;
+    spare.connected = true;
+    spare.uuidPayload = spare.transportUuidPayload = bmw;
+    spareReadable = true;
+    std::string text = compatOutput();
+    assert(reported(text, "@ok|alps|SPP 5") && reported(text, "@ok|uuid|011101011101") && reported(text, "@ok|spp|"));
+    // Slot 5 free, another app's UUID on slot 0: no false @block.
+    spare = evo::SppSlotSnapshot();
+    spare.state = 1;
+    spare.uuidPayload = spare.transportUuidPayload = other;
+    text = compatOutput();
+    assert(reported(text, "@ok|alps|SPP 5") && reported(text, "@ok|uuid|011101011101"));
+    assert(text.find("|uuid|" + hex(other)) == std::string::npos);
+    // Slot 5 holding Android Auto (a restore still due): a start waits; its UUID is ours, not a block.
+    simulated.uuidPayload = simulated.transportUuidPayload = aaPayload();
+    text = compatOutput();
+    assert(text.find("\n@warn|alps|SPP 5 connected or still holding Android Auto") != std::string::npos);
+    assert(text.find("|uuid|") == std::string::npos && text.find("|spp|") == std::string::npos);
+    // Slot 5 not started: slot 0, as a start takes it, checked as before.
+    testSlot = 0;
+    simulated = evo::SppSlotSnapshot();
+    simulated.state = 1;
+    simulated.uuidPayload = simulated.transportUuidPayload = bmw;
+    spare = evo::SppSlotSnapshot();
+    spare.uuidPayload = spare.transportUuidPayload = generic;
+    text = compatOutput();
+    assert(reported(text, "@ok|alps|SPP 0") && reported(text, ("@ok|uuid|" + hex(bmw)).c_str()));
+    assert(reported(text, "@ok|spp|"));
+    simulated.state = 2;
+    simulated.connected = true;  // My BMW connected on the slot Android Auto would share: doubtful
+    text = compatOutput();
+    assert(reported(text, "@warn|alps|SPP 0; wireless only, USB mode does not use Bluetooth"));
+    simulated.state = 1;
+    simulated.connected = false;
+    simulated.uuidPayload = simulated.transportUuidPayload = other;  // a pair it could not restore: blocked
+    text = compatOutput();
+    assert(text.find("\n@block|uuid|" + hex(other)) != std::string::npos);
+    spareReadable = false;  // slot 5 unreadable: slot 0 too
+    simulated.uuidPayload = simulated.transportUuidPayload = bmw;
+    text = compatOutput();
+    assert(reported(text, "@ok|alps|SPP 0"));
+}
 int main() {
     const uint8_t generic[] = {1, 0x11, 1, 1, 0x11, 1};
     const std::vector<uint8_t> genericPair(generic, generic + 6);
@@ -626,8 +706,9 @@ int main() {
     slotCases(bmw, genericPair);
     advertisementCases();
     compatBluetoothCases();
+    compatSlotCases(bmw, genericPair);
     puts(
         "PASS supervisor: actual BMW and generic preflight, exact child snapshot, saved pairs reloaded/restored, "
         "partial failures and busy/third-party refusals, slot 5 with slot 0 left to BMW Apps, a phone back on the "
-        "slot during the restore, Bluetooth points of the check for wireless only");
+        "slot during the restore, Bluetooth points of the check for wireless only and on the slot a start takes");
 }
