@@ -85,6 +85,11 @@ QEMU with the car's libraries).
   last 15 minutes count now, as for the automatic start, and the app comes back by itself afterwards; the files of
   both guards can no longer be left half written by a power cut
   ([#4](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/4)). Tested on PC.
+- USB stick update: when it ended without installing anything while Android Auto was stopping for it (a call or
+  reverse gear meanwhile, or a stop that took too long), Android Auto was to start again, but the start was asked for
+  too early, refused, and Android Auto stayed stopped without a word. It now starts again once fully stopped; Start
+  or Stop in the menu meanwhile cancels that restart, and if it has still not stopped 45 s later, the log says so.
+  Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

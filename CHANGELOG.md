@@ -84,6 +84,11 @@ QEMU avec les bibliothèques de la voiture).
   démarrage automatique, et l'appli revient d'elle-même ensuite ; les fichiers des deux garde-fous ne peuvent plus
   rester à moitié écrits après une coupure de courant ([#4](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/4)).
   Testé sur PC.
+- Mise à jour par clé USB : quand elle s'arrêtait sans rien installer pendant qu'Android Auto s'arrêtait pour elle
+  (un appel ou la marche arrière arrivés entre-temps, ou un arrêt trop long), Android Auto devait repartir, mais la
+  relance était demandée trop tôt, refusée, et Android Auto restait arrêté sans rien dire. Il repart maintenant une
+  fois complètement arrêté ; Démarrer ou Arrêter dans le menu entre-temps annule cette relance, et s'il n'est
+  toujours pas arrêté 45 s plus tard, le journal le dit. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

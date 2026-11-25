@@ -99,7 +99,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `hold_machine` | Quand demander la page vide de l'iDrive sous Android Auto (classe pure, testée sur PC) |
 | `pending_restart.hpp` | Redémarrage d'Android Auto quand la case du câble USB change en marche (testé sur PC) |
 | `service_link` | Lancement du superviseur, commandes au service, arrêt, copie des journaux et mise à jour par clé USB |
-| `update_flow.hpp` | Ligne *Mettre à jour par clé USB* : vérification au premier appui, installation au second, arrêt d'Android Auto avant, textes affichés (classe pure, testée sur PC) |
+| `update_flow.hpp` | Ligne *Mettre à jour par clé USB* : vérification au premier appui, installation au second, arrêt d'Android Auto avant (et relance, une fois arrêté, si rien n'a été installé), textes affichés (classe pure, testée sur PC) |
 | `car_signals` | Marche arrière, appels, jour et nuit, mode de conduite, lus dans l'iDrive |
 | `idrive_coding` | Codage de la voiture lu dans l'iDrive au démarrage de l'appli et écrit pour le service : touches du contrôleur, marque (BMW ou MINI) ; réglage de la fenêtre du mode de conduite, lu pour l'appli |
 | `app_guards` | Interrupteur, garde-fou contre les plantages, démarrage automatique, cases du menu |

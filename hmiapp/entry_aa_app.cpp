@@ -162,6 +162,8 @@ void showSettings(bmw::PluginApp* app) {
     g_settingsShown = true;
 }
 PendingRestart g_restart;  // the USB checkbox changed while Android Auto ran
+// "Update from USB stick" (hmiapp/update_flow.hpp): a press checks the stick; a second one installs.
+UpdateFlow g_update;
 
 bool guardedByOverlay(const char* what) {
     ServiceState d = readServiceState();
@@ -187,6 +189,7 @@ void startServiceOrShow() {
         alog("start: service starting (%s): waiting for it", d.state);
     } else {
         g_restart.cancel();
+        g_update.cancelRestart();
         launchService();
     }
 }
@@ -211,6 +214,7 @@ bool onStartRow(void*, const bmw::Parcel&) {
 bool onStopRow(void*, const bmw::Parcel&) {
     alog("menu: Stop (raAction %u)", kActStop);
     g_restart.cancel();  // stopped by hand: it stays stopped
+    g_update.cancelRestart();
     if (stopInProgress() || guardedByOverlay("stop")) {
         return true;
     }
@@ -334,8 +338,7 @@ void pollLogCopy(bmw::PluginApp* app) {
     }
 }
 
-// "Update from USB stick" (hmiapp/update_flow.hpp): a press checks the stick; a second one installs.
-UpdateFlow g_update;
+// The update button (g_update, above): its text as shown.
 unsigned g_updateText = kTextUpdate;
 
 // Android Auto runs, or its supervisor is still giving the Bluetooth back; and whether the unit may restart now.
@@ -358,10 +361,15 @@ void updateStep(bmw::PluginApp* app, UpdateFlow::Step step) {
         beginStop();
     }
     holdServiceStarts(g_update.holdsAndroidAuto());
-    if (g_update.takeRestart()) {
-        alog("update: nothing installed, starting Android Auto again");
+    // Only once nothing of Android Auto is left: asked for while its supervisor still gave the Bluetooth back, the
+    // start was refused and Android Auto stayed stopped.
+    const PendingRestart::Turn restart = g_update.takeRestart();
+    if (restart == PendingRestart::kStart) {
+        alog("update: nothing installed, Android Auto has stopped: starting it again");
         forgetBootGuard();
         launchService();
+    } else if (restart == PendingRestart::kGiveUp) {
+        alog("update: nothing installed, Android Auto still there after %ld s: left as it is", kRestartGiveUpS);
     }
     if (app && g_update.text() != g_updateText) {
         bmw::TextID id(g_update.text());
