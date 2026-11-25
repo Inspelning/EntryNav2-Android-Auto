@@ -58,6 +58,10 @@ QEMU avec les bibliothèques de la voiture).
   attendre jusqu'à 15 s ses réglages, et le superviseur arrêtait alors le service de force au bout de 10 s, sans son
   arrêt propre. Plus aucun réglage n'est demandé au point d'accès une fois l'arrêt demandé : l'arrêt n'attend que celui
   en cours, 5 s au plus. Testé sur PC.
+- Sans-fil : un téléphone qui rouvrait son lien Bluetooth très vite (0,1 s après l'avoir fermé, comme après une
+  séance perdue) pendant que le service finissait de fermer l'ancien n'était plus entendu : ses messages étaient
+  jetés, et Android Auto ne revenait qu'à sa connexion suivante, ou après un Arrêter/Démarrer. Le nouveau lien
+  s'ouvre maintenant dès que l'ancien est fermé, avec ce que le téléphone a déjà envoyé. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

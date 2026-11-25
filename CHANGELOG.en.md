@@ -62,6 +62,10 @@ QEMU with the car's libraries).
   15 s for its settings, and the supervisor then killed the service after 10 s, without its clean stop. No setting is
   asked of the access point any more once the stop is asked: the stop only waits for the one under way, 5 s at most.
   Tested on PC.
+- Wireless: a phone that opened its Bluetooth link again very fast (0.1 s after closing it, as after a lost session)
+  while the service was still closing the old one was no longer heard: its messages were dropped, and Android Auto
+  only came back at its next connection, or after a Stop/Start. The new link now opens as soon as the old one is
+  closed, with what the phone already sent. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
