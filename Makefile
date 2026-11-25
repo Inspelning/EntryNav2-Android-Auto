@@ -195,6 +195,7 @@ test-host: test-parsers test-spp-host test-kombi-host test-gps-host test-capture
 	    -o tests/test-update-package
 	./tests/test-update-package
 	python3 tests/test_update_release.py tests/test-update-package
+	python3 tests/test_docs.py
 	$(HOST_CXX) $(HOST_FLAGS) $(HOST_SSL_FLAGS) tests/test_update_install.cpp $(UPDATE_SRC) -lcrypto \
 	    -o tests/test-update-install
 	./tests/test-update-install

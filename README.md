@@ -28,7 +28,7 @@ English · [Français](README.fr.md)
   automatically, logs, update, help.
 - **Updates without a PC** (from 0.13.0-rc.10). After the first installation over SSH, a new version installs from a
   USB stick, through the Android Auto menu. Only an archive signed by the project is accepted
-  ([updating](docs/INSTALLATION.md#par-clé-usb-sans-pc), in French).
+  ([updating](docs/INSTALLATION.en.md#from-a-usb-stick-without-a-pc)).
 - **Original controls.** iDrive controller, hard keys, touch screen, steering wheel buttons. The Assistant starts
   from Android Auto's microphone button; the steering wheel voice button stays with iDrive.
 - **Car microphone** for the Google Assistant, **car speakers** over Bluetooth.
@@ -65,7 +65,7 @@ on a PC. The [French changelog](CHANGELOG.md) is the authoritative version.
 ## Installing
 
 Installation is a short manual procedure over SSH, described step by step in
-[docs/INSTALLATION.md](docs/INSTALLATION.md) (in French; the commands speak for themselves):
+[docs/INSTALLATION.en.md](docs/INSTALLATION.en.md) ([French](docs/INSTALLATION.md)):
 
 1. Download `entrynav2-android-auto-<version>-armhf.tar` from [Releases](https://github.com/Jiraiya43/EntryNav2-Android-Auto/releases) and check
    its SHA-256.
@@ -79,7 +79,7 @@ Installation is a short manual procedure over SSH, described step by step in
 After that, newer versions install without a PC: the archive copied as is onto a USB stick, then *Mettre à jour par
 clé USB* (*Update from USB stick*) in the Android Auto menu. Only an archive signed by the project is accepted,
 everything is checked before anything is written, and an update cut by a power failure is finished by the next one
-([updating](docs/INSTALLATION.md#mettre-à-jour)).
+([updating](docs/INSTALLATION.en.md#updating)).
 
 Settings and logs live in `/var/local/data/AA` ([docs/MAINTENANCE.md](docs/MAINTENANCE.md)). Uninstalling removes the two
 folders.
