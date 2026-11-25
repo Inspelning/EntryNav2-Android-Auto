@@ -536,6 +536,14 @@ AASession::Received AASession::receive(uint8_t& channel, Message& wire, Message&
         }
         return kNothing;
     }
+    if (message.size() < kMessageIdSize) {
+        // Not even an id: read as id 0 it was media data, acked even on the control channel. No phone sends one.
+        if (logged) {
+            printf("[AASession] message of %u byte(s) on channel %u, shorter than its id: dropped\n",
+                   static_cast<unsigned>(message.size()), channel);
+        }
+        return kNothing;
+    }
     if (logged) {
         printHead(message);
     }

@@ -891,6 +891,11 @@ void fragmentEdges(std::vector<std::string>& log) {
     phone.send(6, kSealed, bytes({0x05}));
     phone.send(8, kSealed, bytes({0x05}));
     phone.settle();
+    log.push_back("-- channel 38: no media there, and its start indication leaves channel 6's session alone");
+    phone.send(38, kSealed, bytes({0x80, 0x01, 0x08, 0x09}));
+    phone.send(38, kSealed, bytes({0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0x03, 0x97}));
+    phone.send(6, kSealed, bytes({0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0x04, 0x96}));
+    phone.settle();
     log.push_back("-- a fragment that does not decrypt: the rest of its message skipped, a whole one passes, one ack");
     phone.piece(6, 0x09, head, static_cast<uint32_t>(video.size()));
     phone.cutRecord(6, 0x08, counting(6, 0x6c));

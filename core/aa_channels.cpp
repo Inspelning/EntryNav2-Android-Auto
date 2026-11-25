@@ -269,7 +269,7 @@ void AASession::onSetup(uint8_t channel) {
 void AASession::onStart(uint8_t channel, const Message& message) {
     const uint32_t session = bodyField(message, 1);
     if (session != kNoField) {
-        mediaSessions_[channel & 31] = session;
+        mediaSessions_[channel] = session;
     }
     printf("[AASession] >>> AV START_INDICATION on Channel %u (session %u)\n", channel,
            session == kNoField ? 0u : session);
@@ -318,7 +318,7 @@ void AASession::onMedia(uint8_t channel, uint16_t id, const Message& message) {
             g_trail.stage = kTrailHandler;
         }
     }
-    sendSealed(channel, message::mediaAck(mediaSessions_[channel & 31]));
+    sendSealed(channel, message::mediaAck(mediaSessions_[channel]));
 }
 
 // A message the phone sent on one of its streams, but lost on the way (a fragment that did not decrypt, a reassembly
@@ -330,7 +330,7 @@ void AASession::ackDropped(const FrameHeader& header) {
     if (header.position() != frame::kLast || !channel::isMediaSink(header.channel)) {
         return;
     }
-    const bool sent = sendSealed(header.channel, message::mediaAck(mediaSessions_[header.channel & 31]));
+    const bool sent = sendSealed(header.channel, message::mediaAck(mediaSessions_[header.channel]));
     printf("[AASession] media message lost on the way, acked on channel %u %s\n", header.channel,
            sent ? "sent" : "SEND FAILED");
 }

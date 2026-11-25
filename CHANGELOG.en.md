@@ -121,6 +121,10 @@ QEMU with the car's libraries).
   per message, as before), and a message announced larger than 8 MiB is dropped at its first piece. A device that
   opened a message on each of the 256 channels could make the service hold more than 2 GiB and bring it down. Tested
   on PC.
+- Android Auto session: a message too short to carry its number is dropped, instead of being taken for a picture or
+  sound and acknowledged, even on the control channel. Pictures and sound are only expected on the video and audio
+  channels the car announces to the phone; another channel can no longer change the stream number Android Auto
+  expects in the picture's acknowledgements. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

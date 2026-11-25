@@ -122,6 +122,10 @@ QEMU avec les bibliothèques de la voiture).
   ensemble (8 Mio par message, comme avant), et un message annoncé plus grand que 8 Mio est écarté dès son premier
   morceau. Un appareil qui ouvrait un message sur chacun des 256 canaux pouvait faire garder plus de 2 Gio au service
   et le faire planter. Testé sur PC.
+- Séance Android Auto : un message trop court pour porter son numéro est écarté, au lieu d'être pris pour une image
+  ou du son et accusé, même sur le canal de commande. Images et son ne sont plus attendus que sur les canaux vidéo et
+  audio que la voiture annonce au téléphone ; un autre canal ne peut plus changer le numéro de flux qu'Android Auto
+  attend dans les accusés de l'image. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

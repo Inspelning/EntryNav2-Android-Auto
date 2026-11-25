@@ -187,12 +187,12 @@ private:
     bool videoReady_;  // the phone set the video channel up: a focus can go
     bool projected_;   // the last video focus sent was FOCUSED
     KeyframeRequest keyframe_;
-    unsigned unreadableInARow_;   // encrypted frames that did not decrypt since the last one that did
-    bool sendBroken_;             // a send failed: nothing more goes out, the session ends (sendExactly)
-    uint32_t mediaSessions_[32];  // per channel, the session id of its start indication, echoed in our acks
-    uint32_t mediaMessages_;      // media messages received, every channel
-    uint32_t audioMessages_[2];   // guidance (8), media (9)
-    uint32_t microphoneChunks_;   // sent since the phone opened the microphone
+    unsigned unreadableInARow_;    // encrypted frames that did not decrypt since the last one that did
+    bool sendBroken_;              // a send failed: nothing more goes out, the session ends (sendExactly)
+    uint32_t mediaSessions_[256];  // per channel, the session id of its start indication, echoed in our acks
+    uint32_t mediaMessages_;       // media messages received, every channel
+    uint32_t audioMessages_[2];    // guidance (8), media (9)
+    uint32_t microphoneChunks_;    // sent since the phone opened the microphone
     // Log throttles, per session.
     unsigned framesSeen_[256];
     unsigned keysLogged_, movesLogged_, navigationLogged_, pings_;
