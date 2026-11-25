@@ -97,6 +97,10 @@ QEMU avec les bibliothèques de la voiture).
   ouverte. Si le décodeur la fermait, chaque lecture revenait aussitôt sans rien, et ce fil occupait un cœur du
   processeur à 100 % jusqu'à la fin de la séance. Il s'arrête maintenant ; sans ces messages, aucun tampon ne revient,
   et la séance se termine comme pour un décodeur bloqué. Testé sur PC.
+- Image : une configuration vidéo du téléphone beaucoup plus grosse qu'une vraie (qui tient en quelques dizaines
+  d'octets) était gardée et placée devant chaque image clé ; quand l'ensemble ne tenait plus dans le tampon du
+  décodeur, toutes les images clés étaient perdues tant qu'elle restait. Une configuration de plus de 4 Kio est
+  maintenant refusée, et la précédente reste. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

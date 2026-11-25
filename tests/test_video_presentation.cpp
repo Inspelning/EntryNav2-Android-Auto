@@ -17,7 +17,7 @@ static uint32_t decoded = 0;  // length of the last buffer handed to the decoder
 static bool visible = false;
 static float opacity = 1.f;
 static bool decoderHoldsAll = false;  // a stalled decoder: no buffer ever comes back
-static uint8_t bufferMemory[256];
+static uint8_t bufferMemory[8192];    // room for a codec config of kMaxCodecConfig and an IDR
 namespace evo {
 // One buffer, always free: the fake decoder never holds it, unless it stalled.
 DmaBufPool::DmaBufPool() : drmFd_(-1), dev_(0) {}
@@ -169,6 +169,24 @@ static void decoderStallRule() {
     assert(!stall.starved(2 * limit + 1, true) && !stall.starved(3 * limit, true));
     assert(!stall.starved(3 * limit + 1, false) && !stall.starved(3 * limit + 2, true));
     assert(!stall.starved(4 * limit + 1, true) && stall.starved(4 * limit + 2, true));
+}
+
+// A codec config bigger than any SPS/PPS is refused: in front of each IDR it left no room for the picture in the
+// buffer, and every IDR was lost while it stayed. Up to kMaxCodecConfig it is taken.
+static void oversizedCodecConfig(evo::EvoVideo& video, const evo::EvoVideoConfig& cfg) {
+    typedef evo::FrameFate Fate;
+    assert(video.init(cfg) && video.start());
+    video.postCodecConfig(kSpsPps, sizeof(kSpsPps));
+    static uint8_t huge[sizeof(bufferMemory) - sizeof(kIdr) + 1];  // with the IDR: 1 B too many
+    memset(huge, 0x11, sizeof(huge));
+    video.postCodecConfig(huge, sizeof(huge));
+    assert(video.postVideoFrame(kIdr, sizeof(kIdr), 0) == Fate::kDecoding && configThenIdr());
+    static uint8_t largest[evo::EvoVideo::kMaxCodecConfig];
+    memset(largest, 0x22, sizeof(largest));
+    video.postCodecConfig(largest, sizeof(largest));
+    assert(video.postVideoFrame(kIdr, sizeof(kIdr), 0) == Fate::kDecoding && decoded == sizeof(largest) + sizeof(kIdr));
+    assert(bufferMemory[0] == 0x22 && !memcmp(bufferMemory + sizeof(largest), kIdr, sizeof(kIdr)));
+    video.stop();
 }
 
 // libxsvideo gives no buffer back: once the limit has passed on screen, the frame says so once, and the frames after
@@ -339,6 +357,8 @@ int main() {
     assert(video.postVideoFrame(kIdr, sizeof(kIdr), 0) == Fate::kDecoding && configThenIdr());  // SPS/PPS again
     video.stop();
     puts("PASS video presentation: visibility, opacity cache, camera hide, SPS/PPS after a refused IDR, reconnect");
+    oversizedCodecConfig(video, cfg);
+    puts("PASS video presentation: a codec config over 4 KiB is refused, so that IDR frames keep their room");
 
     decoderStallRule();
     stalledDecoder(video, cfg);

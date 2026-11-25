@@ -230,6 +230,11 @@ void EvoVideo::postCodecConfig(const uint8_t* data, size_t len) {
     if (!data || !len) {
         return;
     }
+    if (len > kMaxCodecConfig) {
+        ELOG("Video", "codec config of %zu B refused (no SPS/PPS is over %zu B): the one cached before stays", len,
+             kMaxCodecConfig);
+        return;
+    }
     pthread_mutex_lock(&mu_);
     codecCfg_.assign(data, data + len);
     configSent_ = false;  // prepended to the next IDR

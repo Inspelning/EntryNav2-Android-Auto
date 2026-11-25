@@ -172,6 +172,9 @@ public:
     bool firstFrameSeen();                   // compositor frame callback after H.264; not a visual confirmation
 
     // SPS/PPS (the Android Auto codec config): kept and prepended to the first IDR frame after each (re)start.
+    // SPS and PPS take a few tens of bytes: a config over kMaxCodecConfig is refused, the one cached before stays.
+    // Kept, it would go in front of each IDR and leave no room for it in the buffer: every IDR would be lost.
+    static const size_t kMaxCodecConfig = 4096;
     void postCodecConfig(const uint8_t* data, size_t len);
     // One H.264 access unit, copied into a free dma-buf and handed to the decoder. On Wi-Fi a frame that comes right
     // after the previous one waits up to kFrameGapMs first, on the calling thread (FrameGap).

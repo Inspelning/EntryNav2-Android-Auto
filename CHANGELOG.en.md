@@ -98,6 +98,9 @@ QEMU with the car's libraries).
   open. Had the decoder closed it, every read would have come back at once with nothing, and that thread would have
   kept a processor core at 100 % until the end of the session. It now stops; without those messages no buffer comes
   back, and the session ends as for a stalled decoder. Tested on PC.
+- Picture: a video configuration from the phone far bigger than a real one (which fits in a few tens of bytes) was
+  kept and put in front of each key frame; when both no longer fitted in the decoder's buffer, every key frame was
+  lost while it stayed. A configuration over 4 KiB is now refused, and the previous one stays. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
