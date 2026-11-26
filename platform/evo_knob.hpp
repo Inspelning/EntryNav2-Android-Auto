@@ -200,7 +200,7 @@ private:
     // popup, driving mode, menu), or the phone would keep them down. Knob thread only.
     void releaseHeldKeys(const char* why);
     bool takeHeld(uint32_t keycode);
-    uint32_t held_[8];
+    uint32_t held_[16];
     int nHeld_;
     unsigned messages_, e5_, events_, sent_, rawLogged_;
 };

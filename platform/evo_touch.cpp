@@ -560,19 +560,18 @@ void EvoTouch::run() {
         if (mode_ == INPUT_FORWARD && !own && tracker_.activeCount()) {
             // The picture left with a finger down: the phone gets the lift its press was promised, iDrive nothing.
             aa::TouchEventOut ev[aa::kTouchMaxContacts];
-            int n = tracker_.releaseAll(ev, aa::kTouchMaxContacts);
-            const bool fingerSent = phone_.any();
+            const int n = tracker_.releaseAll(ev, aa::kTouchMaxContacts);
+            const int lifts = phoneLifts(phone_, n);
             for (int i = 0; i < n; ++i) {
                 ++events_;
-                if (fingerSent && cb_) {
+                if (i < lifts && cb_) {
                     cb_(ev[i], user_);
                     ++sent_;
                 }
             }
-            if (n && fingerSent) {
-                ELOG("Touch", "picture gone with a finger down: %d release(s) sent to AA", n);
+            if (lifts) {
+                ELOG("Touch", "picture gone with a finger down: %d release(s) sent to AA", lifts);
             }
-            phone_.clear();
         }
         struct pollfd p[2];
         int np = 0;
@@ -629,6 +628,19 @@ void EvoTouch::run() {
             int n = tracker_.releaseAll(ev, aa::kTouchMaxContacts);
             ELOG("Touch", "no frame for 400 ms: %d finger(s) released", n);
             emit(ev, n);
+        }
+    }
+    if (mode_ == INPUT_FORWARD && tracker_.activeCount()) {
+        // Stopped with a finger down: the same lifts as when the picture leaves.
+        aa::TouchEventOut ev[aa::kTouchMaxContacts];
+        const int n = tracker_.releaseAll(ev, aa::kTouchMaxContacts);
+        const int lifts = phoneLifts(phone_, n);
+        for (int i = 0; i < n; ++i) {
+            ++events_;
+            if (i < lifts && cb_) {
+                cb_(ev[i], user_);
+                ++sent_;
+            }
         }
     }
 }

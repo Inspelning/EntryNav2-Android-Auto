@@ -129,6 +129,16 @@ private:
     unsigned down_;  // bit k: finger k went down on the phone and has not been lifted there yet
 };
 
+// The lifts the tracker gives when the picture leaves (or the service stops) with fingers down: how many of them go to
+// the phone. All of them as soon as it saw a finger go down, even the lift of a finger that touched after the picture
+// left, so that its gesture ends with a RELEASE (a lift sorted finger by finger would leave it a pointer down); none
+// when it saw none. The phone's fingers are forgotten.
+inline int phoneLifts(PhoneFingers& phone, int lifts) {
+    const int sent = phone.any() ? lifts : 0;
+    phone.clear();
+    return sent;
+}
+
 class EvoTouch {
 public:
     using Callback = void (*)(const aa::TouchEventOut&, void*);

@@ -160,6 +160,9 @@ QEMU avec les bibliothèques de la voiture).
 - Appli iDrive : un service relancé entre deux sondages reçoit de nouveau l'état de la voiture (marche arrière, appel,
   aide au stationnement), une relance demandée juste après un lancement n'est plus perdue, et une erreur dans un rappel
   de l'iDrive ne remonte plus dans l'iDrive. Testé sur PC.
+- Toucher : un pincement interrompu par une fenêtre de l'iDrive ou la marche arrière, ou par l'arrêt d'Android Auto,
+  se termine bien côté téléphone (plus de doigt resté appuyé). Micro, pastille du volume, molette et GPS plus robustes.
+  Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

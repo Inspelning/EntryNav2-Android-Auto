@@ -128,7 +128,8 @@ struct Phone {
     std::string port;
     unsigned busNumber, address, vendor, product;
     bool android;    // answers the accessory protocol request
-    bool held;       // another program holds interface 0
+    bool held;       // another program holds interface 0 (EBUSY)
+    int claimErrno;  // non-zero: claimInterface fails with this errno (overrides held)
     bool unplugged;  // the device left: transfers never come back
     bool stuckOut;   // takes no data
     bool staysPut;   // takes the request to start as an accessory, and never becomes one
@@ -145,6 +146,7 @@ struct Phone {
           product(0x6860),
           android(true),
           held(false),
+          claimErrno(0),
           unplugged(false),
           stuckOut(false),
           staysPut(false),
@@ -235,6 +237,10 @@ public:
         Lock lock(phone_.mu);
         CHECK(number == 0);
         ++phone_.claims;
+        if (phone_.claimErrno != 0) {
+            errno = phone_.claimErrno;
+            return false;
+        }
         if (phone_.held) {
             errno = EBUSY;
             return false;

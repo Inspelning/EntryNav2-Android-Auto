@@ -404,9 +404,12 @@ void EvoKnob::onMessage(const VmostMsgView& m) {
     }
     const uint8_t* data = m.data;
     observeMedia(m);
-    uint8_t keys[8];
+    uint8_t keys[64];
     if (m.inst == 0x03 && (m.fkt == 0xC47 || m.fkt == 0xC4F) && m.op == 0xC && m.data && m.len <= sizeof(keys)) {
         // Match CcsDecoder's front-controller instance before updating retained state (status 7).
+        if (m.len > 8) {
+            memcpy(keys + 8, m.data + 8, m.len - 8);
+        }
         normalizePushButtons(m.data, m.len, pushPrev_, keys);  // touch (4) is not a press
         data = keys;
     }
@@ -444,7 +447,20 @@ void EvoKnob::onMessage(const VmostMsgView& m) {
                 forward = releaseToPhone;
             } else if (send) {
                 takeHeld(ev[i].keycode);  // pressed again without a release: still held once
-                if (nHeld_ < static_cast<int>(sizeof(held_) / sizeof(held_[0]))) {
+                const int maxHeld = static_cast<int>(sizeof(held_) / sizeof(held_[0]));
+                if (nHeld_ >= maxHeld && cb_) {
+                    aa::CcsEvent rel;
+                    rel.kind = 1;
+                    rel.keycode = held_[0];
+                    rel.down = 0;
+                    rel.delta = 0;
+                    rel.what = "RELEASE";
+                    cb_(rel, user_);
+                    ++sent_;
+                    memmove(held_, held_ + 1, static_cast<size_t>(maxHeld - 1) * sizeof(held_[0]));
+                    --nHeld_;
+                }
+                if (nHeld_ < maxHeld) {
                     held_[nHeld_++] = ev[i].keycode;
                 }
             }
@@ -512,12 +528,16 @@ void EvoKnob::pump(int ms) {
 }
 
 void EvoKnob::run() {
+    nRegistered_ = 0;
+    nVolRegistered_ = 0;
+    levelRegistered_ = false;
     int rc = vmost_.connect(vmostCallback, this, 0);
     if (rc != 0) {
         ELOG("Knob", "vmostd refused the connection (%d)", rc);
         return;
     }
     connected_ = true;
+    bool linkLost = false;  // vmostd closed or broke the connection: nothing more to ask of it, only to let it go
     for (size_t i = 0; i < sizeof(kInstances); ++i) {
         rc = vmost_.shadowRegister(kControllerFblock, kInstances[i]);
         ELOG("Knob", "shadow registration E5.%02x: %s (%d)", kInstances[i], rc == 0 ? "OK" : "refused", rc);
@@ -604,13 +624,14 @@ void EvoKnob::run() {
             }
             if (r > 0 && (p.revents & (POLLERR | POLLHUP | POLLNVAL))) {
                 ELOG("Knob", "vmostd closed the connection");
+                linkLost = true;
                 break;
             }
             if (r > 0 && (p.revents & POLLIN)) {
                 rc = vmost_.processMessages();
                 if (rc != 0) {
                     ELOG("Knob", "vMOST reading interrupted (%d)", rc);
-                    connected_ = false;
+                    linkLost = true;
                     break;
                 }
             }
@@ -624,13 +645,13 @@ void EvoKnob::run() {
                 peer_->tick(monoMs(), *this);
             }
         }
-        if (peer_ && connected_) {
+        if (peer_ && !linkLost) {
             peer_->finish(*this);
         }
         fd_ = -1;
     }
     releaseHeldKeys("controller reading stopped");
-    if (connected_) {
+    if (connected_ && !linkLost) {
         if (levelRegistered_) {
             vmost_.shadowDeregister(kAudioMasterFblock, kAudioMasterInstance);
             levelRegistered_ = false;
@@ -643,7 +664,9 @@ void EvoKnob::run() {
             rc = vmost_.shadowDeregister(kControllerFblock, registered_[i]);
             ELOG("Knob", "deregistration E5.%02x: %s (%d)", registered_[i], rc == 0 ? "OK" : "failed", rc);
         }
-        vmost_.disconnect();
+    }
+    if (connected_) {
+        vmost_.disconnect();  // the library's side too, the connection lost or not
         connected_ = false;
     }
 }

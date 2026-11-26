@@ -146,20 +146,37 @@ void onePortOnly() {
     CHECK(phone.opens == 0 && run.host.handed == 0);
 }
 
-// Another program holds the accessory: it is never taken from it, and after 3 resets the phone is left alone.
+// Another program holds the accessory (EBUSY): it is never taken from it, and after 3 resets the phone is left
+// alone. Another claim error (EIO) is handled the same way.
 void heldInterface() {
-    fake::Bus bus;
-    fake::Phone phone;
-    phone.held = true;
-    g_phones.assign(1, &phone);
-    phone.plug(bus, "1-1");
-    Run run(bus);
-    CHECK(fake::within(15000, [&]() { return phone.count(&fake::Phone::resets) == 3; }));
-    const unsigned started = phone.count(&fake::Phone::started);
-    usleep(1500000);
-    CHECK(phone.count(&fake::Phone::resets) == 3 && phone.count(&fake::Phone::started) <= started + 1);
-    CHECK(run.host.handed == 0 && phone.count(&fake::Phone::releases) == 0);
-    run.end();
+    {
+        fake::Bus bus;
+        fake::Phone phone;
+        phone.held = true;
+        g_phones.assign(1, &phone);
+        phone.plug(bus, "1-1");
+        Run run(bus);
+        CHECK(fake::within(15000, [&]() { return phone.count(&fake::Phone::resets) == 3; }));
+        const unsigned started = phone.count(&fake::Phone::started);
+        usleep(1500000);
+        CHECK(phone.count(&fake::Phone::resets) == 3 && phone.count(&fake::Phone::started) <= started + 1);
+        CHECK(run.host.handed == 0 && phone.count(&fake::Phone::releases) == 0);
+        run.end();
+    }
+    {
+        fake::Bus bus;
+        fake::Phone phone;
+        phone.claimErrno = EIO;
+        g_phones.assign(1, &phone);
+        phone.plug(bus, "1-1");
+        Run run(bus);
+        CHECK(fake::within(15000, [&]() { return phone.count(&fake::Phone::resets) == 3; }));
+        const unsigned started = phone.count(&fake::Phone::started);
+        usleep(1000000);
+        CHECK(phone.count(&fake::Phone::resets) == 3 && phone.count(&fake::Phone::started) <= started + 1);
+        CHECK(run.host.handed == 0 && phone.count(&fake::Phone::releases) == 0);
+        run.end();
+    }
 }
 
 // A phone that takes the request to start as an accessory but never becomes one: asked 5 times, then left alone until

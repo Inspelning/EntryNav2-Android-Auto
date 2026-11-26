@@ -157,6 +157,8 @@ QEMU with the car's libraries).
 - iDrive app: a service restarted between two polls gets the car's state again (reverse gear, call, parking aid), a
   restart asked right after a launch is no longer lost, and an error in an iDrive callback no longer reaches iDrive.
   Tested on PC.
+- Touch: a pinch cut short by an iDrive window, the reverse gear or Android Auto stopping ends properly on the phone
+  (no finger left down). Microphone, volume pill, controller and GPS made sturdier. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

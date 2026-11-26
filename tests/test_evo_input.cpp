@@ -220,6 +220,25 @@ int main() {
         aa::buildTouchFrame(f2, two, 1, 0, 108);
         CHECK(tr.feed(f2, sizeof(f2), ev, 16) == 1 && ev[0].action == 1 && phone.admit(ev[0], false) && !phone.any());
     }
+    // The picture leaves (a popup, the reverse camera) during a pinch: the phone saw the first finger go down, the
+    // second came in the last instant, and the touch thread's next turn releases both. Both lifts go to the phone,
+    // the last one a RELEASE that ends the gesture; sorted finger by finger, the phone would get only a POINTER_UP and
+    // keep a pointer down.
+    {
+        evo::TouchTracker tr;
+        evo::PhoneFingers phone;
+        CHECK(frame(tr, 200, 100, 1, 0, ev) == 1 && phone.admit(ev[0], true));
+        aa::TouchContact two[2] = {{0, 2, 200, 100, 9}, {1, 1, 600, 300, 9}};
+        unsigned char f2[112];
+        aa::buildTouchFrame(f2, two, 2, 0, 12);
+        CHECK(tr.feed(f2, sizeof(f2), ev, 16) == 1 && !phone.admit(ev[0], false));  // the picture has just left
+        const int n = tr.releaseAll(ev, 16);
+        CHECK(n == 2 && ev[0].action == 6 && ev[1].action == 1);
+        CHECK(evo::phoneLifts(phone, n) == 2 && !phone.any());
+        // The phone saw no finger at all: no lift for it.
+        CHECK(frame(tr, 300, 100, 1, 24, ev) == 1 && !phone.admit(ev[0], false));
+        CHECK(tr.releaseAll(ev, 16) == 1 && evo::phoneLifts(phone, 1) == 0);
+    }
     // The same message split over three datagrams.
     evo::TouchTracker s;
     unsigned char whole[112], parts[3 * 112];
