@@ -411,12 +411,31 @@ bool chooseSlot(evo::SppSnapshotReader& reader, unsigned& slotId, evo::SppSlotSn
     }
     return true;
 }
+// The Alps process: among those of the user that owns org.alps.evolution on D-Bus (btmbt on the G20, where two
+// processes share the stack), else among all, as before that user was asked: on another car the stack may run under
+// another user, or D-Bus may not answer. Either way the library, its GOT and its identity are checked as always.
+// log: the step named in the log line when the user filter found nothing (null: no line).
+bool openAlps(evo::SppSnapshotReader& reader, const char* log) {
+    const int alpsUid = evo::queryAlpsServiceUid();
+    if (alpsUid >= 0 && reader.open(0, alpsUid)) {
+        return true;
+    }
+    if (log) {
+        if (alpsUid >= 0) {
+            ELOG("Supervisor", "%s: Alps library not found under D-Bus uid %d: every process scanned", log, alpsUid);
+        } else {
+            ELOG("Supervisor", "%s: Alps D-Bus service gave no user: every process scanned", log);
+        }
+    }
+    reader.close();
+    return reader.open();
+}
 bool preflight(evo::SppSnapshotReader& reader, Baseline& b) {
     if (!screenPreflight()) {
         return false;
     }
     reader.close();  // each attempt rescans Alps: with the first scan kept, a retry could never pass
-    if (!reader.open()) {
+    if (!openAlps(reader, "preflight")) {
         ELOG("Supervisor", "preflight: %s", reader.error().empty() ? "cannot open Alps" : reader.error().c_str());
         return false;
     }
@@ -467,7 +486,7 @@ void bluetoothLine(bool usb, const char* level, const char* id, std::string deta
 // free, slot 0 where 5 is not available. Slot 0 alone said nothing about a car where Android Auto takes 5: My BMW
 // connected on it read as a busy Bluetooth, another app's UUID there as a block.
 void compatBluetooth(evo::SppSnapshotReader& reader, bool usb) {
-    if (!reader.open()) {
+    if (!openAlps(reader, nullptr)) {
         bluetoothLine(usb, "block", "alps", reader.error());
         return;
     }
@@ -704,7 +723,7 @@ int main(int argc, char** argv) {
     Baseline baseline;
     if (service && access(journal, F_OK) == 0) {
         // A previous service of this boot ended without a confirmed restore: finish it before anything else.
-        if (!load(baseline) || !reader.open() || !recover(baseline, reader)) {
+        if (!load(baseline) || !reader.open(baseline.pid) || !recover(baseline, reader)) {
             ELOG("Supervisor", "restore: previous restore not confirmed: service refused, journal kept");
             return 1;
         }
@@ -718,7 +737,7 @@ int main(int argc, char** argv) {
             ELOG("Supervisor", "restore: journal unreadable or invalid: nothing restored");
             return 1;
         }
-        if (!reader.open()) {
+        if (!reader.open(baseline.pid)) {
             ELOG("Supervisor", "restore: cannot open Alps: %s; journal kept", reader.error().c_str());
             return 1;
         }

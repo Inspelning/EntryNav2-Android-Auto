@@ -16,6 +16,9 @@ unsigned testSlot = 0, started = 0, spareConfiguration = 0;
 bool spareReadable = false;
 unsigned configuration = 0, uuidWrites = 0, configWrites = 0, disconnects = 0;
 unsigned transientReads = 0, readerOpens = 0, readerCloses = 0;
+int dbusAlpsUid = 1011;    // the user D-Bus gives for org.alps.evolution (-1: none)
+bool alpsUnderUid = true;  // the Alps library is found among that user's processes
+std::vector<int> openedUids;
 bool failUuid = false, failConfig = false, videoGone = true, liveLink = false, failRead = false;
 int uuidStatus = 0;  // non-zero: the stack's answer to the next UUID writes (4: not ready yet, #97)
 bool flipKnown = true;
@@ -51,11 +54,15 @@ bool requestWlanAccessPoint(unsigned, WlanRequestResult*) {
     ++hotspotRequests;
     return true;
 }
+int queryAlpsServiceUid() {
+    return dbusAlpsUid;
+}
 SppSnapshotReader::SppSnapshotReader() : fd_(-1), pid_(123), base_(0), identity_("456") {}
 SppSnapshotReader::~SppSnapshotReader() {}
-bool SppSnapshotReader::open() {
+bool SppSnapshotReader::open(int, int uid) {
     ++readerOpens;
-    return true;
+    openedUids.push_back(uid);
+    return uid < 0 || alpsUnderUid;
 }
 void SppSnapshotReader::close() {
     ++readerCloses;
@@ -213,6 +220,15 @@ static void recoveryCases(const std::vector<uint8_t>& original) {
         unsigned o = readerOpens, c = readerCloses;
         assert(preflight(reader, checked));
         assert(readerOpens == o + 1 && readerCloses == c + 1);
+        // The stack under another user than the one D-Bus gives, or D-Bus silent: every process scanned, as before.
+        alpsUnderUid = false;
+        openedUids.clear();
+        assert(preflight(reader, checked) && openedUids.size() == 2 && openedUids[0] == 1011 && openedUids[1] == -1);
+        alpsUnderUid = true;
+        dbusAlpsUid = -1;
+        openedUids.clear();
+        assert(preflight(reader, checked) && openedUids.size() == 1 && openedUids[0] == -1);
+        dbusAlpsUid = 1011;
     }
     assert(uuidWrites == 0 && configWrites == 0 && disconnects == 0);
     // Hotspot off -> one request to wland (only with --service / g_wlanAuto), not repeated within 60 s.

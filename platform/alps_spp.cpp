@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include <cerrno>
+#include <climits>
 #include <cstring>
 
 #include "evo_log.hpp"
@@ -580,6 +581,40 @@ struct AlpsSppLink::Impl {
         return true;
     }
 };
+
+int queryAlpsServiceUid() {
+    pthread_once(&dbusOnce, initDbus);
+    if (!dbusReady) {
+        return -1;
+    }
+    DBusError e;
+    dbus_error_init(&e);
+    DBusConnection* conn = dbus_bus_get_private(DBUS_BUS_SYSTEM, &e);
+    if (!conn) {
+        dbus_error_free(&e);
+        return -1;
+    }
+    dbus_connection_set_exit_on_disconnect(conn, FALSE);
+    DBusMessage* q =
+        dbus_message_new_method_call(DBUS_SERVICE_DBUS, DBUS_PATH_DBUS, DBUS_INTERFACE_DBUS, "GetConnectionUnixUser");
+    DBusMessage* reply = nullptr;
+    if (q && dbus_message_append_args(q, DBUS_TYPE_STRING, &service, DBUS_TYPE_INVALID)) {
+        reply = dbus_connection_send_with_reply_and_block(conn, q, 2000, &e);
+    }
+    if (q) {
+        dbus_message_unref(q);
+    }
+    dbus_uint32_t uid = 0;
+    const bool ok = reply && !dbus_error_is_set(&e) &&
+                    dbus_message_get_args(reply, nullptr, DBUS_TYPE_UINT32, &uid, DBUS_TYPE_INVALID);
+    if (reply) {
+        dbus_message_unref(reply);
+    }
+    dbus_error_free(&e);
+    dbus_connection_close(conn);
+    dbus_connection_unref(conn);
+    return (ok && uid <= static_cast<dbus_uint32_t>(INT_MAX)) ? static_cast<int>(uid) : -1;
+}
 
 AlpsSppLink::AlpsSppLink() : p_(new Impl) {}
 AlpsSppLink::~AlpsSppLink() {

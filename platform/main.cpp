@@ -202,6 +202,7 @@ int main(int argc, char** argv) {
     // No closeInheritedFds() here: libxsvideo opens /dev/kmsg in its constructor, before main(), and logs its errors
     // there; closing it would hand its number to our next socket. The supervisor, our only parent, already closed
     // what it inherited and opens nothing without close-on-exec.
+    evo::kombi::initBmwGuidanceThreading();
     bool run = false, monitor = false, introspect = false, configure = false, video = true, service = false;
     bool usb = false;
     const char* usbPort = nullptr;
@@ -384,8 +385,22 @@ int main(int argc, char** argv) {
         return 1;
     }
     evo::SppSnapshotReader alpsReader;
-    if (guarded && (!alpsReader.open() || !alpsReady(alpsReader, instance, baseline))) {
-        return 1;
+    if (guarded) {
+        unsigned long expectedAlpsPid = 0;
+        bool opened = false;
+        if (baseline.alpsPid && parseNumber(baseline.alpsPid, 0x7fffffffUL, expectedAlpsPid)) {
+            opened = alpsReader.open(static_cast<int>(expectedAlpsPid));
+        } else {
+            const int alpsUid = evo::queryAlpsServiceUid();  // as the supervisor's openAlps: that user, else all
+            opened = alpsUid >= 0 && alpsReader.open(0, alpsUid);
+            if (!opened) {
+                alpsReader.close();
+                opened = alpsReader.open();
+            }
+        }
+        if (!opened || !alpsReady(alpsReader, instance, baseline)) {
+            return 1;
+        }
     }
     if (guarded && instance != kBmwAppsSlot) {
         app.wifiLink.setAppsProbe(readAppsSlot, &alpsReader);  // same thread as the refreshes that use the reader
@@ -534,6 +549,8 @@ int main(int argc, char** argv) {
     app.server.stop();  // join the accept thread before stopping its last session
     app.session.stop();
     app.video.stop();
+    app.kombi.stop();
+    evo::kombi::closeBmwGuidance();
     app.bt.stop();
     if (input != evo::INPUT_OFF) {
         touch.summary();

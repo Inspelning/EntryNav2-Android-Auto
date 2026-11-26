@@ -156,17 +156,20 @@ void EvoControl::writeState(const char* state, int overlay) {
     if (stateFile_.empty()) {
         return;
     }
-    char line[64];
-    snprintf(line, sizeof(line), "%s %d %d\n", state, static_cast<int>(getpid()), overlay);
+    char text[64];
+    snprintf(text, sizeof(text), "%s %d %d", state, static_cast<int>(getpid()), overlay);
     const uint32_t now = monoMs();
-    if (last_ == line && now - lastWriteMs_ < 5000) {
+    if (last_ == text && now - lastWriteMs_ < 5000) {
         return;
     }
-    if (writeAtomicFile(stateFile_.c_str(), line, strlen(line), 0644)) {
-        if (last_ != line) {
-            ELOG("Control", "state -> %s", line);
+    char line[66];
+    const int n = snprintf(line, sizeof(line), "%s\n", text);
+    if (n > 0 && n < static_cast<int>(sizeof(line)) &&
+        writeAtomicFile(stateFile_.c_str(), line, static_cast<size_t>(n), 0644)) {
+        if (last_ != text) {
+            ELOG("Control", "state -> %s", text);
         }
-        last_ = line;
+        last_ = text;
         lastWriteMs_ = now;
     }
 }

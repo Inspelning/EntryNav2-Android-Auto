@@ -513,6 +513,7 @@ int main() {
         link.closeLink();
     }
     {
+        CHECK(evo::queryAlpsServiceUid() == static_cast<int>(getuid()));
         evo::AlpsSppLink link;
         CHECK(link.start(2));
         DBusError e;
@@ -523,6 +524,7 @@ int main() {
         }
         CHECK(!link.running());
         CHECK(link.waitLink(10) == -1);
+        CHECK(evo::queryAlpsServiceUid() == -1);
         evo::AlpsSppLink unavailable;
         CHECK(!unavailable.start(2));
         unavailable.stop();
