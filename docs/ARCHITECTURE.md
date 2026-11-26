@@ -102,6 +102,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `update_flow.hpp` | Ligne *Mettre à jour par clé USB* : vérification au premier appui, installation au second, arrêt d'Android Auto avant (et relance, une fois arrêté, si rien n'a été installé), textes affichés (classe pure, testée sur PC) |
 | `car_signals` | Marche arrière, appels, jour et nuit, mode de conduite, lus dans l'iDrive |
 | `idrive_coding` | Codage de la voiture lu dans l'iDrive au démarrage de l'appli et écrit pour le service : touches du contrôleur, marque (BMW ou MINI) ; réglage de la fenêtre du mode de conduite, lu pour l'appli |
+| `posted_task.hpp` | Tâches différées de l'appli marquées pendant qu'elles tournent : les lectures de l'iDrive (cache par fil de HmiMain3D) y sont refusées, elles arrêteraient son fil (testé sur PC, `tests/test_idrive_lookups.py` garde ces lectures dans `idrive_coding`) |
 | `app_guards` | Interrupteur, garde-fou contre les plantages, démarrage automatique, cases du menu |
 | `guard_file.hpp` | Fichiers des deux garde-fous : seuls les démarrages des 15 dernières minutes comptent, fichier remplacé d'un coup (testé sur PC) |
 | `app_log`, `log_profile.hpp` | Journal de l'appli, profil maintenance |

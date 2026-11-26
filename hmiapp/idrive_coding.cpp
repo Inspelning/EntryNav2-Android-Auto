@@ -15,12 +15,27 @@
 #include "../platform/driver_side.hpp"
 #include "../platform/service_contract.hpp"
 #include "app_log.hpp"
+#include "posted_task.hpp"
 #include "vtable_check.hpp"
 
 namespace evo {
 namespace app {
 
 namespace {
+
+// iDrive's lookups below go through its per-thread instance cache: refused inside one of the app's posted tasks
+// (posted_task.hpp), where they would stop the thread. Logged once per caller; the caller keeps what it knew.
+bool lookupRefused(const char* what, bool& logged) {
+    if (idriveLookupSafe()) {
+        return false;
+    }
+    if (!logged) {
+        logged = true;
+        alog("iDrive %s: not read inside a posted task (iDrive's per-thread lookup would stop its thread), kept as is",
+             what);
+    }
+    return true;
+}
 
 // HmiMain3D's exported template instances (nm -D: weak, defined). The usage object is one pointer-sized value,
 // returned in r0 (read in pushbuttonToKeycode: the result of get() is stored, then its address is passed to get()).
@@ -205,6 +220,10 @@ bool writeSeries(const VariantServer& server) {
 }  // namespace
 
 bool writeIdriveCoding() {
+    static bool refusalLogged = false;
+    if (lookupRefused("coding", refusalLogged)) {
+        return false;  // the files written before stay
+    }
     VariantServer server;
     if (!server.find()) {
         unlink(contract::kControllerFile);
@@ -221,7 +240,11 @@ bool writeIdriveCoding() {
 }
 
 DriveModePopup readDriveModePopup() {
-    DriveModePopup popup;
+    DriveModePopup popup = {-1, -1};
+    static bool refusalLogged = false;
+    if (lookupRefused("driving mode popup", refusalLogged)) {
+        return popup;  // unread: Android Auto steps aside for the popup, as before the setting was read
+    }
     popup.setting = readPopupSetting();
     VariantServer server;
     popup.forced = server.find(false) ? (server.isSet(kVariantForcedPopup) ? 1 : 0) : -1;

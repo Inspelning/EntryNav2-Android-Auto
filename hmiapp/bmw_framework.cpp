@@ -9,6 +9,7 @@
 
 #include <new>
 
+#include "posted_task.hpp"
 #include "vtable_check.hpp"
 
 namespace evo {
@@ -39,7 +40,8 @@ void makeRunnable(AppRunnable& r, void (*run)(void*)) {
     }
     vtbl[2] = reinterpret_cast<void*>(&runnableDestructor);
     vtbl[3] = reinterpret_cast<void*>(&runnableDestructor);
-    vtbl[4] = reinterpret_cast<void*>(run);
+    vtbl[4] = reinterpret_cast<void*>(&runPostedTask<AppRunnable>);
+    r.run = run;
     r.vptr = vtbl + 2;
 }
 

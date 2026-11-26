@@ -188,6 +188,9 @@ test-host: test-parsers test-spp-host test-kombi-host test-gps-host test-capture
 	./tests/test-child-reaper
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_vtable_check.cpp -o tests/test-vtable-check
 	./tests/test-vtable-check
+	$(HOST_CXX) $(HOST_FLAGS) tests/test_posted_task.cpp -o tests/test-posted-task
+	./tests/test-posted-task
+	python3 tests/test_idrive_lookups.py
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_pending_restart.cpp -o tests/test-pending-restart
 	./tests/test-pending-restart
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_guard_file.cpp -o tests/test-guard-file

@@ -167,6 +167,10 @@ QEMU avec les bibliothèques de la voiture).
   copie de la connexion du téléphone et du port d'Android Auto. Si le service rouvrait son port pendant ce temps, il
   ne pouvait plus le prendre et le téléphone n'était plus accepté jusqu'au redémarrage, comme l'a vu un autre projet
   en voiture. Ces connexions ne passent plus aux programmes lancés. Testé sur PC.
+- Appli iDrive : un autre projet a vu l'iDrive se bloquer puis l'unité redémarrer quand son appli lisait un service
+  de l'iDrive depuis une tâche différée. Chez nous ces lectures (codage, réglage de la fenêtre du mode de conduite) ne
+  se font qu'au démarrage de l'appli et à un changement de mode ; elles sont maintenant refusées dans une tâche
+  différée, pour qu'un ajout futur ne puisse pas refaire cette erreur. Rien ne change en voiture. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

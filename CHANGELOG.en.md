@@ -163,6 +163,10 @@ QEMU with the car's libraries).
   the phone's connection and of Android Auto's port. Had the service opened its port again meanwhile, it could not take
   it and the phone was no longer accepted until a restart, as another project saw in a car. These connections no longer
   pass to the programs the service starts. Tested on PC.
+- iDrive app: another project saw iDrive freeze and the head unit restart when its app read an iDrive service from a
+  posted task. Ours reads them (coding, driving mode popup setting) only as the app starts and when the driving mode
+  changes; they are now refused inside a posted task, so that a later addition cannot make that mistake. Nothing
+  changes in the car. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
