@@ -17,6 +17,8 @@ namespace app {
 // Starts the supervisor, unless it is missing, still running, was started less than 3 s ago, or starts are held for an
 // update.
 void launchService();
+// True while launchService() would still ignore a new start because of its 3 s debounce window.
+bool launchCoolingDown(long now);
 // Collects the supervisor and the stopped jobs that have ended, without waiting: first thing of each status poll.
 void reapChildren();
 void sendToService(const char* message);

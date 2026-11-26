@@ -43,9 +43,9 @@ UpdateFlow checked(UpdateResult found) {
 
 void firstPress() {
     UpdateFlow f;
-    CHECK(f.text() == app::kTextUpdate && !f.holdsAndroidAuto());
+    CHECK(f.text() == app::kTextUpdate && !f.holdsAndroidAuto() && !f.needsAndroidAutoState());
     CHECK(f.press(10, kRunning) == UpdateFlow::kStartCheck);  // reading the stick needs nothing stopped
-    CHECK(!f.holdsAndroidAuto());
+    CHECK(!f.holdsAndroidAuto() && !f.needsAndroidAutoState());
     CHECK(f.press(11, kRunning) == UpdateFlow::kNothing);                  // pressed again while it reads the stick
     CHECK(f.poll(200, kRunning) == UpdateFlow::kNothing && f.checking());  // a check ends when its program says so
     UpdateFlow notStarted;
@@ -108,7 +108,8 @@ void notDuringACallOrInReverse() {
 void androidAutoStoppedFirst() {
     UpdateFlow f = checked(UpdateResult::kNewer);
     CHECK(f.press(110, kRunning) == UpdateFlow::kStopAndroidAuto && f.text() == app::kTextUpdateStopping);
-    CHECK(f.holdsAndroidAuto());                                // nothing may start it again meanwhile
+    CHECK(f.holdsAndroidAuto() && f.needsAndroidAutoState() &&
+          !f.restartAsked());                                   // nothing may start it again meanwhile
     CHECK(f.press(111, kRunning) == UpdateFlow::kNothing);      // pressed again: one stop is enough
     CHECK(f.poll(115, kRunning) == UpdateFlow::kNothing);       // still stopping
     CHECK(f.poll(116, kStopped) == UpdateFlow::kStartInstall);  // stopped, Bluetooth given back: the install starts
@@ -168,7 +169,7 @@ UpdateFlow givenUpWhileStopping() {
     UpdateFlow f = checked(UpdateResult::kNewer);
     CHECK(f.press(110, kRunning) == UpdateFlow::kStopAndroidAuto);
     CHECK(f.poll(112, car(true, false)) == UpdateFlow::kNothing);  // a call: given up, Android Auto still stopping
-    CHECK(f.text() == app::kTextUpdateNotNow && !f.holdsAndroidAuto());
+    CHECK(f.text() == app::kTextUpdateNotNow && !f.holdsAndroidAuto() && f.needsAndroidAutoState() && f.restartAsked());
     return f;
 }
 void restartOnceStopped() {

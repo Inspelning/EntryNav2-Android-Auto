@@ -49,7 +49,7 @@ HoldMachine::HoldMachine(HoldIo& io)
       screen_(kScreenUnknown),
       radioBacks_(0),
       radioSince_(0),
-      serviceReachable_(false) {
+      servicePid_(0) {
     memset(prevState_, 0, sizeof(prevState_));
     strcpy(prevState_, "idle");
 }
@@ -367,12 +367,13 @@ void HoldMachine::menuFocus(unsigned state, bool focused, long now, int64_t nowM
 // come up over the camera. They are sent when the service becomes reachable, and again when the phone connects.
 void HoldMachine::tellService(const ServiceState& service) {
     const bool reachable = service.pid > 0;
-    if (reachable && !serviceReachable_) {
+    const bool newService = reachable && service.pid != servicePid_;
+    if (newService) {
         // From now on a phone that connects waits aside for our "show": iDrive is brought to our pages first. A
         // service that does not know the word shows Android Auto by itself, as before.
         io_.send("await");
     }
-    if ((reachable && !serviceReachable_) || (service.is("connected") && strcmp(prevState_, "connected"))) {
+    if (newService || (service.is("connected") && strcmp(prevState_, "connected"))) {
         io_.send(inCall_ ? "call 1" : "call 0");
         if (gear_ != kGearUnknown) {
             char msg[32];
@@ -383,7 +384,7 @@ void HoldMachine::tellService(const ServiceState& service) {
             io_.send(parkAssistOwns() ? "pdc 1" : "pdc 0");
         }
     }
-    serviceReachable_ = reachable;
+    servicePid_ = reachable ? service.pid : 0;
     strncpy(prevState_, service.state, sizeof(prevState_) - 1);
 }
 

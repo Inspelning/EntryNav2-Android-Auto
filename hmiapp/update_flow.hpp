@@ -105,6 +105,9 @@ public:
     unsigned text() const { return text_; }
     bool checking() const { return state_ == kChecking; }
     bool installing() const { return state_ == kInstalling; }
+    // True only when poll() needs to know whether Android Auto / the supervisor is still alive.
+    bool needsAndroidAutoState() const { return state_ == kStopping || restart_.asked(); }
+    bool restartAsked() const { return restart_.asked(); }
     // Android Auto must not start: it is being stopped for the install, the install runs, or the unit restarts.
     bool holdsAndroidAuto() const { return state_ == kStopping || state_ == kInstalling || state_ == kRestarting; }
     // Once each, from a poll: Android Auto was stopped for an install that then changed nothing, and nothing of it is

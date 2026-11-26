@@ -157,6 +157,9 @@ QEMU avec les bibliothèques de la voiture).
   ou ne lit plus ; le gestionnaire de plantage du service est plus sûr. Testé sur PC.
 - Appli iDrive : l'arrêt d'Android Auto vérifie qu'un numéro de processus est bien celui du superviseur ou du service
   avant de l'arrêter ; les fichiers de l'appli et du service ne suivent plus de lien symbolique. Testé sur PC.
+- Appli iDrive : un service relancé entre deux sondages reçoit de nouveau l'état de la voiture (marche arrière, appel,
+  aide au stationnement), une relance demandée juste après un lancement n'est plus perdue, et une erreur dans un rappel
+  de l'iDrive ne remonte plus dans l'iDrive. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

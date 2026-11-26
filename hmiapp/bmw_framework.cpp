@@ -3,6 +3,7 @@
 // The app's own bmw::Runnable and bmw::PluginApp vtable, and small wrappers around BMW's handlers (bmw_framework.hpp).
 #include "bmw_framework.hpp"
 
+#include <cxxabi.h>
 #include <dlfcn.h>
 #include <string.h>
 
@@ -75,6 +76,9 @@ bool parcelBool(const bmw::Parcel& value) {
 }
 
 void narrow(const bmw::BasicString<unsigned short>& value, char* text, size_t cap) {
+    if (!text || cap == 0) {
+        return;
+    }
     size_t n = 0;
     const unsigned short* p = value.raw();
     while (p && p[n] && n < cap - 1) {
@@ -86,10 +90,21 @@ void narrow(const bmw::BasicString<unsigned short>& value, char* text, size_t ca
 
 bmw::PluginApp* newPluginApp(bmw::IDispatcher& dispatcher, const char* name, const bmw::Bundle& params,
                              const bmw::Bundle& config, const PluginAppHooks& hooks, void** bmwVtable) {
-    void* mem = ::operator new(bmw::kPluginAppStorage);
+    void* mem = ::operator new(bmw::kPluginAppStorage, std::nothrow);
+    if (!mem) {
+        return nullptr;
+    }
     memset(mem, 0, bmw::kPluginAppStorage);
-    bmw::PluginApp* app = new (mem) bmw::PluginApp(dispatcher, bmw::BasicString<char>(name ? name : "EntryAad"), 1, 0,
-                                                   bmw::RHMI_INTERFACE_VERSION_1, params, config);
+    bmw::PluginApp* app = nullptr;
+    try {
+        app = new (mem) bmw::PluginApp(dispatcher, bmw::BasicString<char>(name ? name : "EntryAad"), 1, 0,
+                                       bmw::RHMI_INTERFACE_VERSION_1, params, config);
+    } catch (abi::__forced_unwind&) {
+        throw;  // a thread being cancelled
+    } catch (...) {
+        ::operator delete(mem, std::nothrow);
+        return nullptr;
+    }
     // Own copy of bmw::PluginApp's primary vtable with onInit / onError / onFinalize replaced (no BMW headers).
     void** base = *reinterpret_cast<void***>(app);
     *bmwVtable = base;
@@ -113,6 +128,9 @@ bmw::PluginApp* newPluginApp(bmw::IDispatcher& dispatcher, const char* name, con
 }
 
 void deletePluginApp(void* app) {
+    if (!app) {
+        return;
+    }
     void** vt = *reinterpret_cast<void***>(app);
     reinterpret_cast<void (*)(void*)>(vt[1])(app);  // deleting destructor
 }

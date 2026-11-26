@@ -85,6 +85,10 @@ bool controlPortBusy() {
 
 }  // namespace
 
+bool launchCoolingDown(long now) {
+    return g_lastLaunch != 0 && now - g_lastLaunch < 3;
+}
+
 // ---- launching the service ------------------------------------------------------------------------------------------
 void launchService() {
     const long now = monoSeconds();
@@ -92,7 +96,7 @@ void launchService() {
         alog("launch refused: an update from the USB stick is in progress");
         return;
     }
-    if (g_lastLaunch && now - g_lastLaunch < 3) {
+    if (launchCoolingDown(now)) {
         alog("launch ignored (pressed again within 3 s)");
         return;
     }

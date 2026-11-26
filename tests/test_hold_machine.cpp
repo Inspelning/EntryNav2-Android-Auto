@@ -1377,6 +1377,19 @@ void clockAndDates() {
         c.hold.menuFocus(kHelpState, true, c.now, c.ms);
         CHECK_OUT(c, "event 52");
     }
+    {  // restarted between two polls (PID changed without observing idle): car state is still resent
+        Car c;
+        c.gear(2);
+        c.call(true);
+        c.hold.pdcChanged(evo::app::kParkAssistOn);
+        c.take();
+        c.service("connected", 42, 0);
+        c.poll();
+        CHECK_OUT(c, "await, call 1, gear 2, pdc 1");
+        c.service("connected", 43, 0);  // new PID directly on next poll
+        c.poll();
+        CHECK_OUT(c, "await, call 1, gear 2, pdc 1");
+    }
 }
 
 int main() {

@@ -221,7 +221,7 @@ private:
     long radioSince_;     // first radio page won back in the current window, 0: none
 
     // The service, as told about the car
-    bool serviceReachable_;
+    int servicePid_;
     char prevState_[24];
 };
 

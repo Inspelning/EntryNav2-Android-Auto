@@ -21,6 +21,8 @@ namespace app {
 
 // Registers the handlers; their changes also go to hold.
 void subscribeCarSignals(bmw::PluginApp* app, HoldMachine& hold);
+// Detaches from the hold machine during finalize/destroy so late CDS callbacks become no-ops.
+void detachCarSignals();
 bool callActive();  // either phone line is in a call
 int lastGear();     // kGearUnknown until the first driving.gear value
 

@@ -659,10 +659,26 @@ int main(int argc, char** argv) {
     signal(SIGHUP, stopSignal);
     signal(SIGPIPE, SIG_IGN);
     // One supervisor at a time; --compat also reads this lock to know that Android Auto is running.
+    // Brief retry on EWOULDBLOCK so a microsecond status probe cannot reject a legitimate start.
     int lock = open(evo::contract::kWirelessLock, O_RDWR | O_CREAT | O_NOFOLLOW | O_CLOEXEC, 0600);
     struct stat st;
-    if (lock < 0 || fstat(lock, &st) || !S_ISREG(st.st_mode) || st.st_uid != getuid() ||
-        flock(lock, LOCK_EX | LOCK_NB)) {
+    bool locked = false;
+    if (lock >= 0 && fstat(lock, &st) == 0 && S_ISREG(st.st_mode) && st.st_uid == getuid()) {
+        for (int tries = 0; tries < 20; ++tries) {
+            if (flock(lock, LOCK_EX | LOCK_NB) == 0) {
+                locked = true;
+                break;
+            }
+            if (errno != EWOULDBLOCK && errno != EAGAIN && errno != EINTR) {
+                break;
+            }
+            usleep(10000);
+        }
+    }
+    if (!locked) {
+        if (lock >= 0) {
+            close(lock);
+        }
         ELOG("Supervisor", "a supervisor is already running, or its lock is invalid");
         return 1;
     }

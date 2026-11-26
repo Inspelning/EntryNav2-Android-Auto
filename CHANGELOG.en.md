@@ -154,6 +154,9 @@ QEMU with the car's libraries).
   reading; the service's crash handler is safer. Tested on PC.
 - iDrive app: stopping Android Auto checks that a process number is really the supervisor's or the service's before
   stopping it; the app's and the service's files no longer follow symbolic links. Tested on PC.
+- iDrive app: a service restarted between two polls gets the car's state again (reverse gear, call, parking aid), a
+  restart asked right after a launch is no longer lost, and an error in an iDrive callback no longer reaches iDrive.
+  Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
