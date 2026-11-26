@@ -50,7 +50,12 @@ public:
         kMixed,        // a MIDDLE or LAST fragment encrypted when its FIRST was not, or the other way round: dropped
     };
 
-    MessageAssembler() : held_(0), received_(0), announced_(0) {}
+    MessageAssembler() : maxPending_(frame::kMaxPending), held_(0), received_(0), announced_(0) {}
+
+    // Bounds the bytes kept across all channels (tightened before TLS is established).
+    void setMaxPending(size_t maxPending) {
+        maxPending_ = maxPending <= frame::kMaxPending ? maxPending : frame::kMaxPending;
+    }
 
     // `payload` is the frame's decrypted payload; `header.length` counts what came on the wire.
     Outcome add(const FrameHeader& header, const std::vector<uint8_t>& payload, std::vector<uint8_t>& message);
@@ -80,10 +85,11 @@ private:
         bool lostTail;    // the message was lost: its fragments up to its LAST are ignored
         bool encrypted;   // its FIRST was: every fragment of it must be
         uint32_t size;    // the size its FIRST announced
-        uint32_t onWire;  // the length fields received so far
+        uint64_t onWire;  // the length fields received so far
         Pending() : lostTail(false), encrypted(false), size(0), onWire(0) {}
     };
     std::map<uint8_t, Pending> pending_;
+    size_t maxPending_;
     size_t held_;  // the sizes of the pending messages' data, summed
     uint32_t received_;
     uint32_t announced_;

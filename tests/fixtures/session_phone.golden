@@ -447,11 +447,6 @@ ph raw header of 100 bytes, 10 sent 0603006400000000000000000000
 ph shutdown
 hu <closed>
 session ended=1
-cb focus projected=0 reason=4294967295
-cb mic open=1
-cb codec 0000000167
-cb video frame=2 pts=7 65
-cb nav 8003 0801
 cb ended (x2)
 == cut headers
 ph ch=0 fl=03 000b 08817f

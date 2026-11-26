@@ -142,6 +142,10 @@ QEMU with the car's libraries).
   connection. Tested on PC.
 - Android Auto session: the secure link (TLS) never offers compression, and a frame that would give more than 8 MiB
   once decrypted ends the session. No phone uses the one or does the other: nothing changes for them. Tested on PC.
+- Android Auto session: before the secure negotiation (TLS) is over, only the handshake's messages may come in clear
+  (version, TLS, ping, goodbye), 64 KiB at most; any other message is refused and noted once. The TLS link no longer
+  accepts a renegotiation asked by the phone, no longer offers old ciphers, and frees its memory at the end of each
+  session. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

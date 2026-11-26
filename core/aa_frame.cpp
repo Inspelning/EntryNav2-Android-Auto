@@ -53,7 +53,7 @@ MessageAssembler::Outcome MessageAssembler::add(const FrameHeader& header, const
         // Replaces an unfinished message, or ends the tail of a lost one whose LAST never came: freed before this one
         // is weighed. One announced larger than a message may be is dropped before any of it is kept.
         release(header.channel);
-        if (header.totalSize > frame::kMaxMessage || !fits(payload.size(), 0)) {
+        if (header.totalSize > frame::kMaxMessage || header.totalSize > maxPending_ || !fits(payload.size(), 0)) {
             forget(header.channel, position);
             return kOverflow;
         }
@@ -94,7 +94,7 @@ MessageAssembler::Outcome MessageAssembler::add(const FrameHeader& header, const
         return kPending;
     }
     // LAST closes the message started by FIRST, which then leaves the pending ones.
-    const uint32_t onWire = pending.onWire + header.length;
+    const uint64_t onWire = pending.onWire + header.length;
     const uint32_t size = pending.size;
     held_ -= pending.data.size();
     pending.data.insert(pending.data.end(), payload.begin(), payload.end());
@@ -103,7 +103,7 @@ MessageAssembler::Outcome MessageAssembler::add(const FrameHeader& header, const
     // The announced size counts plain bytes and the length fields count TLS records, which are larger: only a
     // shortfall tells that this LAST closed an incomplete message.
     if (size != 0 && onWire < size) {
-        received_ = onWire;
+        received_ = static_cast<uint32_t>(onWire);
         announced_ = size;
         return kShortOfSize;
     }
@@ -116,10 +116,11 @@ void MessageAssembler::lose(const FrameHeader& header) {
     }
 }
 
-// The bound of the message itself, and that of all channels together. Both hold the bytes kept so far (held_ at most
-// frame::kMaxPending, a message at most frame::kMaxMessage), so the subtractions cannot wrap.
+// The bound of the message itself, and that of all channels together. Both hold the bytes kept so far (held_ may
+// exceed maxPending_ only if tightened later), so the subtractions cannot wrap.
 bool MessageAssembler::fits(size_t more, size_t holding) const {
-    return more <= frame::kMaxMessage - holding && more <= frame::kMaxPending - held_;
+    return holding <= frame::kMaxMessage && more <= frame::kMaxMessage - holding && held_ <= maxPending_ &&
+           more <= maxPending_ - held_;
 }
 
 void MessageAssembler::release(uint8_t channel) {

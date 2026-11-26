@@ -231,6 +231,15 @@ void globalBound() {
     CHECK(a.add(header(8, aa::frame::kFirst, 1, aa::frame::kMaxMessage), Bytes(1, 3), m) == A::kPending);
     a.clear();
     CHECK(a.heldBytes() == 0);
+
+    // Pre-TLS bound: 64 KiB across all channels before the handshake finishes.
+    a.setMaxPending(aa::frame::kMaxPreTlsPending);
+    CHECK(a.add(header(6, aa::frame::kFirst, 1, aa::frame::kMaxPreTlsPending + 1), Bytes(1, 1), m) == A::kOverflow);
+    CHECK(a.add(header(6, aa::frame::kLast, 1), Bytes(1, 1), m) == A::kRestOfLost);
+    CHECK(a.add(header(0, aa::frame::kFirst, 1, 4096), Bytes(32 * 1024, 2), m) == A::kPending);
+    CHECK(a.add(header(1, aa::frame::kFirst, 1, 4096), Bytes(32 * 1024 + 1, 3), m) == A::kOverflow);
+    a.clear();
+    a.setMaxPending(aa::frame::kMaxPending);
 }
 
 }  // namespace

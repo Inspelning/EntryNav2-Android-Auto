@@ -126,7 +126,7 @@ private:
     bool sendSealed(uint8_t channel, const Message& message, uint8_t flags = frame::kSealed);
     bool askPhone(uint64_t silentMs);  // our own ping to a silent phone; false: not possible yet
     Received receive(uint8_t& channel, Message& wire, Message& plain, Message& message);
-    void notePlain(uint8_t channel, const Message& message);  // a message in clear once TLS is up: logged
+    void notePlain(uint8_t channel, const Message& message, bool beforeTls);  // a clear message: logged once
 
     // Car input (aa_session.cpp).
     void sendCarInput();
@@ -204,6 +204,7 @@ private:
     // | id), each logged once.
     static const unsigned kPlainKindsLogged = 16;
     unsigned plainAfterTls_;
+    unsigned refusedBeforeTls_;  // messages in clear before TLS, other than the handshake's: refused
     uint32_t plainKinds_[kPlainKindsLogged];
     unsigned plainKindCount_;
     bool plainKindsFull_;

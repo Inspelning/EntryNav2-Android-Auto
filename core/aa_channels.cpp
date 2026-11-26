@@ -179,7 +179,8 @@ bool AASession::onTlsHandshake(const Message& message) {
         return false;
     }
     if (tls_.established()) {
-        // AuthComplete goes in clear, as every head unit sends it.
+        // Full reassembly bound now that the peer finished TLS; AuthComplete goes in clear, as every head unit sends.
+        assembler_.setMaxPending(frame::kMaxPending);
         printf("[AASession] >>> TLS Handshake Complete! Sending AuthCompleteNotification...\n");
         sendPlain(channel::kControl, message::authComplete());
         printf("[AASession] >>> Awaiting ServiceDiscoveryRequest from phone...\n");

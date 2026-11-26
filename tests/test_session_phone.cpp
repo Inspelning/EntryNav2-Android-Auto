@@ -341,6 +341,12 @@ public:
         SSL_shutdown(ssl_);
         return pending();
     }
+    // Server-initiated TLS 1.2 renegotiation: sends a HelloRequest record.
+    Bytes renegotiate() {
+        SSL_renegotiate(ssl_);
+        SSL_do_handshake(ssl_);
+        return pending();
+    }
     bool open(const Bytes& records, Bytes& plain) {
         BIO_write(in_, &records[0], static_cast<int>(records.size()));
         plain.clear();
@@ -1359,6 +1365,27 @@ std::string tlsBounds() {
     if (opened || !car.broken() || !plain.empty()) {
         return format("9 MiB from one call: opened=%d broken=%d, %u bytes out", opened ? 1 : 0, car.broken() ? 1 : 0,
                       static_cast<unsigned>(plain.size()));
+    }
+    // Server-initiated renegotiation (HelloRequest) must break TLS instead of queuing ClientHello into toPhone_.
+    aa::TlsClient car2;
+    PhoneTls phone2;
+    if (!car2.start() || !car2.hello(hello)) {
+        return "renegotiation: no ClientHello";
+    }
+    flight = phone2.step(Bytes(hello.begin(), hello.end()));
+    car2.handshake(&flight[0], flight.size(), answer);
+    flight = phone2.step(Bytes(answer.begin(), answer.end()));
+    car2.handshake(&flight[0], flight.size(), answer);
+    if (!car2.established()) {
+        return "renegotiation: no TLS";
+    }
+    const Bytes helloReq = phone2.renegotiate();
+    if (helloReq.empty()) {
+        return "renegotiation: phone produced no HelloRequest";
+    }
+    const bool renegOpened = car2.open(&helloReq[0], helloReq.size(), plain);
+    if (renegOpened || !car2.broken()) {
+        return format("renegotiation accepted: opened=%d broken=%d", renegOpened ? 1 : 0, car2.broken() ? 1 : 0);
     }
     return std::string();
 }

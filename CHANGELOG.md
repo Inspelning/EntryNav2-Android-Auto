@@ -145,6 +145,10 @@ QEMU avec les bibliothèques de la voiture).
 - Séance Android Auto : la liaison sécurisée (TLS) ne propose jamais de compression, et une trame qui donnerait plus
   de 8 Mio une fois déchiffrée termine la séance. Aucun téléphone ne se sert de l'une ni ne fait l'autre : pour eux,
   rien ne change. Testé sur PC.
+- Séance Android Auto : avant la fin de la négociation sécurisée (TLS), seuls les messages de la poignée de main
+  passent en clair (version, TLS, ping, au revoir), 64 Kio au plus ; tout autre message est refusé et noté une fois.
+  La liaison TLS n'accepte plus de renégociation demandée par le téléphone, ne propose plus de chiffrements anciens
+  et libère sa mémoire à la fin de chaque séance. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

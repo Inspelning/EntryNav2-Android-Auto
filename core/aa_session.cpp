@@ -53,6 +53,12 @@ uint64_t monotonicUs() {
     return static_cast<uint64_t>(now.tv_sec) * 1000000ULL + static_cast<uint64_t>(now.tv_nsec / 1000);
 }
 
+bool allowedPlainBeforeTls(uint8_t channel, uint16_t id) {
+    return channel == channel::kControl &&
+           (id == msg::kVersionResponse || id == msg::kTlsHandshake || id == msg::kPingRequest ||
+            id == msg::kPingResponse || id == msg::kByeByeRequest);
+}
+
 void printHead(const Message& message) {
     printf("            Data: ");
     for (size_t i = 0; i < message.size() && i < 16; ++i) {
@@ -202,7 +208,7 @@ void AASession::resetCounters() {
     keysLogged_ = movesLogged_ = navigationLogged_ = pings_ = pingsAsked_ = pingAnswers_ = 0;
     playbackState_ = kNoField;
     memset(framesSeen_, 0, sizeof(framesSeen_));
-    plainAfterTls_ = plainKindCount_ = 0;
+    plainAfterTls_ = refusedBeforeTls_ = plainKindCount_ = 0;
     plainKindsFull_ = false;
 }
 
@@ -211,8 +217,7 @@ bool AASession::start(int client_fd) {
     // A session still there (the phone came back before its silence was noticed, or one that ended and was never
     // joined): wake it and join it. Clearing the flag first keeps its thread from running the ended callback; it runs
     // here, for a session that was still running only.
-    const bool wasRunning = running();
-    setRunning(false);
+    const bool wasRunning = clearRunning();
     interrupt();
     if (thread_) {
         pthread_join(thread_, nullptr);
@@ -233,6 +238,7 @@ bool AASession::start(int client_fd) {
         setsockopt(client_fd, SOL_SOCKET, SO_SNDTIMEO, &sendLimit, sizeof(sendLimit));
     }
     assembler_.clear();
+    assembler_.setMaxPending(frame::kMaxPreTlsPending);
     // The previous phone's TLS is no use to this one, and while it stayed established nothing waited for this
     // phone's handshake (kTlsDeadlineMs), and a silent phone could get pings sealed with it.
     tls_.reset();
@@ -287,6 +293,7 @@ void AASession::run() {
     if (!sendPlain(channel::kControl, message::versionRequest())) {
         printf("[AASession] Error: Failed to send VersionRequest.\n");
         finish();
+        TlsClient::cleanupThread();
         return;
     }
     Message wire, plain, message;
@@ -307,12 +314,16 @@ void AASession::run() {
             break;
         }
     }
+    if (refusedBeforeTls_ > 0) {
+        printf("[AASession] %u message(s) in clear before TLS refused in this session\n", refusedBeforeTls_);
+    }
     if (plainAfterTls_ > 0) {
         printf("[AASession] %u message(s) other than pings came in clear after TLS in this session\n", plainAfterTls_);
     }
     printf("[AASession] Session loop terminated.\n");
     g_trail.stage = kTrailIdle;
     finish();
+    TlsClient::cleanupThread();
 }
 
 void AASession::finish() {
@@ -452,7 +463,15 @@ bool AASession::sendPlain(uint8_t channel, const Message& message) {
 
 bool AASession::sendSealed(uint8_t channel, const Message& message, uint8_t flags) {
     std::vector<uint8_t> records;
-    return tls_.seal(&message[0], message.size(), records) && sendFrame(channel, flags, &records[0], records.size());
+    if (!tls_.seal(&message[0], message.size(), records)) {
+        return false;
+    }
+    if (!sendFrame(channel, flags, &records[0], records.size())) {
+        // tls_.seal() already moved the TLS sequence on: the wire can no longer match the engine.
+        sendBroken_ = true;
+        return false;
+    }
+    return true;
 }
 
 // Encrypted, as the phone sends its own. False before the TLS handshake ended: nothing can be sealed yet, and the
@@ -575,22 +594,28 @@ AASession::Received AASession::receive(uint8_t& channel, Message& wire, Message&
     if (logged) {
         printHead(message);
     }
-    if (!encrypted && versionTaken_ && tls_.established()) {
-        notePlain(channel, message);
+    if (!tls_.established()) {
+        if (!allowedPlainBeforeTls(channel, messageId(message))) {
+            notePlain(channel, message, true);
+            return kNothing;
+        }
+    } else if (!encrypted && versionTaken_) {
+        notePlain(channel, message, false);  // logged; handled as before until car logs say what phones send
     }
     return kMessage;
 }
 
-// Once TLS is up a phone encrypts what it sends; only its pings may come in clear (the fake phone of the tests pings
-// in clear; what real phones do is not known). Anything else in clear is still handled as before, only logged, once
-// per channel and id: car logs will tell whether real phones ever send any before such messages are refused.
-void AASession::notePlain(uint8_t channel, const Message& message) {
+// Before TLS only the control handshake (and pings, ByeBye) may come in clear: anything else is refused. Once TLS is
+// up a phone encrypts what it sends; only its pings may come in clear (the fake phone of the tests pings in clear;
+// what real phones do is not known). Anything else in clear is still handled as before, only logged: car logs will
+// tell whether real phones ever send any before such messages are refused. Each kind logged once (channel and id).
+void AASession::notePlain(uint8_t channel, const Message& message, bool beforeTls) {
     const uint16_t id = messageId(message);
-    if (channel == channel::kControl && (id == msg::kPingRequest || id == msg::kPingResponse)) {
+    if (!beforeTls && channel == channel::kControl && (id == msg::kPingRequest || id == msg::kPingResponse)) {
         return;
     }
-    ++plainAfterTls_;
-    const uint32_t kind = (static_cast<uint32_t>(channel) << 16) | id;
+    ++(beforeTls ? refusedBeforeTls_ : plainAfterTls_);
+    const uint32_t kind = (beforeTls ? 0x1000000u : 0u) | (static_cast<uint32_t>(channel) << 16) | id;
     for (unsigned i = 0; i < plainKindCount_; ++i) {
         if (plainKinds_[i] == kind) {
             return;
@@ -599,13 +624,13 @@ void AASession::notePlain(uint8_t channel, const Message& message) {
     if (plainKindCount_ == kPlainKindsLogged) {
         if (!plainKindsFull_) {
             plainKindsFull_ = true;
-            printf("[AASession] more kinds of messages came in clear after TLS: no longer logged one by one\n");
+            printf("[AASession] more kinds of messages came in clear: no longer logged one by one\n");
         }
         return;
     }
     plainKinds_[plainKindCount_++] = kind;
-    printf("[AASession] channel %u message 0x%04X (%u bytes) came in clear after TLS: handled as before\n", channel, id,
-           static_cast<unsigned>(message.size()));
+    printf("[AASession] channel %u message 0x%04X (%u bytes) %s\n", channel, id, static_cast<unsigned>(message.size()),
+           beforeTls ? "in clear before TLS: refused" : "came in clear after TLS: handled as before");
 }
 
 // ---- car input ----------------------------------------------------------------------------------------------------

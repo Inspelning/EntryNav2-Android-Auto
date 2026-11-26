@@ -4,7 +4,9 @@
 #include "aa_tls.hpp"
 
 #include <openssl/err.h>
+#include <openssl/opensslv.h>
 #include <openssl/pem.h>
+#include <pthread.h>
 
 #include <cstdio>
 
@@ -14,10 +16,18 @@
 namespace aa {
 namespace {
 
-const char kCipherList[] = "ALL:!aNULL:!eNULL:!LOW:!EXP:!RC4:!MD5";
+const char kCipherList[] = "ALL:!aNULL:!eNULL:!LOW:!EXP:!RC4:!MD5:!3DES:!DES:!SEED:!IDEA";
 // Handshake bytes from the phone that OpenSSL may hold unread at once. A phone's flight is a few KB (its certificates);
 // more is no handshake, and would otherwise pile up in memory for as long as the session lasts.
 const size_t kMaxHandshakeInput = 64 * 1024;
+
+pthread_once_t g_sslOnce = PTHREAD_ONCE_INIT;
+
+void initOpenSsl() {
+    SSL_library_init();
+    SSL_load_error_strings();
+    OpenSSL_add_all_algorithms();
+}
 
 // One object parsed from PEM text, or null.
 template <typename T>
@@ -52,11 +62,15 @@ void TlsClient::reset() {
     broken_ = false;
 }
 
+void TlsClient::cleanupThread() {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    ERR_remove_thread_state(nullptr);
+#endif
+}
+
 bool TlsClient::start() {
     reset();
-    SSL_library_init();
-    SSL_load_error_strings();
-    OpenSSL_add_all_algorithms();
+    pthread_once(&g_sslOnce, initOpenSsl);
     // Fixed to TLS 1.2, as the car's libssl.so.1.0.0 offers it: the ClientHello the phones have always seen.
     const SSL_METHOD* method = TLSv1_2_client_method();
     if (!method) {
@@ -78,6 +92,18 @@ bool TlsClient::start() {
     }
     fromPhone_ = BIO_new(BIO_s_mem());
     toPhone_ = BIO_new(BIO_s_mem());
+    if (!fromPhone_ || !toPhone_) {
+        if (fromPhone_) {
+            BIO_free(fromPhone_);
+        }
+        if (toPhone_) {
+            BIO_free(toPhone_);
+        }
+        fromPhone_ = toPhone_ = nullptr;
+        connection_.reset();
+        printf("[AACryptor] cannot create the TLS memory buffers\n");
+        return false;
+    }
     SSL_set_bio(connection_.get(), fromPhone_, toPhone_);
     SSL_set_connect_state(connection_.get());
     printf("[AACryptor] TLS 1.2 client ready, with the head unit certificate\n");
@@ -85,9 +111,9 @@ bool TlsClient::start() {
 }
 
 bool TlsClient::configure(SSL_CTX* context) {
-    // Never compression: a libssl 1.0 that finds zlib offers DEFLATE (the car's finds none: null only, seen under
-    // QEMU), and decompressed records let a few bytes grow into megabytes. Phones never pick it; nothing else changes.
-    SSL_CTX_set_options(context, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION);
+    // Never compression or session tickets: a libssl 1.0 that finds zlib offers DEFLATE (the car's finds none: null
+    // only, seen under QEMU), and decompressed records let a few bytes grow into megabytes. Phones never pick either.
+    SSL_CTX_set_options(context, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION | SSL_OP_NO_TICKET);
     SSL_CTX_set_verify(context, SSL_VERIFY_NONE, nullptr);
     SSL_CTX_set_cipher_list(context, kCipherList);
     // The context keeps references of its own: ours are released at the end of each block, used or not.
@@ -175,10 +201,13 @@ bool TlsClient::open(const uint8_t* records, size_t size, std::vector<uint8_t>& 
     if (!connection_ || !established_ || broken_ || size == 0) {
         return false;
     }
-    BIO_write(fromPhone_, records, static_cast<int>(size));
+    ERR_clear_error();
+    if (BIO_write(fromPhone_, records, static_cast<int>(size)) != static_cast<int>(size)) {
+        endForGood("read input");
+        return false;
+    }
     uint8_t chunk[4096];
     int n;
-    ERR_clear_error();
     while ((n = SSL_read(connection_.get(), chunk, sizeof(chunk))) > 0) {
         // A frame brings 64 KiB of records at most: more data than a whole message from one call is no phone's.
         if (static_cast<size_t>(n) > frame::kMaxMessage - plain.size()) {
@@ -194,6 +223,12 @@ bool TlsClient::open(const uint8_t* records, size_t size, std::vector<uint8_t>& 
     // fails its check is a fatal error in TLS, OpenSSL then refuses every later record, the good ones too.
     if (SSL_get_error(connection_.get(), n) != SSL_ERROR_WANT_READ) {
         endForGood("read");
+    } else if (BIO_ctrl_pending(toPhone_) > 0) {
+        // After the handshake, SSL_read only writes to the peer when the peer asked to renegotiate (HelloRequest).
+        // Android Auto never renegotiates, and leaving those bytes in toPhone_ would mix them into the next seal().
+        endForGood("renegotiation");
+        plain.clear();
+        return false;
     }
     return !plain.empty();
 }

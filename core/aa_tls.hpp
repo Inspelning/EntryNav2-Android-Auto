@@ -40,6 +40,8 @@ public:
     // OpenSSL failed for good (a handshake that failed, a record that failed its check, or refused by the phone's
     // TLS): no later record can be decrypted, nothing more is sealed. Logged once. A new start() clears it.
     bool broken() const { return broken_; }
+    // Frees OpenSSL's per-thread error state before a session thread exits (needed on OpenSSL 1.0.1).
+    static void cleanupThread();
 
 private:
     typedef std::unique_ptr<SSL_CTX, void (*)(SSL_CTX*)> Context;
