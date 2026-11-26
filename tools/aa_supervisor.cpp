@@ -37,6 +37,7 @@
 #include "evo_log.hpp"
 #include "evo_spp_snapshot.hpp"
 #include "evo_wlan.hpp"
+#include "fd_hygiene.hpp"
 #include "kept_log.hpp"
 #include "log_copy.hpp"
 #include "service_contract.hpp"
@@ -611,6 +612,7 @@ void boundLog() {
 }  // namespace
 
 int main(int argc, char** argv) {
+    evo::closeInheritedFds();
     setvbuf(stdout, nullptr, _IOLBF, 0);
     if (argc == 2 && !strcmp(argv[1], "--compat")) {
         return compatReport();

@@ -90,7 +90,7 @@ bool loadAccessPoint(aa::ApInfo& out, std::string& source) {
         }
         source = file;
     }
-    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    int fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
     if (fd < 0) {
         return false;
     }

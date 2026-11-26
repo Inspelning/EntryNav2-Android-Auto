@@ -223,6 +223,8 @@ test-host: test-parsers test-spp-host test-kombi-host test-gps-host test-capture
 	./tests/test-wireless-listen
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_crash_handler.cpp core/crash_handler.cpp -o tests/test-crash-handler
 	./tests/test-crash-handler
+	$(HOST_CXX) $(HOST_FLAGS) tests/test_fd_hygiene.cpp platform/evo_process.cpp -o tests/test-fd-hygiene
+	./tests/test-fd-hygiene
 
 test-host-sanitizers:
 	ASAN_OPTIONS=detect_leaks=1 $(MAKE) test-frame-host test-session-host \

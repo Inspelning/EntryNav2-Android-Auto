@@ -150,7 +150,7 @@ void usage(const char* argv0) {
 // The brand the iDrive app read in the car's coding (car_brand.hpp). Without the file (an older app), a BMW.
 aa::CarBrand readCarBrand() {
     aa::CarBrand brand = aa::CarBrand::kBmw;
-    FILE* f = fopen(evo::contract::kBrandFile, "r");
+    FILE* f = fopen(evo::contract::kBrandFile, "re");
     char line[16] = {0};
     const bool read = f && fgets(line, sizeof(line), f) && aa::parseCarBrand(line, brand);
     if (f) {
@@ -166,7 +166,7 @@ aa::CarBrand readCarBrand() {
 // coding that says nothing sure), left; the vehicle file's "side=" wins either way.
 aa::DriverPosition readCodedDriverSide() {
     bool right = false;
-    FILE* f = fopen(evo::contract::kDriverSideFile, "r");
+    FILE* f = fopen(evo::contract::kDriverSideFile, "re");
     char line[16] = {0};
     const bool read = f && fgets(line, sizeof(line), f) && aa::parseDriverSide(line, right);
     if (f) {
@@ -184,7 +184,7 @@ aa::DriverPosition readCodedDriverSide() {
 // app, or a coding that says nothing sure), empty: the vehicle file's model, or "iDrive".
 void readCarSeries(char* out) {
     out[0] = 0;
-    FILE* f = fopen(evo::contract::kSeriesFile, "r");
+    FILE* f = fopen(evo::contract::kSeriesFile, "re");
     char line[16] = {0};
     const bool read = f && fgets(line, sizeof(line), f) && aa::parseCarSeries(line, out);
     if (f) {
@@ -199,6 +199,9 @@ void readCarSeries(char* out) {
 }  // namespace
 
 int main(int argc, char** argv) {
+    // No closeInheritedFds() here: libxsvideo opens /dev/kmsg in its constructor, before main(), and logs its errors
+    // there; closing it would hand its number to our next socket. The supervisor, our only parent, already closed
+    // what it inherited and opens nothing without close-on-exec.
     bool run = false, monitor = false, introspect = false, configure = false, video = true, service = false;
     bool usb = false;
     const char* usbPort = nullptr;
@@ -426,7 +429,7 @@ int main(int argc, char** argv) {
         {
             // The car's key coding, read by the iDrive app inside iDrive (controller_layout.hpp). Without it (an older
             // app), the G-style table.
-            FILE* f = fopen(evo::contract::kControllerFile, "r");
+            FILE* f = fopen(evo::contract::kControllerFile, "re");
             char line[128] = {0};
             aa::ControllerCoding coding = aa::defaultControllerCoding();
             if (f && fgets(line, sizeof(line), f) && aa::parseControllerCoding(line, coding)) {
@@ -439,7 +442,7 @@ int main(int argc, char** argv) {
             }
         }
         {
-            FILE* f = fopen(evo::contract::kDayNightFile, "r");
+            FILE* f = fopen(evo::contract::kDayNightFile, "re");
             int v = 0;  // written by the iDrive app (CDS)
             if (f) {
                 if (fscanf(f, "daynight %d", &v) == 1) {

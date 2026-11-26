@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include "../platform/control_address.hpp"
+#include "../platform/fd_hygiene.hpp"
 #include "../platform/kept_log.hpp"
 #include "../platform/service_contract.hpp"
 #include "app_log.hpp"
@@ -112,7 +113,7 @@ void launchService() {
     const char* logPath = "";
     int out = openServiceLog(contract::kMaintenance, contract::kServiceLogKept, contract::kServiceLogKeptOld,
                              contract::kServiceLog, &logPath);
-    if (in < 0 || out < 0) {
+    if (in < 0 || out < 0 || !ensureFdAboveStdio(in) || !ensureFdAboveStdio(out)) {
         alog("launch: cannot open /dev/null or %s (errno %d)", logPath, errno);
         if (in >= 0) {
             close(in);
@@ -277,8 +278,11 @@ bool g_updateInstall = false;
 // aa-supervisor <argument> in a child of its own, its output thrown away (it writes its own reports). 0 on failure.
 pid_t startJob(const char* argument, const char* what) {
     char* argv[] = {const_cast<char*>(contract::kSupervisor), const_cast<char*>(argument), nullptr};
-    const int null = open("/dev/null", O_RDWR | O_CLOEXEC);
-    if (null < 0) {
+    int null = open("/dev/null", O_RDWR | O_CLOEXEC);
+    if (null < 0 || !ensureFdAboveStdio(null)) {
+        if (null >= 0) {
+            close(null);
+        }
         alog("%s: cannot open /dev/null (errno %d)", what, errno);
         return 0;
     }

@@ -161,6 +161,7 @@ struct EvoPill::Wayland {
             ELOG("VolumePill", "no shared memory (%s): no pill", strerror(errno));
             return false;
         }
+        fcntl(fd, F_SETFD, FD_CLOEXEC);
         unlink(path.c_str());
         void* p = ftruncate(fd, static_cast<off_t>(mapped)) == 0
                       ? mmap(nullptr, mapped, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0)
@@ -260,10 +261,9 @@ bool EvoPill::start(uint32_t surfaceId, uint32_t layerId, int screenW, int scree
     if (started_ || !surfaceId || screenW < pill::kWidth || screenH < pill::kHeight + pill::kBottomMargin) {
         return false;
     }
-    if (pipe(wake_) != 0) {
+    if (pipe2(wake_, O_CLOEXEC | O_NONBLOCK) != 0) {
         return false;
     }
-    fcntl(wake_[1], F_SETFL, fcntl(wake_[1], F_GETFL, 0) | O_NONBLOCK);
     surfaceId_ = surfaceId;
     layerId_ = layerId;
     screenW_ = screenW;

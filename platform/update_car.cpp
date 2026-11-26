@@ -84,6 +84,15 @@ public:
         const pid_t pid = fork();
         if (pid == 0) {
             setsid();
+            const int nullFd = open("/dev/null", O_RDWR);
+            if (nullFd >= 0) {
+                dup2(nullFd, STDIN_FILENO);
+                dup2(nullFd, STDOUT_FILENO);
+                dup2(nullFd, STDERR_FILENO);
+                if (nullFd > 2) {
+                    close(nullFd);
+                }
+            }
             sigset_t none;
             sigemptyset(&none);
             sigprocmask(SIG_SETMASK, &none, nullptr);

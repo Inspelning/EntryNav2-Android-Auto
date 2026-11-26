@@ -164,7 +164,7 @@ int ClusterLink::open() const {
         errno = EINVAL;
         return -1;
     }
-    const int fd = socket(AF_INET, SOCK_STREAM, 0);
+    const int fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (fd < 0) {
         return -1;
     }
@@ -381,7 +381,7 @@ void ClusterLink::emergencyCancel() {
         return;
     }
     const Emergency& e = g_emergency;
-    const int fd = socket(AF_INET, SOCK_STREAM, 0);
+    const int fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (fd < 0) {
         return;
     }
