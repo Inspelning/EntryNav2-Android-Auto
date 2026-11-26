@@ -151,6 +151,8 @@ QEMU avec les bibliothèques de la voiture).
   et libère sa mémoire à la fin de chaque séance. Testé sur PC.
 - Séance Android Auto : la connexion du téléphone est lue par blocs (moins d'appels au système par image), le toucher
   et la molette restant prioritaires. Testé sur PC.
+- Sans-fil : l'écoute du téléphone ne s'ouvre plus sur toutes les interfaces quand l'adresse du point d'accès est
+  illisible, et ses connexions ne passent plus aux programmes lancés par le service. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

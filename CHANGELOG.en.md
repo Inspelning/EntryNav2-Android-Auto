@@ -148,6 +148,8 @@ QEMU with the car's libraries).
   session. Tested on PC.
 - Android Auto session: the phone's connection is read in blocks (fewer system calls per picture), touch and the
   controller keeping priority. Tested on PC.
+- Wireless: the phone listener no longer opens on every interface when the access point's address is unreadable,
+  and its connections no longer pass to the programs the service starts. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
