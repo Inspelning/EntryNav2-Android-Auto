@@ -23,7 +23,9 @@ static std::atomic<bool> fixtureLink(true), borrowed(false);
 static std::atomic<bool> phoneKeepsLink(false);  // the phone keeps its Bluetooth link after accepting the Wi-Fi
 static std::atomic<bool> bmwAppsLink(false);     // the link listened to is the BMW app's: BCL seen, link still up
 static evo::ServiceApp* instance = 0;
-static volatile sig_atomic_t quitFlag = 0;
+static std::atomic<int> quitFlag(0);
+static bool (*apStopping)(void*) = 0;  // how the access point's hostapd commands see the service's stop
+static void* apUser = 0;
 namespace evo {
 AlpsSppLink::AlpsSppLink() : p_(0) {}
 AlpsSppLink::~AlpsSppLink() {}
@@ -52,8 +54,12 @@ bool AlpsSppLink::requestSppDisconnect() {
     ++sppDrops;
     return true;
 }
-// The access point is made ready (no U-APSD) once before every handshake, never during one.
-UapsdOffer withdrawAccessPointUapsd() {
+// The access point is made ready (no U-APSD) once before every handshake, never during one, told how to see the
+// service's stop (each hostapd command may take 5 s).
+UapsdOffer withdrawAccessPointUapsd(bool (*stopping)(void*), void* user) {
+    assert(stopping && !stopping(user));
+    apStopping = stopping;
+    apUser = user;
     ++prepared;
     return UapsdOffer::kWithdrawn;
 }
@@ -343,7 +349,9 @@ int main() {
         pthread_mutex_unlock(&app.mu);
         phoneKeepsLink = false;
     }
+    assert(apStopping && !apStopping(apUser));
     app.requestStop();
+    assert(apStopping(apUser));  // what the hostapd commands ask before each one
     pthread_join(thread, 0);
     pthread_mutex_lock(&app.mu);
     assert(app.wirelessDone && app.sppLinks == 4 && app.wppReply && app.wppAccepted);

@@ -17,7 +17,7 @@
 
 namespace evo {
 
-ServiceApp::ServiceApp(uint16_t p, bool v, volatile sig_atomic_t* quit)
+ServiceApp::ServiceApp(uint16_t p, bool v, std::atomic<int>* quit)
     : knob(nullptr),
       server(p),
       port(p),
@@ -94,8 +94,13 @@ void ServiceApp::sppLinkOpened() {
     pthread_mutex_unlock(&mu);
 }
 
+// The hostapd commands of prepareAccessPoint ask it before each one.
+static bool stopAsked(void* app) {
+    return static_cast<ServiceApp*>(app)->stopRequested();
+}
+
 void ServiceApp::prepareAccessPoint() {
-    ELOG("ServiceApp", "car access point: %s", describeUapsdOffer(withdrawAccessPointUapsd()));
+    ELOG("ServiceApp", "car access point: %s", describeUapsdOffer(withdrawAccessPointUapsd(stopAsked, this)));
 }
 
 void ServiceApp::handshakeEnded(bool spoke, bool accepted) {

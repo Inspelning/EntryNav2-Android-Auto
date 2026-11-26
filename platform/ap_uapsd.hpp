@@ -33,6 +33,7 @@ enum class UapsdOffer {
     kBeaconLeft,     // off for new associations; a station is associated (or the list unreadable): no RELOAD
     kReloadRefused,  // off in hostapd, but RELOAD refused or unanswered: the beacon may still offer it
     kSetRefused,     // hostapd refused the setting or did not answer: left on
+    kStopped,        // the service is stopping: nothing more asked of hostapd
 };
 
 inline const char* describeUapsdOffer(UapsdOffer offer) {
@@ -45,6 +46,8 @@ inline const char* describeUapsdOffer(UapsdOffer offer) {
             return "U-APSD off for new associations; a station is associated, beacon left, nobody disconnected";
         case UapsdOffer::kReloadRefused:
             return "U-APSD off in hostapd, RELOAD refused: the beacon may still offer it";
+        case UapsdOffer::kStopped:
+            return "service stopping: hostapd asked nothing more";
         case UapsdOffer::kSetRefused:
             break;
     }
@@ -74,18 +77,29 @@ struct HostapdStart {
 
 // call(command, reply): runs one hostapd_cli command on wlan0 ({"set", ...}) and gives its reply; false when it could
 // not run. At most three calls: the setting, the station list, RELOAD. beaconDone: the beacon was rebuilt for this
-// hostapd start already (the caller knows it from HostapdStart): the setting only.
-template <typename Call>
-UapsdOffer withdrawUapsd(Call call, bool beaconDone = false) {
+// hostapd start already (the caller knows it from HostapdStart): the setting only. stopping(): true once the service is
+// asked to stop, checked before each call: a stop waits for the call under way only, never for three of up to 5 s each
+// (the supervisor kills the service 10 s after asking it to stop).
+template <typename Call, typename Stopping>
+UapsdOffer withdrawUapsd(Call call, Stopping stopping, bool beaconDone = false) {
     std::string reply;
+    if (stopping()) {
+        return UapsdOffer::kStopped;
+    }
     if (!call(std::vector<std::string>{"set", "uapsd_advertisement_enabled", "0"}, reply) || !uapsd::ok(reply)) {
         return UapsdOffer::kSetRefused;
     }
     if (beaconDone) {
         return UapsdOffer::kAlreadyDone;
     }
+    if (stopping()) {
+        return UapsdOffer::kStopped;
+    }
     if (!call(std::vector<std::string>{"all_sta"}, reply) || !uapsd::blank(reply)) {
         return UapsdOffer::kBeaconLeft;
+    }
+    if (stopping()) {
+        return UapsdOffer::kStopped;
     }
     if (!call(std::vector<std::string>{"raw", "RELOAD"}, reply) || !uapsd::ok(reply)) {
         return UapsdOffer::kReloadRefused;

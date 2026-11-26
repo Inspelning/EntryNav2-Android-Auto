@@ -54,6 +54,10 @@ QEMU avec les bibliothèques de la voiture).
   My BMW (BMW Apps) pouvait recevoir la demande de démarrage sans fil d'Android Auto, surtout sur les voitures où
   Android Auto partage l'emplacement Bluetooth des BMW Apps. Ce lien est maintenant laissé à My BMW sans rien y
   écrire, comme hors séance. Testé sur PC.
+- Arrêt d'Android Auto sans fil : quand le point d'accès Wi-Fi de la voiture ne répondait plus, l'arrêt pouvait
+  attendre jusqu'à 15 s ses réglages, et le superviseur arrêtait alors le service de force au bout de 10 s, sans son
+  arrêt propre. Plus aucun réglage n'est demandé au point d'accès une fois l'arrêt demandé : l'arrêt n'attend que celui
+  en cours, 5 s au plus. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

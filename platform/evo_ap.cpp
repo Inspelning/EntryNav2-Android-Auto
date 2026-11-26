@@ -41,13 +41,13 @@ static HostapdStart currentHostapdStart() {
     return start;
 }
 // The wireless loop's thread only.
-UapsdOffer withdrawAccessPointUapsd() {
+UapsdOffer withdrawAccessPointUapsd(bool (*stopping)(void*), void* user) {
     static HostapdStart rebuiltFor;  // the hostapd start whose beacon was rebuilt
     const HostapdStart now = currentHostapdStart();
     const UapsdOffer offer =
         withdrawUapsd([](const std::vector<std::string>& command,
                          std::string& reply) { return callHostapd(command, reply, kChangeTimeoutMs); },
-                      now.same(rebuiltFor));
+                      [stopping, user]() { return stopping(user); }, now.same(rebuiltFor));
     if (offer == UapsdOffer::kWithdrawn) {
         rebuiltFor = now;
     }

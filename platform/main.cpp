@@ -30,6 +30,7 @@
 #include "tcp_server.hpp"
 #include "usb_accessory.hpp"
 #include "crash_handler.hpp"
+#include <atomic>
 #include <csignal>
 #include <cstdlib>
 #include <cstring>
@@ -38,7 +39,10 @@
 // clang-format on
 
 namespace {
-volatile sig_atomic_t quit = 0;
+// Set by the signal handler and by the iDrive app's "quit" (control thread), read by the main loop and the vMOST
+// thread. A lock-free atomic may be stored from a signal handler, and is safe between threads (a volatile is not).
+static_assert(ATOMIC_INT_LOCK_FREE == 2, "the stop flag is set from a signal handler: it must be lock-free");
+std::atomic<int> quit(0);
 void onSignal(int) {
     quit = 1;
 }

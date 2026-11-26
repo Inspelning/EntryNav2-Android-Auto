@@ -58,6 +58,10 @@ QEMU with the car's libraries).
   Apps) could be sent Android Auto's wireless start request, above all on cars where Android Auto shares the BMW
   Apps' Bluetooth slot. That link is now left to My BMW with nothing written into it, as outside a session. Tested on
   PC.
+- Stopping wireless Android Auto: when the car's Wi-Fi access point no longer answered, the stop could wait up to
+  15 s for its settings, and the supervisor then killed the service after 10 s, without its clean stop. No setting is
+  asked of the access point any more once the stop is asked: the stop only waits for the one under way, 5 s at most.
+  Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
