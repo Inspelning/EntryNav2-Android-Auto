@@ -35,6 +35,7 @@
 #include "evo_gps.hpp"
 #include "evo_ilm.hpp"
 #include "evo_log.hpp"
+#include "evo_reboot.hpp"
 #include "evo_spp_snapshot.hpp"
 #include "evo_wlan.hpp"
 #include "fd_hygiene.hpp"
@@ -642,9 +643,13 @@ int main(int argc, char** argv) {
     if (argc == 2 && (!strcmp(argv[1], "--update-check") || !strcmp(argv[1], "--update-install"))) {
         return evo::updateFromUsb(!strcmp(argv[1], "--update-install"), ENTRY_AAD_VERSION);
     }
+    if (argc == 2 && !strcmp(argv[1], "--reboot")) {
+        return evo::rebootByHand();
+    }
     if (argc != 2 || (!strcmp(argv[1], "--help"))) {
         puts(
-            "Usage: aa-supervisor --service | --compat | --recover | --copy-logs | --update-check | --update-install\n"
+            "Usage: aa-supervisor --service | --compat | --recover | --copy-logs | --update-check | --update-install | "
+            "--reboot\n"
             "  --service  started by the iDrive app: wireless Android Auto with no time limit, stopped by the app or\n"
             "             STOP; the BMW hotspot switched on as Apple CarPlay does when it is off. With the file\n"
             "             /var/local/data/AA/usb: Android Auto over a USB cable, Bluetooth and Wi-Fi untouched\n"
@@ -655,7 +660,10 @@ int main(int argc, char** argv) {
             "  --update-check    what an update from the USB stick would do, changing nothing (report in\n"
             "             /var/local/data/AA/update-report.txt; exit codes: platform/update_install.hpp)\n"
             "  --update-install  installs the update signed by the project from the USB stick, then restarts the\n"
-            "             unit (Android Auto must be stopped)");
+            "             unit (Android Auto must be stopped)\n"
+            "  --reboot   a trial, with the car stopped: asks the unit's processor (Cortex-M4) over vMOST for a clean\n"
+            "             restart, as after an update; the usual restart (/sbin/reboot) when refused, unanswered or\n"
+            "             impossible. Refused (exit 1) while an update from a USB stick runs or was cut short");
         return argc == 2 ? 0 : 2;
     }
     const bool service = !strcmp(argv[1], "--service"), restore = !strcmp(argv[1], "--recover");

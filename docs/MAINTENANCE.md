@@ -184,6 +184,17 @@ rm -f /var/local/data/AA/app.disable /var/local/data/AA/app-guard
 reboot
 ```
 
+## Redémarrer l'unité (essai)
+
+Voiture à l'arrêt, `aa-supervisor --reboot` redémarre l'unité comme après une mise à jour par clé USB : redémarrage
+propre demandé au processeur de l'unité (Cortex-M4), comme un outil de diagnostic BMW, sinon le redémarrage d'avant
+(`/sbin/reboot`, environ 3 minutes d'écran noir) ; refusé pendant une mise à jour ou après une mise à jour coupée
+(`update-pending`). C'est un essai, jamais fait en voiture : ce qu'il fait s'affiche à chaque étape.
+
+```sh
+LD_LIBRARY_PATH=/usr/local/lib:/opt/hmi/lib:/usr/lib:/lib /opt/aa/aa-supervisor --reboot
+```
+
 ## État de l'installation
 
 ```sh

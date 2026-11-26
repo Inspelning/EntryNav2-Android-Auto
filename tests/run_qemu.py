@@ -50,6 +50,7 @@ CASES = [
     ("update-package", "tests/test-update-package-arm", [], None),
     ("update-install", "tests/test-update-install-arm", [], None),
     ("update-flow", "tests/test-update-flow-arm", [], None),
+    ("evo-reboot", "tests/test-evo-reboot-arm", [str(ROOT / "tests/fake-vmostclient-arm.so")], None),
     ("wireless-lifecycle", "tests/test-wireless-lifecycle-arm", [], None),
     ("session-phone", "tests/test-session-phone-arm", [str(ROOT / "tests/fixtures/session_phone.golden")], None),
     ("wireless-phone", "tests/test-wireless-phone-arm", [str(ROOT / "tests/fixtures/wireless_phone.golden")], None),

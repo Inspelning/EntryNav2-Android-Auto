@@ -15,6 +15,11 @@ QEMU avec les bibliothèques de la voiture).
   « łączenie ») ([#176](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/176), essayée sur une F44 ; textes de la
   mise à jour par clé USB : [#185](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/185)). Testé sur PC.
 - Traduction italienne du menu Android Auto de l'iDrive ([#77](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/77)). Testé sur PC.
+- Après une mise à jour par clé USB, l'unité demande maintenant un redémarrage propre au processeur de l'unité, comme
+  un outil de diagnostic BMW, au lieu du redémarrage qui laissait l'écran noir environ 3 minutes. S'il refuse, ne
+  répond pas ou ne peut pas être joint, c'est le redémarrage d'avant. Le même à la main, voiture à l'arrêt :
+  `aa-supervisor --reboot` ([maintenance](docs/MAINTENANCE.md#redémarrer-lunité-essai)). Testé sur PC, pas encore
+  en voiture.
 
 ### Corrigé
 

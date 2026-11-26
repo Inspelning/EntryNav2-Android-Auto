@@ -49,6 +49,9 @@ namespace evo {
 int updateFromUsb(bool, const char*) {  // tests/test_update_install.cpp
     return 0;
 }
+int rebootByHand() {  // platform/update_car.cpp, the car only; the restart itself: tests/test_evo_reboot.cpp
+    return 0;
+}
 unsigned hotspotRequests = 0;
 bool requestWlanAccessPoint(unsigned, WlanRequestResult*) {
     ++hotspotRequests;

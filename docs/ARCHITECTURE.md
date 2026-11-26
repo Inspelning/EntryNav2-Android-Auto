@@ -61,7 +61,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `volume_state.hpp` | Ce que montre la pastille, comme la barre de l'iDrive : niveau de l'écran avant, changement ou touche de volume, sourdine par le bouton audio |
 | `evo_knob`, `evo_touch`, `input_mode.hpp` | Entrées : molette, touches, tactile |
 | `media_recall.hpp` | Double appui sur MEDIA : geste, conditions, demande à usage unique lue par l'appli de l'iDrive |
-| `vmost_client` | Accès au bus vMOST de la voiture (molette, touches, Wi-Fi), chargé à l'exécution |
+| `vmost_client` | Accès au bus vMOST de la voiture (molette, touches, Wi-Fi, redémarrage), chargé à l'exécution |
 | `evo_ccs.hpp`, `evo_touch_frame.hpp` | Messages de la molette BMW (deux générations de contrôleur) et trames du tactile |
 | `controller_layout.hpp` | Quelle touche est chaque bouton, selon le codage de la voiture, comme l'iDrive (contrôleur type G ou F) |
 | `car_brand.hpp` | Marque codée dans l'iDrive (BMW ou MINI) : marque annoncée au téléphone, bords de l'écran cachés par le rond des MINI |
@@ -74,7 +74,8 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `log_copy` | Journaux copiés sur une clé USB depuis le menu de l'iDrive (`aa-supervisor --copy-logs`) ; clés USB montées par la voiture |
 | `update_package`, `update_key.hpp` | Archive de mise à jour lue sur la clé USB : lecteur tar borné, liste signée `UPDATE`, versions, empreintes et signature (libcrypto de la voiture), clés publiques du projet |
 | `update_install` | Mise à jour par clé USB (`aa-supervisor --update-check`, `--update-install`) : vérification sans rien écrire, fichiers `.new` relus puis renommés un à un, journal qui termine une mise à jour coupée, rapport ; sur une fausse voiture dans les tests |
-| `update_car.cpp` | La même sur la voiture : `/proc/mounts`, remontage du système comme à l'installation, chargeur de l'unité, redémarrage, verrous |
+| `update_car.cpp` | La même sur la voiture : `/proc/mounts`, remontage du système comme à l'installation, chargeur de l'unité, redémarrage, verrous ; `aa-supervisor --reboot`. Seul fichier qui lance `/sbin/reboot`, jamais dans un test |
+| `evo_reboot` | Redémarrage de l'unité : demandé proprement au processeur de l'unité (Cortex-M4) par vMOST, comme un outil de diagnostic BMW, sinon le redémarrage d'avant (`/sbin/reboot`) ; décisions sur une fausse voiture dans les tests |
 | `ap_uapsd.hpp` | Point d'accès de la voiture sans U-APSD pour le téléphone qui le rejoint (réglage en mémoire de hostapd, balise reconstruite seulement sans station connectée) |
 | `wifi_link` | Qualité de la liaison Wi-Fi avec le téléphone, lue dans le noyau pour les journaux, avec l'état du lien Bluetooth des BMW Apps (testé sur PC) |
 | `alps_spp`, `evo_spp_snapshot` | Pile Bluetooth de la voiture : commandes, et lecture de son état en mémoire |
@@ -142,5 +143,6 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `tests/test_no_inherit.cpp` | Connexions et tubes du service fermés pour les programmes qu'il lance : un programme lancé pendant l'écoute ne garde pas le port |
 | `tests/test_update_package.cpp`, `tests/test_update_release.py` | Archive de mise à jour : versions, archives tar hostiles, liste, signatures, clé du projet ; archive écrite par `package_release.py` relue par le code de la voiture |
 | `tests/test_update_install.cpp`, `tests/test_update_flow.cpp` | Mise à jour par clé USB sur une fausse voiture : vérification qui ne change rien, installation, refus sans changement, coupure de courant après chaque renommage terminée par le journal ; ligne du menu |
+| `tests/test_evo_reboot.cpp` | Redémarrage sur une fausse voiture et une fausse horloge : chaque réponse du processeur de l'unité (acceptée, en attente, refusée, erreur vMOST, aucune, d'un autre testeur) et le délai avant le redémarrage d'avant ; session vMOST sur une fausse bibliothèque ; journal en profil maintenance seulement |
 | `make verify_binary verify_wireless` | Programmes ARM : bibliothèques résolues sur la voiture, empreintes des programmes validés |
 | `tools/verify_repo.py`, `tools/verify_core.py` | Contenu de git : ni mot de passe, ni clé de signature, ni programme compilé, ni fichier BMW ; licence |

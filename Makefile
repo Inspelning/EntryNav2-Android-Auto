@@ -50,8 +50,8 @@ DAEMON_SRC = platform/alps_spp.cpp platform/alps_spp_codec.cpp platform/evo_ap.c
 DAEMON_OBJ = $(CORE_OBJ) $(DAEMON_SRC:.cpp=.o)
 SUPERVISOR_OBJ = tools/aa_supervisor.o platform/evo_spp_snapshot.o platform/alps_spp.o platform/alps_spp_codec.o \
             platform/evo_ilm.o platform/evo_process.o platform/evo_ap.o platform/evo_ap_config.o platform/evo_wlan.o \
-            platform/vmost_client.o platform/usb_accessory.o platform/log_copy.o platform/update_package.o \
-            platform/update_install.o platform/update_car.o
+            platform/evo_reboot.o platform/vmost_client.o platform/usb_accessory.o platform/log_copy.o \
+            platform/update_package.o platform/update_install.o platform/update_car.o
 CHECK_OBJ = tools/evo_check.o platform/alps_spp.o platform/alps_spp_codec.o platform/evo_process.o
 CAPTURE_OBJ = tools/evo_capture.o
 ARM_OBJ = $(sort $(DAEMON_OBJ) $(PLATFORM_OBJ) $(SUPERVISOR_OBJ) $(CHECK_OBJ) $(CAPTURE_OBJ))
@@ -175,6 +175,9 @@ test-host: test-parsers test-spp-host test-kombi-host test-gps-host test-capture
 	gcc -std=c99 -Wall -Wextra -Werror -shared -fPIC tests/fake_vmostclient.c -o tests/fake-vmostclient.so
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_evo_wlan.cpp platform/evo_wlan.cpp platform/vmost_client.cpp -ldl -o tests/test-evo-wlan
 	./tests/test-evo-wlan $(CURDIR)/tests/fake-vmostclient.so
+	$(HOST_CXX) $(HOST_FLAGS) tests/test_evo_reboot.cpp platform/evo_reboot.cpp platform/vmost_client.cpp -ldl \
+	    -o tests/test-evo-reboot
+	./tests/test-evo-reboot $(CURDIR)/tests/fake-vmostclient.so
 	gcc -std=c99 -Wall -Wextra -Werror -shared -fPIC -Wl,-soname,libasound.so.2 tests/fake_libasound.c -pthread \
 	    -o tests/fake-libasound.so
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_evo_mic.cpp platform/evo_mic.cpp -ldl -o tests/test-evo-mic
@@ -312,6 +315,10 @@ test-unit-sanitizers:
 	./tests/test-security-fs
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_evo_gps.cpp -o tests/test-evo-gps
 	./tests/test-evo-gps
+	gcc -std=c99 -Wall -Wextra -Werror -shared -fPIC tests/fake_vmostclient.c -o tests/fake-vmostclient.so
+	$(HOST_CXX) $(HOST_FLAGS) tests/test_evo_reboot.cpp platform/evo_reboot.cpp platform/vmost_client.cpp -ldl \
+	    -o tests/test-evo-reboot
+	./tests/test-evo-reboot $(CURDIR)/tests/fake-vmostclient.so
 
 test-frame-host:
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_aa_frame.cpp core/aa_frame.cpp -o tests/test-aa-frame
@@ -401,6 +408,10 @@ test-update-arm-build:
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_update_install.cpp $(UPDATE_SRC) \
 	    -o tests/test-update-install-arm $(LDSHLIB) -l:libcrypto.so.1.0.0 -ldl -lrt
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_update_flow.cpp -o tests/test-update-flow-arm $(LDSHLIB)
+	arm-linux-gnueabihf-gcc $(ARCH) -std=c99 -Wall -Wextra -Werror -shared -fPIC tests/fake_vmostclient.c \
+	    -o tests/fake-vmostclient-arm.so
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_evo_reboot.cpp platform/evo_reboot.cpp platform/vmost_client.cpp \
+	    -o tests/test-evo-reboot-arm $(LDSHLIB) -ldl -lrt
 
 test-pb-arm-build:
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_pb.cpp -o tests/test-pb-arm $(LDSHLIB) -lrt

@@ -20,6 +20,11 @@ QEMU with the car's libraries).
   ([#176](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/176), tried on an F44; texts of the USB stick
   update: [#185](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/185)). Tested on PC.
 - Italian translation of the Android Auto menu in iDrive ([#77](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/77)). Tested on PC.
+- After an update from a USB stick, the unit now asks the unit's processor for a clean restart, as a BMW diagnostic
+  tool does, instead of the restart that left the screen black for about 3 minutes. If it refuses, does not answer
+  or cannot be reached, the restart is the one from before. The same by hand, with the car stopped:
+  `aa-supervisor --reboot` ([maintenance](docs/MAINTENANCE.md#redémarrer-lunité-essai)). Tested on PC, not yet in a
+  car.
 
 ### Fixed
 

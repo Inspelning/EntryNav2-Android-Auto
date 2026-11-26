@@ -10,7 +10,7 @@
 //                       +12 u16 length, +16 data pointer (the library sets it to msg+0x18).
 // vmostConnect retries forever when the daemon's socket is missing: load() never opens the library without one.
 // Users: the controller and volume reader (evo_knob), which lends its connection to the cluster's guidance fields
-// (kombi_most), and the hotspot request (evo_wlan).
+// (kombi_most), the hotspot request (evo_wlan), and the clean ECU reset (evo_reboot).
 #ifndef ENTRY_AAD_PLATFORM_VMOST_CLIENT_HPP
 #define ENTRY_AAD_PLATFORM_VMOST_CLIENT_HPP
 
@@ -22,7 +22,7 @@
 namespace evo {
 
 // MOST operation types used by this program.
-const uint32_t kMostOpGet = 0x1, kMostOpStartResultAck = 0x6, kMostOpStatus = 0xC;
+const uint32_t kMostOpSet = 0x0, kMostOpGet = 0x1, kMostOpStartResultAck = 0x6, kMostOpStatus = 0xC;
 
 // A received message, read from the structure the callback gets.
 struct VmostMsgView {
