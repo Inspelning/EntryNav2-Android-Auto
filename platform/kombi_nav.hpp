@@ -110,6 +110,9 @@ private:
     pthread_t worker_;
 
     // The worker's own
+    unsigned inboxRevision_;  // of the inbox last read
+    bool guiding_;            // what it said: a guidance with a next maneuver,
+    Maneuver next_;           // this one
     bool enabled_;
     double settingCheckedAt_;
     bool offUntilNextSession_;  // the cluster refused a request, or never answered

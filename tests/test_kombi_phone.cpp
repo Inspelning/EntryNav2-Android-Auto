@@ -223,6 +223,67 @@ void hostileMessages() {
     }
 }
 
+// What the service keeps of the phone's messages, and how far it reads them: bounded, whatever the phone sends.
+void boundedInbox() {
+    Maneuver m;
+    // A message is kept up to its first 32 KiB, what the fields read are in (each one's first occurrence): the next
+    // step of a long route is still read, a status past 32 KiB of padding no longer is.
+    {
+        Bytes longRoute = kombitest::state(Step(7, "FIRST ST"));
+        Bytes padding;
+        aa::pb::appendString(padding, 1, std::string(1000, 'X'));
+        for (int i = 0; i < 1000; ++i) {  // about a megabyte of later steps
+            aa::pb::appendMessage(longRoute, 1, padding);
+        }
+        m = next(kombitest::inbox(longRoute));
+        CHECK(m.type == 7 && m.road == "FIRST ST");
+        Bytes late;
+        aa::pb::appendString(late, 2, std::string(evo::kombi::kMaxNavBody, 'P'));
+        aa::pb::appendUint(late, 1, 1);
+        NavInbox in;
+        kombitest::put(in, evo::kombi::kNavStatus, late);
+        CHECK(!in.guiding());
+        Bytes early;
+        aa::pb::appendString(early, 2, std::string(evo::kombi::kMaxNavBody - 10, 'P'));
+        aa::pb::appendUint(early, 1, 1);
+        kombitest::put(in, evo::kombi::kNavStatus, early);
+        CHECK(in.guiding());
+    }
+    // At most 16 lanes are read (a row of more than 8 is never drawn), and a lane of more than 16 directions is left
+    // empty, so that no row is drawn from it.
+    {
+        std::vector<kombitest::Lane> many(1000, kombitest::lane(1, 1));
+        m = next(kombitest::inbox(kombitest::state(Step(7, "R").with(many))));
+        CHECK(m.lanes.size() == 16 && m.lanes[15].size() == 1);
+        kombitest::Lane wide;
+        for (int i = 0; i < 17; ++i) {
+            wide.push_back(kombitest::lane(1)[0]);
+        }
+        m = next(kombitest::inbox(kombitest::state(Step(7, "R").with(wide).with(kombitest::lane(2, 1)))));
+        CHECK(m.lanes.size() == 2 && m.lanes[0].empty() && m.lanes[1].size() == 1);
+        wide.pop_back();
+        m = next(kombitest::inbox(kombitest::state(Step(7, "R").with(wide))));
+        CHECK(m.lanes.size() == 1 && m.lanes[0].size() == 16);
+    }
+    // The revision moves on with each message kept and each clear, not with a message the arrows do not read: the
+    // service copies the inbox again only then.
+    {
+        NavInbox in;
+        const unsigned first = in.revision();
+        kombitest::put(in, evo::kombi::kNavStatus, kombitest::status(1));
+        const unsigned kept = in.revision();
+        CHECK(kept != first);
+        kombitest::put(in, evo::kombi::kNavStatus, kombitest::status(1));  // the same body again: still news
+        CHECK(in.revision() != kept);
+        const unsigned again = in.revision();
+        CHECK(!in.keep(0x8001, reinterpret_cast<const uint8_t*>("x"), 1) && in.revision() == again);
+        const NavInbox copy = in;
+        CHECK(copy.revision() == again);
+        in.clear();
+        CHECK(in.revision() != again && in.revision() != first && !in.guiding());
+    }
+}
+
 }  // namespace
 
 int main() {
@@ -232,6 +293,7 @@ int main() {
     lanesLeftToRight();
     olderMessages();
     hostileMessages();
-    puts("PASS kombi phone: status, step, distance, lanes, older messages, hostile input");
+    boundedInbox();
+    puts("PASS kombi phone: status, step, distance, lanes, older messages, hostile input, bounded inbox");
     return 0;
 }

@@ -83,12 +83,12 @@ public:
         return true;
     }
 
-    // Every length-delimited occurrence of the field, up to the end of the message or a malformed field.
-    std::vector<Fields> every(uint32_t number) const {
+    // The length-delimited occurrences of the field, up to the end of the message, a malformed field, or `most` found.
+    std::vector<Fields> every(uint32_t number, size_t most) const {
         std::vector<Fields> found;
         aa::pb::FieldReader reader(data_, size_);
         aa::pb::Field f;
-        while (present_ && reader.next(f)) {
+        while (present_ && found.size() < most && reader.next(f)) {
             if (f.number == number && f.type == aa::pb::kBytes) {
                 found.push_back(Fields(f.data, f.size));
             }
@@ -115,6 +115,11 @@ private:
     bool present_;
 };
 
+// The lanes of a step read, and the directions of a lane: a road has a few, and a row of more than kMaxLanes
+// (kombi_display.hpp) is never drawn.
+const size_t kMostLanes = 16;
+const size_t kMostDirections = 16;  // LaneDirection.Shape has 10 values
+
 // NavigationState: its first step is the next maneuver. False when that step is missing.
 bool readState(const Fields& state, Maneuver& m) {
     const Fields step = state.message(1);
@@ -135,11 +140,11 @@ bool readState(const Fields& state, Maneuver& m) {
     }
     m.road = step.message(2).text(1);
     m.cue = step.message(4).text(1);
-    const std::vector<Fields> lanes = step.every(3);
+    const std::vector<Fields> lanes = step.every(3, kMostLanes);
     for (size_t i = 0; i < lanes.size(); ++i) {
-        const std::vector<Fields> directions = lanes[i].every(1);
-        PhoneLane lane;
-        for (size_t k = 0; k < directions.size(); ++k) {
+        const std::vector<Fields> directions = lanes[i].every(1, kMostDirections + 1);
+        PhoneLane lane;  // more directions than any lane has: left empty, so that no lane row is drawn from it
+        for (size_t k = 0; k < directions.size() && directions.size() <= kMostDirections; ++k) {
             int64_t shape = 0, highlighted = 0;
             directions[k].varint(1, shape);
             directions[k].varint(2, highlighted);
@@ -274,12 +279,15 @@ bool NavInbox::keep(uint16_t id, const uint8_t* body, size_t size) {
         default:
             return false;
     }
-    slot->assign(body, body + size);
+    slot->assign(body, body + (size < kMaxNavBody ? size : kMaxNavBody));
+    ++revision_;
     return true;
 }
 
 void NavInbox::clear() {
+    const unsigned next = revision_ + 1;
     *this = NavInbox();
+    revision_ = next;
 }
 
 bool NavInbox::guiding() const {

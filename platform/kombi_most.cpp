@@ -630,6 +630,8 @@ MostHud::MostHud(const MostHudConfig& config)
       wantSince_(0),
       seenMessages_(0),
       seenGeneration_(0),
+      inboxRevision_(0),
+      guiding_(false),
       settingOn_(false),
       arpSeen_(false),
       ethernetLogged_(false),
@@ -718,10 +720,19 @@ void MostHud::readInputs(uint32_t now) {
         arpAt_ = now - 10000;
         messageAt_ = now;
     }
+    // The messages are copied and read again only when one came in, not on every look.
     pthread_mutex_lock(&mu_);
-    const NavInbox inbox = inbox_;
+    const bool newMessages = inbox_.revision() != inboxRevision_;
+    NavInbox inbox;
+    if (newMessages) {
+        inbox = inbox_;
+        inboxRevision_ = inbox_.revision();
+    }
     const unsigned messages = messages_, generation = generation_;
     pthread_mutex_unlock(&mu_);
+    if (newMessages) {
+        guiding_ = inbox.guiding() && inbox.nextManeuver(next_);
+    }
     if (generation != seenGeneration_) {
         seenGeneration_ = generation;
         presenter_.reset();
@@ -758,10 +769,9 @@ void MostHud::readInputs(uint32_t now) {
     }
     allowed_ = settingOn_ && !ethernet && !arpSeen_;
     bmwNow_ = bmw_;
-    Maneuver next;
     const Maneuver* shown = nullptr;
-    if (inbox.guiding() && inbox.nextManeuver(next) && now - messageAt_ <= config_.guide.staleS * 1000) {
-        shown = &next;
+    if (guiding_ && now - messageAt_ <= config_.guide.staleS * 1000) {
+        shown = &next_;
     }
     if (allowed_ && !bmwNow_) {
         has_ = presenter_.step(shown, now / 1000.0, view_);

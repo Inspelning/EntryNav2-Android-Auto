@@ -246,6 +246,9 @@ private:
     bool started_;
     uint32_t startedAt_, inputsAt_, settingAt_, arpAt_, messageAt_, wantSince_;
     unsigned seenMessages_, seenGeneration_;
+    unsigned inboxRevision_;  // of the inbox last read
+    bool guiding_;            // what it said: a guidance with a next maneuver,
+    Maneuver next_;           // this one
     bool settingOn_, arpSeen_, ethernetLogged_, allowed_, bmwNow_, has_, wantOn_;
     HudView view_;
     HudPresenter presenter_;

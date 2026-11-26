@@ -110,6 +110,10 @@ QEMU with the car's libraries).
   missing: the cluster shows the distance worked out from the metres, else "-". A short text is shown as sent only
   when it is made of digits ("0.3", "1,5"), and a street name that is not valid UTF-8 no longer reaches the cluster
   as invalid characters. Tested on PC.
+- Cluster arrows: the phone's navigation messages were kept whole (up to 8 MiB each), then copied and read again
+  four times a second, by the Ethernet arrows' thread and by the MOST cluster's alike. Only their first 32 KiB are
+  now kept (a step takes a few hundred bytes), at most 16 lanes and 16 directions per lane are read, and the
+  messages are copied and read again only when a new one has come. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

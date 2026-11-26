@@ -79,12 +79,21 @@ struct Maneuver {
     bool sameDistance(const Maneuver& other) const;
 };
 
-// The newest body of each message the arrows read. A plain value: the service copies it from the session thread.
+// At most this much of a message's body is kept. The fields read are each one's first occurrence, at the start of
+// the message (the next step, its distance, the status), and a phone's take a few hundred bytes: the end of a longer
+// one (the route's later steps) is never read. A session may hand over up to 8 MiB per message.
+const size_t kMaxNavBody = 32 * 1024;
+
+// The newest body of each message the arrows read. A plain value: the service copies it from the session thread,
+// only when its revision has changed.
 class NavInbox {
 public:
-    // Keeps the body when the arrows read this message; false for any other message.
+    NavInbox() : revision_(0) {}
+    // Keeps the body, its first kMaxNavBody bytes, when the arrows read this message; false for any other message.
     bool keep(uint16_t id, const uint8_t* body, size_t size);
     void clear();
+    // Moves on with each message kept and each clear: two copies of the same revision read the same.
+    unsigned revision() const { return revision_; }
     // Guidance is on only while the latest NavigationStatus says active: rerouting counts as off, and the caller's
     // grace period keeps the arrow through it.
     bool guiding() const;
@@ -94,6 +103,7 @@ public:
 
 private:
     std::vector<uint8_t> status_, turn_, turnDistance_, state_, position_;
+    unsigned revision_;
 };
 
 }  // namespace kombi

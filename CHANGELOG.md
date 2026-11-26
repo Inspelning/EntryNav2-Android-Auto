@@ -110,6 +110,11 @@ QEMU avec les bibliothèques de la voiture).
   distance compte maintenant comme absente : le compteur affiche la distance tirée des mètres, sinon « - ». Un texte
   court n'est plus affiché tel quel que s'il est fait de chiffres (« 0.3 », « 1,5 »), et un nom de rue qui n'est pas
   de l'UTF-8 valide n'arrive plus au compteur en caractères invalides. Testé sur PC.
+- Flèches au compteur : les messages de navigation du téléphone étaient gardés entiers (jusqu'à 8 Mio chacun) et
+  recopiés puis relus quatre fois par seconde, par le fil des flèches Ethernet comme par celui du compteur MOST.
+  Seuls leurs premiers 32 Kio sont maintenant gardés (une étape en prend quelques centaines d'octets), au plus 16
+  voies et 16 directions par voie sont lues, et les messages ne sont recopiés et relus que quand un nouveau est
+  arrivé. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
