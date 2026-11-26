@@ -529,6 +529,11 @@ private:
         while (done < data.size()) {
             const ssize_t n = write(fd_, &data[done], data.size() - done);
             if (n <= 0) {
+                // The head unit already closed the link: the next read says so ("hu <closed>"). Which of the two the
+                // phone meets first is only timing (a slower run, under ASan, writes after the close).
+                if (n < 0 && (errno == EPIPE || errno == ECONNRESET)) {
+                    return;
+                }
                 log_.push_back("ph <write failed>");
                 return;
             }
