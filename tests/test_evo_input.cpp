@@ -1,10 +1,19 @@
 // Copyright (c) 2026 Jiraiya43
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Inputs: IPv4/UDP tap parsing, touch state machine, vMOST messages to the controller decoder, keys and volume.
+// With the stand-in vMOST library (tests/fake_vmostclient.c) as argument: the controller reader when vmostd leaves.
 #include <assert.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+#include <string>
 
 #include "evo_knob.hpp"
 #include "evo_touch.hpp"
@@ -65,7 +74,175 @@ static int frame(evo::TouchTracker& t, int x, int y, int state, unsigned char se
     return t.feed(f, sizeof(f), ev, 16);
 }
 
-int main() {
+// ---- the controller reader when vmostd leaves, on the stand-in library ----
+
+static std::string readText(const std::string& path) {
+    std::string s;
+    FILE* f = fopen(path.c_str(), "r");
+    if (!f) {
+        return s;
+    }
+    char b[512];
+    size_t n;
+    while ((n = fread(b, 1, sizeof(b), f)) > 0) {
+        s.append(b, n);
+    }
+    fclose(f);
+    return s;
+}
+
+static size_t countOf(const std::string& s, const char* part) {
+    size_t n = 0;
+    for (size_t at = s.find(part); at != std::string::npos; at = s.find(part, at + 1)) {
+        ++n;
+    }
+    return n;
+}
+
+// What the F-series cluster's guidance fields do on the reader's connection (kombi_most.cpp): three copies asked in a
+// row at its first tick (MostHud::shadowAll), given back at the end (MostHud::unshadow).
+class CopyingPeer : public evo::VmostPeer {
+public:
+    CopyingPeer() : ticks_(0) {}
+    bool wants(const evo::VmostMsgView&) const override { return false; }
+    void onMessage(const evo::VmostMsgView&) override {}
+    int dueInMs(uint32_t) const override { return 20; }
+    void tick(uint32_t, evo::VmostPort& port) override {
+        if (ticks_++ == 0) {
+            port.shadow(0x02, 0x00, true);
+            port.shadow(0x82, 0x00, true);
+            port.shadow(0x52, 0x00, true);
+        }
+    }
+    void finish(evo::VmostPort& port) override {
+        port.shadow(0x52, 0x00, false);
+        port.shadow(0x82, 0x00, false);
+        port.shadow(0x02, 0x00, false);
+    }
+
+private:
+    unsigned ticks_;
+};
+
+static void ignoreKey(const aa::CcsEvent&, void*) {}
+
+struct LinkCase {
+    const char* name;
+    const char* how;    // how vmostd leaves (FAKE_VMOST_GONE_HOW)
+    bool peer;          // with the cluster's fields on the connection
+    const char* until;  // the stand-in library's line the child waits for, then stops the reader
+    const char* shows;  // what the stand-in library's log must show
+};
+
+// One reader in a child process: vmostd leaves after the reader's first eight messages, its reads at the start (E5.03
+// C46/C47/C4F, the console's volume and its button, the wheel's volume and its phone button, the volume level). The
+// child stops the reader once `until` is logged: stop() joins its thread, so whatever it did after is done. Returns
+// the child's wait status: the stand-in library aborts, as glibc on the car, on a second disconnection.
+static int runReader(const LinkCase& c, const char* lib, const std::string& sock, const std::string& log,
+                     const std::string& out) {
+    unlink(log.c_str());
+    fflush(stdout);
+    fflush(stderr);
+    const pid_t pid = fork();
+    if (pid == 0) {
+        const int fd = open(out.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+        if (fd >= 0) {
+            dup2(fd, STDOUT_FILENO);
+            dup2(fd, STDERR_FILENO);
+            close(fd);
+        }
+        setenv("FAKE_VMOST_LOG", log.c_str(), 1);
+        setenv("FAKE_VMOST_GONE_AFTER", "8", 1);
+        setenv("FAKE_VMOST_GONE_HOW", c.how, 1);
+        evo::setVmostForTest(sock.c_str(), lib);
+        CopyingPeer peer;
+        int code = 0;
+        {
+            evo::EvoKnob knob;
+            if (c.peer) {
+                knob.setPeer(&peer);
+            }
+            if (!knob.start(evo::INPUT_OBSERVE, &ignoreKey, nullptr)) {
+                code = 3;
+            } else {
+                // 10 s at most: the older protocol's reads go 2 s after the start.
+                for (int i = 0; i < 1000 && readText(log).find(c.until) == std::string::npos; ++i) {
+                    usleep(10000);
+                }
+                code = readText(log).find(c.until) == std::string::npos ? 4 : 0;
+                knob.stop();
+            }
+        }
+        fflush(stdout);
+        _exit(code);
+    }
+    int status = -1;
+    while (pid > 0 && waitpid(pid, &status, 0) < 0 && errno == EINTR) {
+    }
+    return status;
+}
+
+static void vmostLinkLost(const char* lib) {
+    char dir[] = "/tmp/entry-knob-test-XXXXXX";
+    CHECK(mkdtemp(dir));
+    const std::string sock = std::string(dir) + "/vmost_sockstream", log = std::string(dir) + "/vmost.log",
+                      out = std::string(dir) + "/reader.out";
+    const int s = socket(AF_UNIX, SOCK_STREAM, 0);  // vmostd's socket, so that the reader loads the library
+    CHECK(s >= 0);
+    sockaddr_un a;
+    memset(&a, 0, sizeof(a));
+    a.sun_family = AF_UNIX;
+    strncpy(a.sun_path, sock.c_str(), sizeof(a.sun_path) - 1);
+    CHECK(bind(s, reinterpret_cast<sockaddr*>(&a), sizeof(a)) == 0);
+
+    // Each time the connection is let go exactly once, and nothing is deregistered once vmostd has left.
+    const LinkCase cases[] = {
+        // Hung up: the library still holds its side, the reader lets it go.
+        {"vmostd hangs up", "hangup", false, "disconnect\n", "vmostd leaves (hangup)\ndisconnect\n"},
+        // A broken read: the library disconnects itself ("vMOST reading interrupted"); the reader must not again.
+        {"the read breaks", "broken", false, "disconnects itself",
+         "vmostd leaves (broken)\nthe library disconnects itself (a read failed)\ndisconnect\n"},
+        // A write that fails before the descriptor says anything: the older controller's read, 2 s after the start.
+        {"the older protocol's read is not written", "deaf", false, "disconnects itself",
+         "send addr=ffff e5.01.c10 op=1 len=0 :\nthe library disconnects itself (a write failed)\ndisconnect\n"},
+        // The cluster's fields ask their copies on the reader's connection (F series): the first one fails.
+        {"the cluster's copies are not asked", "deaf", true, "disconnects itself",
+         "register 02.00\nthe library disconnects itself (a registration failed)\ndisconnect\n"},
+    };
+    int failed = 0;
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+        const LinkCase& c = cases[i];
+        const int status = runReader(c, lib, sock, log, out);
+        const std::string l = readText(log);
+        const size_t left = l.find("vmostd leaves");
+        const bool ok = WIFEXITED(status) && WEXITSTATUS(status) == 0 && left != std::string::npos &&
+                        countOf(l.substr(0, left), "send ") == 8 && l.find(c.shows) != std::string::npos &&
+                        countOf(l, "disconnect\n") == 1 && countOf(l.substr(left), "deregister") == 0 &&
+                        countOf(l.substr(left), "register 82.00") == 0;
+        if (!ok) {
+            char why[64];
+            if (WIFSIGNALED(status)) {
+                snprintf(why, sizeof(why), "the reader died (signal %d)", WTERMSIG(status));
+            } else {
+                snprintf(why, sizeof(why), "exit %d", WIFEXITED(status) ? WEXITSTATUS(status) : -1);
+            }
+            fprintf(stderr, "FAIL controller reader, %s: %s\n--- stand-in library ---\n%s--- reader ---\n%s", c.name,
+                    why, l.c_str(), readText(out).c_str());
+            ++failed;
+        }
+    }
+    CHECK(failed == 0);
+    close(s);
+    unlink(sock.c_str());
+    unlink(log.c_str());
+    unlink(out.c_str());
+    rmdir(dir);
+}
+
+int main(int argc, char** argv) {
+    if (argc > 1) {
+        vmostLinkLost(argv[1]);
+    }
     evo::InputMode mode;
     CHECK(evo::parseInputMode(nullptr, mode) && mode == evo::INPUT_OFF);
     CHECK(evo::parseInputMode("off", mode) && mode == evo::INPUT_OFF);
@@ -876,6 +1053,8 @@ int main() {
         "touches comme CarPlay (effleurement ignore, NAV/MEDIA/COM et bouton telephone du volant -> applis AA, COM a "
         "l iDrive pendant un appel, sauf le relache d'un COM appuye avant) ; touches selon le codage de la voiture, "
         "comme l iDrive (controleur G ou F, F20 ZBE3 #55, double MEDIA) ; boutons de volume console/volant decodes ; "
-        "niveau du volume (20.00.C08)");
+        "niveau du volume (20.00.C08) ; lecteur de la molette quand vmostd part (raccroche, lecture cassee, envoi "
+        "rate, "
+        "copies du compteur) : connexion lachee une seule fois, rien desenregistre");
     return 0;
 }

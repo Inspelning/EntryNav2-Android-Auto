@@ -198,6 +198,11 @@ QEMU avec les bibliothèques de la voiture).
   ([#79](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/79)). Testé sur PC.
 - Journaux : l'échange Bluetooth avec le téléphone n'écrit plus le nom ni l'adresse (BSSID) du Wi-Fi de la voiture
   dans le journal du service, seulement s'ils sont là : ces journaux sont publiés dans les tickets. Testé sur PC.
+- Arrêt de la voiture : le service ne plante plus quand le service vMOST de la voiture s'arrête en premier
+  (`free(): invalid pointer`, vu dans des journaux de la 0.13.0-rc.10). La bibliothèque vMOST de la voiture coupe
+  elle-même sa connexion après une lecture ou un envoi raté, et une deuxième coupure la faisait planter : la molette,
+  les flèches au compteur des Série F, la demande du point d'accès Wi-Fi et le redémarrage propre ne la coupent plus
+  une deuxième fois. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

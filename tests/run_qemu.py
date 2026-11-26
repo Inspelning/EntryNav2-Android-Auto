@@ -44,7 +44,7 @@ CASES = [
     ("session-silence", "tests/test-session-silence-arm", [], None),
     ("gps-native", "tests/test-evo-gps-arm", [], None),
     ("video-presentation", "tests/test-video-presentation-arm", [], None),
-    ("input", "tests/test-evo-input-arm", [], None),
+    ("input", "tests/test-evo-input-arm", [str(ROOT / "tests/fake-vmostclient-arm.so")], None),
     ("media-recall", "tests/test-media-recall-arm", [], None),
     ("supervisor", "tests/test-supervisor-arm", [], None),
     ("update-package", "tests/test-update-package-arm", [], None),

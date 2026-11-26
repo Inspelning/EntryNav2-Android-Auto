@@ -159,9 +159,10 @@ test-host: test-parsers test-spp-host test-kombi-host test-gps-host test-capture
 	ENTRY_AAD_DIAGNOSTIC=./tests/evo-check-host ./tests/test-evo-ilm
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_video_presentation.cpp platform/evo_video.cpp -o tests/test-video-presentation
 	./tests/test-video-presentation
+	gcc -std=c99 -Wall -Wextra -Werror -shared -fPIC tests/fake_vmostclient.c -o tests/fake-vmostclient.so
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_evo_input.cpp platform/evo_touch.cpp platform/evo_knob.cpp platform/vmost_client.cpp \
 	    -ldl -o tests/test-evo-input
-	./tests/test-evo-input
+	./tests/test-evo-input $(CURDIR)/tests/fake-vmostclient.so
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_evo_control.cpp platform/evo_control.cpp -o tests/test-evo-control
 	./tests/test-evo-control
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_peek_timing.cpp platform/peek_timing.cpp -o tests/test-peek-timing
@@ -172,9 +173,10 @@ test-host: test-parsers test-spp-host test-kombi-host test-gps-host test-capture
 	./tests/test-sdr-g20
 	$(HOST_CXX) $(HOST_FLAGS) -Icore/include tests/test_evo_sdr.cpp core/sdr_builder.cpp platform/evo_sdr_sensors.cpp -o tests/test-evo-sdr
 	./tests/test-evo-sdr
-	gcc -std=c99 -Wall -Wextra -Werror -shared -fPIC tests/fake_vmostclient.c -o tests/fake-vmostclient.so
+	gcc -std=c99 -Wall -Wextra -Werror -shared -fPIC -DFAKE_VMOST_NO_CONNECTED tests/fake_vmostclient.c \
+	    -o tests/fake-vmostclient-nosym.so
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_evo_wlan.cpp platform/evo_wlan.cpp platform/vmost_client.cpp -ldl -o tests/test-evo-wlan
-	./tests/test-evo-wlan $(CURDIR)/tests/fake-vmostclient.so
+	./tests/test-evo-wlan $(CURDIR)/tests/fake-vmostclient.so $(CURDIR)/tests/fake-vmostclient-nosym.so
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_evo_reboot.cpp platform/evo_reboot.cpp platform/vmost_client.cpp -ldl \
 	    -o tests/test-evo-reboot
 	./tests/test-evo-reboot $(CURDIR)/tests/fake-vmostclient.so
@@ -250,9 +252,10 @@ test-host-sanitizers:
 test-unit-sanitizers:
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_evo_elf.cpp -o tests/test-evo-elf
 	./tests/test-evo-elf
+	gcc -std=c99 -Wall -Wextra -Werror -shared -fPIC tests/fake_vmostclient.c -o tests/fake-vmostclient.so
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_evo_input.cpp platform/evo_touch.cpp platform/evo_knob.cpp \
 	    platform/vmost_client.cpp -ldl -o tests/test-evo-input
-	./tests/test-evo-input
+	./tests/test-evo-input $(CURDIR)/tests/fake-vmostclient.so
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_evo_control.cpp platform/evo_control.cpp -o tests/test-evo-control
 	./tests/test-evo-control
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_peek_timing.cpp platform/peek_timing.cpp -o tests/test-peek-timing
@@ -315,7 +318,6 @@ test-unit-sanitizers:
 	./tests/test-security-fs
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_evo_gps.cpp -o tests/test-evo-gps
 	./tests/test-evo-gps
-	gcc -std=c99 -Wall -Wextra -Werror -shared -fPIC tests/fake_vmostclient.c -o tests/fake-vmostclient.so
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_evo_reboot.cpp platform/evo_reboot.cpp platform/vmost_client.cpp -ldl \
 	    -o tests/test-evo-reboot
 	./tests/test-evo-reboot $(CURDIR)/tests/fake-vmostclient.so
@@ -401,15 +403,17 @@ test-arm-all: dev-tools test-pb-arm-build test-sdr-arm-build test-kombi-arm-buil
               test-hmiapp-arm-build test-spawn-arm-build test-lm-cli-arm-build test-phone-arm-build \
               test-usb-arm-build test-wifi-arm-build test-update-arm-build
 
+# The stand-in vMOST library (tests/fake_vmostclient.c) for the ARM tests that load it: input and evo-reboot.
+tests/fake-vmostclient-arm.so: tests/fake_vmostclient.c
+	arm-linux-gnueabihf-gcc $(ARCH) -std=c99 -Wall -Wextra -Werror -shared -fPIC $< -o $@
+
 # The update from a USB stick with the car's libcrypto (OpenSSL 1.0.1): signatures, the engine, the menu's button.
-test-update-arm-build:
+test-update-arm-build: tests/fake-vmostclient-arm.so
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_update_package.cpp platform/update_package.cpp \
 	    -o tests/test-update-package-arm $(LDSHLIB) -l:libcrypto.so.1.0.0 -ldl -lrt
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_update_install.cpp $(UPDATE_SRC) \
 	    -o tests/test-update-install-arm $(LDSHLIB) -l:libcrypto.so.1.0.0 -ldl -lrt
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_update_flow.cpp -o tests/test-update-flow-arm $(LDSHLIB)
-	arm-linux-gnueabihf-gcc $(ARCH) -std=c99 -Wall -Wextra -Werror -shared -fPIC tests/fake_vmostclient.c \
-	    -o tests/fake-vmostclient-arm.so
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_evo_reboot.cpp platform/evo_reboot.cpp platform/vmost_client.cpp \
 	    -o tests/test-evo-reboot-arm $(LDSHLIB) -ldl -lrt
 
@@ -477,7 +481,7 @@ test-session-silence-arm-build: $(CORE_OBJ)
 	    $(filter-out core/wireless_setup.o,$(CORE_OBJ)) \
 	    -Wl,--gc-sections -o tests/test-session-silence-arm $(LDSHLIB) -lpthread -lrt -l:libssl.so.1.0.0 -l:libcrypto.so.1.0.0 -ldl
 
-test-presentation-arm-build:
+test-presentation-arm-build: tests/fake-vmostclient-arm.so
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_video_presentation.cpp platform/evo_video.cpp -o tests/test-video-presentation-arm $(LDSHLIB) -lpthread -lrt
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_evo_input.cpp platform/evo_touch.cpp platform/evo_knob.cpp platform/vmost_client.cpp \
 	    -o tests/test-evo-input-arm $(LDSHLIB) -lpthread -ldl -lrt

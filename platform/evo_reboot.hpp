@@ -153,7 +153,10 @@ public:
     // vmostd, its library, a connection, the copies of FD.04 and FD.41 (the request still goes without them), then
     // the request handed to vmostd.
     bool send();
+    // False once the session broke: vmostd hung up, or the library dropped the connection after a failed read.
     bool pump(unsigned ms, EcuResetWatch& watch);
+    // Gives the copies back and disconnects; after a broken session, only disconnects, and only if the library has
+    // not done it itself (vmost_client.hpp).
     void end();
     bool registered(uint8_t instance) const;
 
@@ -161,6 +164,8 @@ private:
     static void onMessage(void* msg, void* user);
     VmostClient vmost_;
     bool loaded_, connected_, registered04_, registered41_;
+    // vmostd hung up or the library dropped the connection (a failed read or write): end() only lets it go, once.
+    bool linkLost_;
     int fd_;
     EcuResetWatch* watch_;
 };

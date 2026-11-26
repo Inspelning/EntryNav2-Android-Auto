@@ -193,6 +193,10 @@ QEMU with the car's libraries).
   on PC.
 - Logs: the Bluetooth exchange with the phone no longer writes the car's Wi-Fi name or address (BSSID) in the service's
   log, only whether they are there: these logs get posted in issues. Tested on PC.
+- Car switch-off: the service no longer crashes when the car's vMOST service stops first (`free(): invalid pointer`,
+  seen in 0.13.0-rc.10 logs). The car's vMOST library closes its connection itself after a failed read or send, and a
+  second close crashed it: the controller, the F-series cluster arrows, the Wi-Fi hotspot request and the clean
+  restart no longer close it a second time. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

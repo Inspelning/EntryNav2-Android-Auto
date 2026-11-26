@@ -48,6 +48,14 @@ bool has(const std::string& text, const char* part) {
     return text.find(part) != std::string::npos;
 }
 
+size_t count(const std::string& text, const char* part) {
+    size_t n = 0;
+    for (size_t at = text.find(part); at != std::string::npos; at = text.find(part, at + 1)) {
+        ++n;
+    }
+    return n;
+}
+
 evo::VmostMsgView makeMsg(uint8_t inst, uint32_t op, const uint8_t* data, uint16_t len, uint16_t addr = 0x0100,
                           uint8_t fblock = 0xFD, uint16_t fkt = 0x0C00) {
     evo::VmostMsgView m;
@@ -446,7 +454,13 @@ int main(int argc, char** argv) {
             return 1;
         }
         CHECK(has(log, "register fd.04\nregister fd.41\nsend addr=0100 fd.04.c00 op=0 len=4 : f4 63 11 01\n"));
-        CHECK(has(log, "deregister fd.04\nderegister fd.41\n"));
+        if (m.sends) {
+            CHECK(has(log, "deregister fd.04\nderegister fd.41\ndisconnect\n") && count(log, "disconnect\n") == 1);
+        } else {
+            // The write failed: the library dropped the connection itself, and nothing follows (vmost_client.hpp).
+            CHECK(has(log, "the library disconnects itself (a write failed)\ndisconnect\n"));
+            CHECK(!has(log, "deregister") && count(log, "disconnect\n") == 1);
+        }
         if (!strcmp(m.name, "pending_ok")) {
             CHECK(watch.pendingSeen() && watch.answers() == 2);
         }
@@ -472,6 +486,39 @@ int main(int argc, char** argv) {
         CHECK(has(log, "send addr=0100 fd.04.c00 op=0 len=4 : f4 63 11 01\n") && !has(log, "deregister"));
     }
     unsetenv("FAKE_VMOST_FAIL_REGISTER");
+
+    // 5b'. vmostd leaves once it took the request: it hangs up, or the read breaks. The session gives nothing back and
+    // lets the connection go once: ours after a hang-up, the library's own after the broken read. A deregistration
+    // there, or a second disconnection, freed the library's queue twice on the car (free(): invalid pointer).
+    {
+        const char* const ways[] = {"hangup", "broken"};
+        for (size_t i = 0; i < sizeof(ways) / sizeof(ways[0]); ++i) {
+            unlink(sent.c_str());
+            setenv("FAKE_ECURESET_MODE", "silent", 1);
+            setenv("FAKE_VMOST_GONE_AFTER", "1", 1);
+            setenv("FAKE_VMOST_GONE_HOW", ways[i], 1);
+            evo::EcuResetSession session;
+            evo::EcuResetWatch watch;
+            CHECK(session.send() && session.registered(0x04) && session.registered(0x41));
+            CHECK(!session.pump(1000, watch) && watch.answer() == EcuResetAnswer::kNone);
+            session.end();
+            const std::string log = readAll(sent);
+            if (!has(log, "f4 63 11 01\nvmostd leaves") || has(log, "deregister") || count(log, "disconnect\n") != 1) {
+                fprintf(stderr, "FAIL session, vmostd gone (%s):\n%s", ways[i], log.c_str());
+                return 1;
+            }
+            // The whole restart: no answer before the session broke, today's restart 30 s later.
+            SessionHost host;
+            if (evo::restartHeadUnit(host, 0) != RestartWay::kLegacyAfterSilence || host.reboots != 1 ||
+                !has(host.lines, "before the vMOST session broke")) {
+                fprintf(stderr, "FAIL whole restart, vmostd gone (%s):\n%s", ways[i], host.lines.c_str());
+                return 1;
+            }
+        }
+        unsetenv("FAKE_VMOST_GONE_AFTER");
+        unsetenv("FAKE_VMOST_GONE_HOW");
+        unsetenv("FAKE_ECURESET_MODE");
+    }
 
     // 5c. The whole restart on the real session: accepted, refused, vMOST error, not sent, silent.
     struct Whole {
@@ -568,6 +615,7 @@ int main(int argc, char** argv) {
     puts(
         "PASS reboot: request F4 63 11 01 on 0100.FD.04.C00; accepted or pending = clean restart waited 120 s, silent "
         "= 30 s, refused / vMOST error / not sent = usual restart at once; copies of FD.04 and FD.41; log in "
-        "maintenance only, closed before the wait");
+        "maintenance only, closed before the wait; vmostd gone or a failed write: the connection let go once, nothing "
+        "deregistered");
     return 0;
 }

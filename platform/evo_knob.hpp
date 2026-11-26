@@ -156,6 +156,7 @@ private:
     static void* threadMain(void* self);
     void run();
     bool load();
+    bool dropped();
     // Reads C10 and C20 on E5.01 once, which opens vmostd's filter for the older controller protocol.
     void readOlderProtocol();
     InputMode mode_;

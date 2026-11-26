@@ -508,7 +508,7 @@ void EvoKnob::pump(int ms) {
     const uint32_t until = monoMs() + static_cast<uint32_t>(ms > 0 ? ms : 0);
     for (;;) {
         const int32_t left = static_cast<int32_t>(until - monoMs());
-        if (left <= 0 || fd_ < 0) {
+        if (left <= 0 || fd_ < 0 || !vmost_.linked()) {
             return;
         }
         struct pollfd p;
@@ -538,7 +538,8 @@ void EvoKnob::run() {
         return;
     }
     connected_ = true;
-    bool linkLost = false;  // vmostd closed or broke the connection: nothing more to ask of it, only to let it go
+    // vmostd closed or broke the connection, or the library dropped it: nothing more to ask of it, only to let it go.
+    bool linkLost = false;
     // vmostd's library opens its connection without close-on-exec: kept from the programs the service starts.
     int link = -1;
     if (vmost_.fileDescriptorGet(&link) == 0 && link >= 0) {
@@ -614,6 +615,10 @@ void EvoKnob::run() {
         }
         fd_ = fd;
         while (running_) {
+            if (dropped()) {  // during the last turn: a send of the older protocol's reads or of the peer
+                linkLost = true;
+                break;
+            }
             struct pollfd p;
             p.fd = fd;
             p.events = POLLIN;
@@ -651,12 +656,18 @@ void EvoKnob::run() {
                 peer_->tick(monoMs(), *this);
             }
         }
+        if (!linkLost && dropped()) {
+            linkLost = true;
+        }
         if (peer_ && !linkLost) {
             peer_->finish(*this);
         }
         fd_ = -1;
     }
     releaseHeldKeys("controller reading stopped");
+    if (connected_ && !linkLost && dropped()) {  // at the start, or in the peer's last calls
+        linkLost = true;
+    }
     if (connected_ && !linkLost) {
         if (levelRegistered_) {
             vmost_.shadowDeregister(kAudioMasterFblock, kAudioMasterInstance);
@@ -672,9 +683,21 @@ void EvoKnob::run() {
         }
     }
     if (connected_) {
-        vmost_.disconnect();  // the library's side too, the connection lost or not
+        // The library's side too, the connection lost or not: once, unless the library already closed it itself
+        // (VmostClient skips it then, vmost_client.hpp).
+        vmost_.disconnect();
         connected_ = false;
     }
+}
+
+// The library closed its connection itself (its own vmostDisconnect after a failed read or write): lost, as when
+// vmostd hangs up, and never closed a second time.
+bool EvoKnob::dropped() {
+    if (!connected_ || vmost_.linked()) {
+        return false;
+    }
+    ELOG("Knob", "the vMOST library closed the connection itself after a failed read or write");
+    return true;
 }
 
 }  // namespace evo

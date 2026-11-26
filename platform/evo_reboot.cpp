@@ -192,7 +192,13 @@ RestartWay restartHeadUnit(RestartHost& host, unsigned delayMs) {
 // ---- the vMOST session ------------------------------------------------------------------------------------------
 
 EcuResetSession::EcuResetSession()
-    : loaded_(false), connected_(false), registered04_(false), registered41_(false), fd_(-1), watch_(nullptr) {}
+    : loaded_(false),
+      connected_(false),
+      registered04_(false),
+      registered41_(false),
+      linkLost_(false),
+      fd_(-1),
+      watch_(nullptr) {}
 
 EcuResetSession::~EcuResetSession() {
     end();
@@ -262,13 +268,15 @@ bool EcuResetSession::send() {
     m.data = payload;
     m.channel = 0;
     rc = vmost_.send(&m);
-    ELOG("Reboot", "ECUReset hardReset %04x.%02x.%02x.%03x Set %02x %02x %02x %02x: %s (%d)", m.addr, m.fblock, m.inst,
-         m.fkt, payload[0], payload[1], payload[2], payload[3], rc == 0 ? "sent" : "refused", rc);
+    linkLost_ = !vmost_.linked();  // a failed write: the library dropped the connection itself
+    ELOG("Reboot", "ECUReset hardReset %04x.%02x.%02x.%03x Set %02x %02x %02x %02x: %s (%d)%s", m.addr, m.fblock,
+         m.inst, m.fkt, payload[0], payload[1], payload[2], payload[3], rc == 0 ? "sent" : "refused", rc,
+         linkLost_ ? ", the vMOST library closed the connection" : "");
     return rc == 0;
 }
 
 bool EcuResetSession::pump(unsigned ms, EcuResetWatch& watch) {
-    if (!connected_ || fd_ < 0) {
+    if (!connected_ || linkLost_ || fd_ < 0) {
         return false;
     }
     watch_ = &watch;
@@ -286,10 +294,14 @@ bool EcuResetSession::pump(unsigned ms, EcuResetWatch& watch) {
             break;
         }
         if (r > 0 && (p.revents & (POLLERR | POLLHUP | POLLNVAL))) {
+            ELOG("Reboot", "vmostd closed the connection");
+            linkLost_ = true;
             ok = false;
             break;
         }
         if (r > 0 && (p.revents & POLLIN) && vmost_.processMessages() != 0) {
+            ELOG("Reboot", "vMOST reading interrupted: the library closed the connection");
+            linkLost_ = true;
             ok = false;
             break;
         }
@@ -300,18 +312,20 @@ bool EcuResetSession::pump(unsigned ms, EcuResetWatch& watch) {
 
 void EcuResetSession::end() {
     if (connected_) {
-        if (registered04_) {
+        // Nothing more to ask of a lost connection: a deregistration would only fail, and make the library disconnect.
+        const bool lost = linkLost_ || !vmost_.linked();
+        if (registered04_ && !lost) {
             vmost_.shadowDeregister(kDiagFblock, kDiagInstance);
         }
-        if (registered41_) {
+        if (registered41_ && !lost) {
             vmost_.shadowDeregister(kDiagFblock, kDiagAnswerInstance);
         }
-        vmost_.disconnect();
+        vmost_.disconnect();  // once, and not after the library's own (vmost_client.hpp)
     }
     if (loaded_) {
         vmost_.unload();
     }
-    loaded_ = connected_ = registered04_ = registered41_ = false;
+    loaded_ = connected_ = registered04_ = registered41_ = linkLost_ = false;
     fd_ = -1;
     watch_ = nullptr;
 }
