@@ -178,12 +178,15 @@ void Guide::show(const Maneuver& m, const ClusterLanes& lanes, bool newTurn, boo
     const int direction = clusterDirection(m.type), unit = clusterUnit(m.distanceUnit);
     const std::string laneNote = !lanes.empty() || lanesChanged ? " | lanes " + describeLanes(lanes) : std::string();
     if (newTurn && isRoundabout(m.type)) {
-        ELOG(kTag, "roundabout: exit field %d, angle %s%d, cue '%s' -> exit shown %d", m.exitNumber,
-             m.hasExitAngle ? "" : "missing ", m.hasExitAngle ? static_cast<int>(m.exitAngle) : 0, m.cue.c_str(),
-             roundaboutExit(m));
+        // The cue's text names roads: only its length is logged (the log is posted by users; no positions in it).
+        ELOG(kTag, "roundabout: exit field %d, angle %s%d, cue of %u byte(s) -> exit shown %d", m.exitNumber,
+             m.hasExitAngle ? "" : "missing ", m.hasExitAngle ? static_cast<int>(m.exitAngle) : 0,
+             static_cast<unsigned>(m.cue.size()), roundaboutExit(m));
     }
-    ELOG(kTag, "%s type %d -> direction %d | %s %s | road '%s'%s", newTurn ? "SHOW" : "LANES", m.type, direction,
-         m.distanceText.c_str(), clusterUnitName(unit), m.road.c_str(), laneNote.c_str());
+    // No road name: the log is posted by users, and a street says where the driver is. Its length is enough.
+    ELOG(kTag, "%s type %d -> direction %d | %s %s | road of %u byte(s)%s", newTurn ? "SHOW" : "LANES", m.type,
+         direction, m.distanceText.c_str(), clusterUnitName(unit), static_cast<unsigned>(m.road.size()),
+         laneNote.c_str());
     const ClusterManeuver shown(direction, m.road, m.distanceText, unit, lanes);
     std::vector<Request> requests;
     LaneSection section;

@@ -628,7 +628,8 @@ AASession::Received AASession::receive(uint8_t& channel, Message& wire, Message&
         }
         return kNothing;
     }
-    if (logged) {
+    // The phone's navigation carries street names, which say where the driver is: its bytes are never logged.
+    if (logged && channel != channel::kNavigation) {
         printHead(message);
     }
     if (!tls_.established()) {

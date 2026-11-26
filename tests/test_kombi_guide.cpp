@@ -485,6 +485,41 @@ void noKombiNoCancel() {
 
 }  // namespace
 
+// What the guide logs while run() goes (ELOG writes to stdout), caught in a file.
+std::string logOf(void (*run)()) {
+    char path[] = "/tmp/kombi-guide-log-XXXXXX";
+    const int file = mkstemp(path);
+    CHECK(file >= 0);
+    fflush(stdout);
+    const int saved = dup(1);
+    dup2(file, 1);
+    run();
+    fflush(stdout);
+    dup2(saved, 1);
+    close(saved);
+    std::string text;
+    char buf[4096];
+    ssize_t n;
+    lseek(file, 0, SEEK_SET);
+    while ((n = read(file, buf, sizeof(buf))) > 0) {
+        text.append(buf, static_cast<size_t>(n));
+    }
+    close(file);
+    unlink(path);
+    return text;
+}
+
+// The roads a driver passes say where he is, and users post the log: only a road's length is written there.
+void noRoadInLog() {
+    const std::string text = logOf([]() {
+        Rig r;
+        r.tick(0, Step(7, "Rue des Secrets"), 800, "0.5", 5);
+        CHECK(r.count() == 97);
+    });
+    CHECK(text.find("SHOW") != std::string::npos && text.find("road of 15 byte(s)") != std::string::npos);
+    CHECK(text.find("Secrets") == std::string::npos);
+}
+
 int main() {
     demoDriveInPlace();
     gapsAndRefusals();
@@ -494,6 +529,9 @@ int main() {
     approach();
     lanesWithGraphs();
     lanesInPlace();
-    puts("PASS kombi guide: in place and whole graphs, distances, lanes and positions, grace, approach, refusals");
+    noRoadInLog();
+    puts(
+        "PASS kombi guide: in place and whole graphs, distances, lanes and positions, grace, approach, refusals, "
+        "no road name in the log");
     return 0;
 }

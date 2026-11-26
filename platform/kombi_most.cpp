@@ -1508,8 +1508,8 @@ void MostHud::decide(uint32_t now) {
         return;
     }
     if ((!shown_ || view.direction != shownView_.direction) && drawn_ < kManeuversLogged) {
-        ELOG(kTag, "maneuver: direction %d, %s %s, street \"%s\"", view.direction, view.distance.c_str(),
-             view.unit.c_str(), view.street.c_str());
+        ELOG(kTag, "maneuver: direction %d, %s %s, street of %u byte(s)", view.direction, view.distance.c_str(),
+             view.unit.c_str(), static_cast<unsigned>(view.street.size()));  // no street name in the log
     }
     mark(true);
     visible_ = visible;

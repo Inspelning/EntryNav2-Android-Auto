@@ -178,6 +178,9 @@ QEMU avec les bibliothèques de la voiture).
   rien envoyer au compteur pendant ce guidage, sans jamais garder ni écrire dans le journal le nom d'une rue. Le
   journal résume ce que la navigation fait de chaque champ, et dit une fois chaque réponse du compteur qui ne se
   rattache à rien (une lecture de taille refusée, par exemple). Testé sur PC, pas encore en voiture.
+- Journaux : le journal du service n'écrit plus le nom des rues du guidage d'Android Auto (ni dans les lignes des
+  flèches au compteur, ni dans les octets des messages de navigation du téléphone), seulement leur longueur. Ce
+  journal est souvent publié dans les tickets, et une rue dit où se trouve le conducteur. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

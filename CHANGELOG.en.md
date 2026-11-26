@@ -174,6 +174,9 @@ QEMU with the car's libraries).
   the cluster during that route, and a street name is never kept nor written to the log. The log sums up what the
   navigation does with each field, and says once each answer from the cluster that belongs to nothing (a refused size
   read, for instance). Tested on PC, not yet in a car.
+- Logs: the service's log no longer writes the street names of Android Auto's guidance (neither in the cluster arrow
+  lines nor in the bytes of the phone's navigation messages), only their length. This log is often posted in issues,
+  and a street tells where the driver is. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
