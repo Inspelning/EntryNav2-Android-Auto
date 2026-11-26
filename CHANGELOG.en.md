@@ -191,6 +191,8 @@ QEMU with the car's libraries).
   Ethernet cluster, each try of which made it wait a few seconds; and the log line of the first picture no longer
   suggests a fault when the arrow shows ([#79](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/79)). Tested
   on PC.
+- Logs: the Bluetooth exchange with the phone no longer writes the car's Wi-Fi name or address (BSSID) in the service's
+  log, only whether they are there: these logs get posted in issues. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

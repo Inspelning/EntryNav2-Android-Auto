@@ -196,6 +196,8 @@ QEMU avec les bibliothèques de la voiture).
   compteur Ethernet des Série G, qui faisait attendre quelques secondes à chaque essai ; et la ligne de journal de la
   première image ne fait plus croire à une panne quand la flèche s'affiche
   ([#79](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/79)). Testé sur PC.
+- Journaux : l'échange Bluetooth avec le téléphone n'écrit plus le nom ni l'adresse (BSSID) du Wi-Fi de la voiture
+  dans le journal du service, seulement s'ils sont là : ces journaux sont publiés dans les tickets. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

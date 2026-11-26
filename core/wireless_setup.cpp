@@ -276,8 +276,9 @@ WirelessSetup::Step WirelessSetup::handle(uint16_t id, const std::vector<uint8_t
     uint64_t status = 0;
     switch (id) {
         case kInfoRequest:
-            printf("[Wireless] TX WifiInfoResponse ssid='%s' bssid='%s' security=%d\n", ap_.ssid.c_str(),
-                   ap_.bssid.c_str(), ap_.security);
+            // Neither the network's name nor its address: users post this log, and both identify the car.
+            printf("[Wireless] TX WifiInfoResponse: ssid of %u byte(s), bssid %s, security=%d\n",
+                   static_cast<unsigned>(ap_.ssid.size()), ap_.bssid.empty() ? "missing" : "set", ap_.security);
             if (!write(infoResponse(ap_))) {
                 return kWriteFailed;
             }
