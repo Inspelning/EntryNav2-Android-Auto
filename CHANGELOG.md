@@ -153,6 +153,8 @@ QEMU avec les bibliothèques de la voiture).
   et la molette restant prioritaires. Testé sur PC.
 - Sans-fil : l'écoute du téléphone ne s'ouvre plus sur toutes les interfaces quand l'adresse du point d'accès est
   illisible, et ses connexions ne passent plus aux programmes lancés par le service. Testé sur PC.
+- Sans-fil : l'échange Bluetooth avec le téléphone respecte ses délais même quand le téléphone envoie au compte-gouttes
+  ou ne lit plus ; le gestionnaire de plantage du service est plus sûr. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

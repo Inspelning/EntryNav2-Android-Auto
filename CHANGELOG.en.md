@@ -150,6 +150,8 @@ QEMU with the car's libraries).
   controller keeping priority. Tested on PC.
 - Wireless: the phone listener no longer opens on every interface when the access point's address is unreadable,
   and its connections no longer pass to the programs the service starts. Tested on PC.
+- Wireless: the Bluetooth exchange with the phone keeps its time limits even when the phone sends a trickle or stops
+  reading; the service's crash handler is safer. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

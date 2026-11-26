@@ -221,6 +221,8 @@ test-host: test-parsers test-spp-host test-kombi-host test-gps-host test-capture
 	./tests/test-wireless-phone tests/fixtures/wireless_phone.golden
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_wireless_listen.cpp core/wireless_setup.cpp -o tests/test-wireless-listen
 	./tests/test-wireless-listen
+	$(HOST_CXX) $(HOST_FLAGS) tests/test_crash_handler.cpp core/crash_handler.cpp -o tests/test-crash-handler
+	./tests/test-crash-handler
 
 test-host-sanitizers:
 	ASAN_OPTIONS=detect_leaks=1 $(MAKE) test-frame-host test-session-host \
