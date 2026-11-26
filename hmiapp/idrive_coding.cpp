@@ -5,10 +5,10 @@
 #include <dlfcn.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
-#include <string>
-
+#include "../platform/atomic_file.hpp"
 #include "../platform/car_brand.hpp"
 #include "../platform/car_series.hpp"
 #include "../platform/controller_layout.hpp"
@@ -132,14 +132,9 @@ const char* readText(int value) {
 // One line to path, through a temporary file renamed over it: the service never reads half a line. On failure the
 // file is removed, so the service falls back to its default rather than an old value.
 bool writeLine(const char* path, const char* line) {
-    const std::string tmp = std::string(path) + ".tmp";
-    FILE* f = fopen(tmp.c_str(), "w");
-    bool written = f && fprintf(f, "%s\n", line) > 0;
-    if (f && fclose(f) != 0) {
-        written = false;
-    }
-    if (!written || rename(tmp.c_str(), path) != 0) {
-        unlink(tmp.c_str());
+    char buf[160];
+    const int n = snprintf(buf, sizeof(buf), "%s\n", line);
+    if (n <= 0 || n >= static_cast<int>(sizeof(buf)) || !writeAtomicFile(path, buf, static_cast<size_t>(n))) {
         unlink(path);
         return false;
     }

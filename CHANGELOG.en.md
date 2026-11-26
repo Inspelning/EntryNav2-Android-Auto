@@ -152,6 +152,8 @@ QEMU with the car's libraries).
   and its connections no longer pass to the programs the service starts. Tested on PC.
 - Wireless: the Bluetooth exchange with the phone keeps its time limits even when the phone sends a trickle or stops
   reading; the service's crash handler is safer. Tested on PC.
+- iDrive app: stopping Android Auto checks that a process number is really the supervisor's or the service's before
+  stopping it; the app's and the service's files no longer follow symbolic links. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

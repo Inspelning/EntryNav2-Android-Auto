@@ -9,6 +9,7 @@
 #include <cstring>
 #include <string>
 
+#include "atomic_file.hpp"
 #include "evo_ap.hpp"
 #include "evo_log.hpp"
 #include "evo_spp_snapshot.hpp"
@@ -250,11 +251,10 @@ void ServiceApp::audioButton(void* user) {
 // A key file for the iDrive app: one line, renamed into place so it is never read half written; its time is the
 // file's own.
 static void writeKeyFile(const char* path, const char* word, const char* name) {
-    const std::string tmp = std::string(path) + ".tmp";
-    if (FILE* f = fopen(tmp.c_str(), "w")) {
-        fprintf(f, "%s %s\n", word, name);
-        fclose(f);
-        rename(tmp.c_str(), path);
+    char line[96];
+    const int n = snprintf(line, sizeof(line), "%s %s\n", word, name);
+    if (n > 0 && n < static_cast<int>(sizeof(line))) {
+        writeAtomicFile(path, line, static_cast<size_t>(n), 0644);
     }
 }
 

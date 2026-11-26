@@ -155,6 +155,8 @@ QEMU avec les bibliothèques de la voiture).
   illisible, et ses connexions ne passent plus aux programmes lancés par le service. Testé sur PC.
 - Sans-fil : l'échange Bluetooth avec le téléphone respecte ses délais même quand le téléphone envoie au compte-gouttes
   ou ne lit plus ; le gestionnaire de plantage du service est plus sûr. Testé sur PC.
+- Appli iDrive : l'arrêt d'Android Auto vérifie qu'un numéro de processus est bien celui du superviseur ou du service
+  avant de l'arrêter ; les fichiers de l'appli et du service ne suivent plus de lien symbolique. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

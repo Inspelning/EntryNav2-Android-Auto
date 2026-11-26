@@ -225,6 +225,8 @@ test-host: test-parsers test-spp-host test-kombi-host test-gps-host test-capture
 	./tests/test-crash-handler
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_fd_hygiene.cpp platform/evo_process.cpp -o tests/test-fd-hygiene
 	./tests/test-fd-hygiene
+	$(HOST_CXX) $(HOST_FLAGS) tests/test_security_fs.cpp -o tests/test-security-fs
+	./tests/test-security-fs
 
 test-host-sanitizers:
 	ASAN_OPTIONS=detect_leaks=1 $(MAKE) test-frame-host test-session-host \

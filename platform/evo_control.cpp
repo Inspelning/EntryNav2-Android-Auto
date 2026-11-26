@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "atomic_file.hpp"
 #include "control_address.hpp"
 #include "evo_log.hpp"
 
@@ -161,15 +162,7 @@ void EvoControl::writeState(const char* state, int overlay) {
     if (last_ == line && now - lastWriteMs_ < 5000) {
         return;
     }
-    std::string tmp = stateFile_ + ".tmp";
-    int fd = open(tmp.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
-    if (fd < 0) {
-        return;
-    }
-    ssize_t w = write(fd, line, strlen(line));
-    (void)w;
-    close(fd);
-    if (rename(tmp.c_str(), stateFile_.c_str()) == 0) {
+    if (writeAtomicFile(stateFile_.c_str(), line, strlen(line), 0644)) {
         if (last_ != line) {
             ELOG("Control", "state -> %s", line);
         }

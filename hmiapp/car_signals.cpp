@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "../platform/atomic_file.hpp"
 #include "../platform/service_contract.hpp"
 #include "app_log.hpp"
 #include "cds_parse.hpp"
@@ -122,10 +123,10 @@ bool onDayNightChanged(void*, const bmw::BasicString<unsigned short>& value) {
     if (v != 1 && v != 2) {
         return true;
     }
-    FILE* f = fopen(contract::kDayNightFile, "w");
-    if (f) {
-        fprintf(f, "daynight %d\n", v);
-        fclose(f);
+    char line[32];
+    const int n = snprintf(line, sizeof(line), "daynight %d\n", v);
+    if (n > 0 && n < static_cast<int>(sizeof(line))) {
+        writeAtomicFile(contract::kDayNightFile, line, static_cast<size_t>(n));
     }
     char msg[32];
     snprintf(msg, sizeof(msg), "daynight %d", v);
