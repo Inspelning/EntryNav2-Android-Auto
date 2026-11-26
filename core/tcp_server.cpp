@@ -101,6 +101,11 @@ void TcpServer::setHotspotAddress(const std::string& ip) {
 
 // The hotspot address when it can be bound (directly or via IP_FREEBIND if wlan0 is not up yet), so nobody on another
 // interface can open a session. Non-empty invalid hotspot fails closed; fallback to INADDR_ANY still filters peers.
+// Close-on-exec, the listener and every phone it accepts: the service starts short programs from several threads
+// (hostapd_cli before each Wi-Fi exchange, LayerManagerControl; platform/evo_process.hpp). One that inherited the
+// listener keeps the port bound after we close it, so a new listener fails to bind and the phone's connections land
+// on a socket nobody accepts from; one that inherited a phone's socket keeps that connection open after the session
+// closed it. Another project lost its phones until a restart that way.
 int TcpServer::bindListener() {
     if (hasHotspot_ && !hotspotValid_) {
         printf("[TcpServer] refusing invalid hotspot address '%s'\n", hotspot_.c_str());

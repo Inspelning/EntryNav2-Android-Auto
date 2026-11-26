@@ -163,6 +163,10 @@ QEMU avec les bibliothèques de la voiture).
 - Toucher : un pincement interrompu par une fenêtre de l'iDrive ou la marche arrière, ou par l'arrêt d'Android Auto,
   se termine bien côté téléphone (plus de doigt resté appuyé). Micro, pastille du volume, molette et GPS plus robustes.
   Testé sur PC.
+- Sans-fil : un petit programme lancé par le service (réglage du point d'accès avant chaque connexion) recevait une
+  copie de la connexion du téléphone et du port d'Android Auto. Si le service rouvrait son port pendant ce temps, il
+  ne pouvait plus le prendre et le téléphone n'était plus accepté jusqu'au redémarrage, comme l'a vu un autre projet
+  en voiture. Ces connexions ne passent plus aux programmes lancés. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

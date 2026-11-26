@@ -159,6 +159,10 @@ QEMU with the car's libraries).
   Tested on PC.
 - Touch: a pinch cut short by an iDrive window, the reverse gear or Android Auto stopping ends properly on the phone
   (no finger left down). Microphone, volume pill, controller and GPS made sturdier. Tested on PC.
+- Wireless: a small program started by the service (the access point setting before each connection) got a copy of
+  the phone's connection and of Android Auto's port. Had the service opened its port again meanwhile, it could not take
+  it and the phone was no longer accepted until a restart, as another project saw in a car. These connections no longer
+  pass to the programs the service starts. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

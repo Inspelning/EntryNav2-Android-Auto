@@ -137,6 +137,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `tests/test_hold_machine.cpp` | Page vide de l'iDrive : ouverture, démarrage automatique, fenêtres, modes, appels, touches |
 | `tests/test_media_recall.cpp` | Double appui sur MEDIA : geste lu par le vrai décodeur, conditions, demande à usage unique |
 | `tests/test_aa_frame.cpp`, `tests/test_aa_messages.cpp`, `tests/test_tcp_server.cpp` | Trames hostiles, messages construits, écoute TCP |
+| `tests/test_no_inherit.cpp` | Connexions et tubes du service fermés pour les programmes qu'il lance : un programme lancé pendant l'écoute ne garde pas le port |
 | `tests/test_update_package.cpp`, `tests/test_update_release.py` | Archive de mise à jour : versions, archives tar hostiles, liste, signatures, clé du projet ; archive écrite par `package_release.py` relue par le code de la voiture |
 | `tests/test_update_install.cpp`, `tests/test_update_flow.cpp` | Mise à jour par clé USB sur une fausse voiture : vérification qui ne change rien, installation, refus sans changement, coupure de courant après chaque renommage terminée par le journal ; ligne du menu |
 | `make verify_binary verify_wireless` | Programmes ARM : bibliothèques résolues sur la voiture, empreintes des programmes validés |

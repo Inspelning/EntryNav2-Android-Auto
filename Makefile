@@ -216,6 +216,9 @@ test-host: test-parsers test-spp-host test-kombi-host test-gps-host test-capture
 	./tests/test-aa-messages
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_tcp_server.cpp core/tcp_server.cpp -o tests/test-tcp-server
 	./tests/test-tcp-server
+	$(HOST_CXX) $(HOST_FLAGS) tests/test_no_inherit.cpp core/tcp_server.cpp core/car_inbox.cpp $(KOMBI_SRC) \
+	    -o tests/test-no-inherit
+	./tests/test-no-inherit
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_wifi_link.cpp platform/wifi_link.cpp -o tests/test-wifi-link
 	./tests/test-wifi-link
 	$(HOST_CXX) $(HOST_FLAGS) tests/test_wireless_phone.cpp core/wireless_setup.cpp -o tests/test-wireless-phone
@@ -430,7 +433,7 @@ test-wifi-arm-build: platform/wifi_link.o
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_wifi_link.cpp platform/wifi_link.o -o tests/test-wifi-link-arm \
 	    $(LDSHLIB) -lpthread -lrt
 
-test-kombi-arm-build: $(KOMBI_OBJ)
+test-kombi-arm-build: $(KOMBI_OBJ) core/tcp_server.o core/car_inbox.o
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_kombi_phone.cpp platform/kombi_phone.o -o tests/test-kombi-phone-arm $(LDSHLIB)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_kombi_display.cpp platform/kombi_display.o platform/kombi_phone.o \
 	    -o tests/test-kombi-display-arm $(LDSHLIB)
@@ -441,6 +444,8 @@ test-kombi-arm-build: $(KOMBI_OBJ)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_kombi_nav.cpp $(KOMBI_OBJ) -o tests/test-kombi-nav-arm $(LDSHLIB) -lpthread -lrt
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_kombi_golden.cpp $(KOMBI_OBJ) -o tests/test-kombi-golden-arm $(LDSHLIB) -lpthread -lrt
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_kombi_most.cpp $(KOMBI_OBJ) -o tests/test-kombi-most-arm $(LDSHLIB) -lpthread -lrt
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_no_inherit.cpp core/tcp_server.o core/car_inbox.o $(KOMBI_OBJ) \
+	    -o tests/test-no-inherit-arm $(LDSHLIB) -lpthread -lrt
 
 test-sdr-arm-build:
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) tests/test_sdr_g20.cpp core/sdr_builder.cpp platform/evo_sdr_sensors.cpp -o tests/test-sdr-g20-arm $(LDSHLIB)

@@ -196,11 +196,11 @@ struct AlpsSppLink::Impl {
         if (pair[1] >= 0 || monitor || !active || requireConnect) {
             return false;
         }
-        if (socketpair(AF_UNIX, SOCK_STREAM, 0, pair) != 0) {
+        // Close-on-exec from the start, not a moment later: other threads start programs meanwhile.
+        if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, pair) != 0) {
             return false;
         }
-        if (fcntl(pair[0], F_SETFD, FD_CLOEXEC) < 0 || fcntl(pair[1], F_SETFD, FD_CLOEXEC) < 0 ||
-            fcntl(pair[0], F_SETFL, O_NONBLOCK) < 0) {
+        if (fcntl(pair[0], F_SETFL, O_NONBLOCK) < 0) {
             breakLink();
             return false;
         }

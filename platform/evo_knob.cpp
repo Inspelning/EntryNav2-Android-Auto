@@ -3,6 +3,7 @@
 // iDrive controller, keys and volume read through vMOST (see evo_knob.hpp).
 #include "evo_knob.hpp"
 
+#include <fcntl.h>
 #include <poll.h>
 #include <unistd.h>
 
@@ -538,6 +539,11 @@ void EvoKnob::run() {
     }
     connected_ = true;
     bool linkLost = false;  // vmostd closed or broke the connection: nothing more to ask of it, only to let it go
+    // vmostd's library opens its connection without close-on-exec: kept from the programs the service starts.
+    int link = -1;
+    if (vmost_.fileDescriptorGet(&link) == 0 && link >= 0) {
+        fcntl(link, F_SETFD, fcntl(link, F_GETFD) | FD_CLOEXEC);
+    }
     for (size_t i = 0; i < sizeof(kInstances); ++i) {
         rc = vmost_.shadowRegister(kControllerFblock, kInstances[i]);
         ELOG("Knob", "shadow registration E5.%02x: %s (%d)", kInstances[i], rc == 0 ? "OK" : "refused", rc);
