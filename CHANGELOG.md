@@ -8,6 +8,14 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+## [0.13.0-rc.11] - 2026-11-26 · PC
+
+Version candidate avant la 1.0. Elle reprend la relecture complète du code (audit du 25/11), la tête haute des
+Série F apprise de la navigation BMW, le redémarrage propre après une mise à jour par clé USB, et les retours du
+25-26/11 : plus de plantage du service à l'arrêt de la voiture, Android Auto qui revient après OPTION puis BACK,
+plus de nom de rue ni d'adresse Wi-Fi dans les journaux. S'installe par clé USB depuis la 0.13.0-rc.10. Testée
+sur PC et sous QEMU, **pas encore essayée en voiture**.
+
 ### Ajouté
 
 - Traduction polonaise du menu Android Auto de l'iDrive, affichée quand l'iDrive est en polonais (au lieu de

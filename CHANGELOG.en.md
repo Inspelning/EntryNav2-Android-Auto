@@ -13,6 +13,14 @@ QEMU with the car's libraries).
 
 ## [Unreleased]
 
+## [0.13.0-rc.11] - 2026-11-26 · PC
+
+Release candidate before 1.0. It brings the complete code review (audit of 25/11), the F-series head-up display
+learned from the BMW navigation, the clean restart after an update from a USB stick, and the reports of 25-26/11:
+no more crash of the service when the car shuts down, Android Auto back after OPTION then BACK, no more street
+names or Wi-Fi address in the logs. Installs from a USB stick since 0.13.0-rc.10. Tested on PC and under QEMU,
+**not tried in a car yet**.
+
 ### Added
 
 - Polish translation of the Android Auto menu in iDrive, shown when iDrive is set to Polish (instead of English). As

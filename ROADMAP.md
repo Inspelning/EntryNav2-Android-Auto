@@ -42,8 +42,9 @@ Un point n'est coché qu'avec une preuve en voiture : un test sur PC ne suffit p
   sans archive, archive non signée ([installation](docs/INSTALLATION.md#par-clé-usb-sans-pc))
 - [x] Ancienne molette (contrôleurs C10/C20) essayée sur une vraie voiture : i3
   ([#19](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/19), 11 novembre 2026)
-- [ ] Flèches au compteur des Série F par MOST (depuis la 0.13.0-rc.10) essayées sur une voiture, sinon annoncées comme
-  expérimentales ([#79](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/79))
+- [x] Flèches au compteur des Série F par MOST (depuis la 0.13.0-rc.10) essayées sur une voiture : F52 et X1 F49 au
+  compteur 6WA ([#79](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/79)), guidage au compteur d'une F20
+  ([#101](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/101)), novembre 2026
 
 ## Limites connues
 
@@ -55,7 +56,7 @@ Un point n'est coché qu'avec une preuve en voiture : un test sur PC ne suffit p
 | Tête haute des Série G : la flèche ne revient pas après l'affichage d'une limitation de vitesse, et reste masquée au-delà de 1,6 km | comportement du compteur | à étudier |
 | Le texte de sortie de rond-point du compteur des Série G est en français | texte fixe | suivre la langue de l'iDrive |
 | Le bouton vocal du volant reste à l'iDrive | quand il allait à Android Auto, l'iDrive répondait aussi « fonction non disponible » (essai de novembre 2026) | à revoir ([discussion #193](https://github.com/Jiraiya43/EntryNav2-Android-Auto/discussions/193)) |
-| Sans-fil lent sur certaines voitures ; par câble, pas de lenteur | côté téléphone ou radio partagée Wi-Fi et Bluetooth, cause pas trouvée | lignes `[WifiLink]` des journaux des testeurs |
+| Sans-fil lent sur certaines voitures ; par câble, pas de lenteur | les images arrivent déjà en retard du téléphone, la voiture ne les retient pas ([#203](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/203)) : téléphone ou radio, cause exacte pas trouvée | débit vidéo reçu par tranche de 10 s ([#206](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/206)) |
 | Sur certaines voitures, la radio FM reprend l'écran en roulant (X1 F48) | l'iDrive remonte lui-même sa page radio quand le tuner suit la station | [#138](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/138) |
 | Une seule identité de voiture pour tous : un téléphone utilisé dans deux voitures équipées les confond | `vehicleId` fixe | identifiant propre à chaque installation |
 
