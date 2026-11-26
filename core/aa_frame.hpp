@@ -47,6 +47,7 @@ public:
         kNoFirst,      // a MIDDLE or LAST fragment without a FIRST on its channel: its message is dropped
         kShortOfSize,  // a LAST fragment closed a message smaller than announced: dropped
         kRestOfLost,   // a MIDDLE or LAST fragment of a message dropped before: nothing more to say about it
+        kMixed,        // a MIDDLE or LAST fragment encrypted when its FIRST was not, or the other way round: dropped
     };
 
     MessageAssembler() : held_(0), received_(0), announced_(0) {}
@@ -77,9 +78,10 @@ private:
     struct Pending {
         std::vector<uint8_t> data;
         bool lostTail;    // the message was lost: its fragments up to its LAST are ignored
+        bool encrypted;   // its FIRST was: every fragment of it must be
         uint32_t size;    // the size its FIRST announced
         uint32_t onWire;  // the length fields received so far
-        Pending() : lostTail(false), size(0), onWire(0) {}
+        Pending() : lostTail(false), encrypted(false), size(0), onWire(0) {}
     };
     std::map<uint8_t, Pending> pending_;
     size_t held_;  // the sizes of the pending messages' data, summed

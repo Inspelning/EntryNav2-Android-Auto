@@ -390,17 +390,17 @@ ph ch=6 fl=0a piece 62636465666768696a6b6c6d6e6f70717273
 ph ch=0 fl=03 000b 088b7f
 hu ch=6 fl=0b 8004 08031001 (x2)
 hu ch=0 fl=03 000c 088b7f
--- a second version response restarts TLS
+-- a second version response is ignored: TLS goes on
 ph ch=0 fl=03 0002 000100060000
+ph ch=6 fl=0b 0000 000000000000000397
 ph ch=0 fl=03 000b 088c7f
-hu ch=0 fl=03 0003 <tls>
+hu ch=6 fl=0b 8004 08031001
 hu ch=0 fl=03 000c 088c7f
--- garbage where an encrypted frame should be
+-- garbage where an encrypted frame should be breaks TLS: the session ends
 ph raw sealed garbage 060b00080102030405060708
 ph ch=0 fl=03 000b 088d7f
-hu ch=0 fl=03 000c 088d7f
-ph shutdown
 hu <closed>
+ph shutdown
 session ended=1
 cb video frame=1 pts=42 606162636465666768696a6b6c6d6e6f70717273
 cb video frame=2 pts=1 99
@@ -408,6 +408,7 @@ cb video frame=3 pts=42 606162636465666768696a6b6c6d6e6f70717273
 cb video frame=4 pts=42 606162636465666768696a6b6c6d6e6f70717273
 cb video frame=6 pts=4 96
 cb video frame=7 pts=2 98
+cb video frame=8 pts=3 97
 cb ended
 == plain edges
 ph ch=0 fl=03 000b 08817f

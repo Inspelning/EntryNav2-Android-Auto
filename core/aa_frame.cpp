@@ -60,6 +60,7 @@ MessageAssembler::Outcome MessageAssembler::add(const FrameHeader& header, const
         Pending& pending = pending_[header.channel];
         pending.data = payload;
         pending.lostTail = false;
+        pending.encrypted = header.encrypted();
         pending.size = header.totalSize;
         pending.onWire = header.length;
         held_ += payload.size();
@@ -80,6 +81,11 @@ MessageAssembler::Outcome MessageAssembler::add(const FrameHeader& header, const
     if (!fits(payload.size(), pending.data.size())) {
         forget(header.channel, position);
         return kOverflow;
+    }
+    // A phone encrypts all of a message or none of it: a fragment that differs from its FIRST is not part of it.
+    if (header.encrypted() != pending.encrypted) {
+        forget(header.channel, position);
+        return kMixed;
     }
     if (position == frame::kMiddle) {
         pending.data.insert(pending.data.end(), payload.begin(), payload.end());

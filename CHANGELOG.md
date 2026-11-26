@@ -126,6 +126,11 @@ QEMU avec les bibliothèques de la voiture).
   ou du son et accusé, même sur le canal de commande. Images et son ne sont plus attendus que sur les canaux vidéo et
   audio que la voiture annonce au téléphone ; un autre canal ne peut plus changer le numéro de flux qu'Android Auto
   attend dans les accusés de l'image. Testé sur PC.
+- Séance Android Auto : les morceaux d'un même message doivent être tous chiffrés ou tous en clair, sinon le message
+  est écarté ; une deuxième réponse de version du téléphone ne relance plus la négociation sécurisée (TLS) en cours
+  de séance. Une fois la séance sécurisée, un message reçu en clair, autre qu'un ping, est encore traité comme avant,
+  mais le journal du service le note (une fois par sorte de message), pour savoir si de vrais téléphones en envoient
+  avant de les refuser. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

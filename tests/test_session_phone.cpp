@@ -903,10 +903,11 @@ void fragmentEdges(std::vector<std::string>& log) {
     phone.piece(6, 0x08, counting(6, 0x72));
     phone.piece(6, 0x0a, tail);
     phone.settle();
-    log.push_back("-- a second version response restarts TLS");
+    log.push_back("-- a second version response is ignored: TLS goes on");
     phone.send(0, kPlain, bytes({0x00, 0x02, 0x00, 0x01, 0x00, 0x06, 0x00, 0x00}));
+    phone.send(6, kSealed, bytes({0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0x03, 0x97}));
     phone.settle();
-    log.push_back("-- garbage where an encrypted frame should be");
+    log.push_back("-- garbage where an encrypted frame should be breaks TLS: the session ends");
     phone.raw("sealed garbage", bytes({0x06, 0x0b, 0x00, 0x08, 1, 2, 3, 4, 5, 6, 7, 8}));
     phone.settle();
     phone.leave();
@@ -1267,6 +1268,64 @@ std::string keyframeAfterLoss() {
     return std::string();
 }
 
+// Once TLS is up, a message in clear other than a ping is still handled, and the session's log names it once per
+// channel and id, then counts them at the end; pings in clear are not logged. Read from the session's own output,
+// caught in a file for the time of the session. An empty verdict: passed.
+std::string plainAfterTls() {
+    char path[] = "/tmp/entry-session-plain-XXXXXX";
+    const int file = mkstemp(path);
+    if (file < 0) {
+        return "mkstemp";
+    }
+    fflush(stdout);
+    const int saved = dup(1);
+    dup2(file, 1);
+    std::vector<std::string> log;
+    {
+        Link link;
+        Phone phone(link.phoneFd, log);
+        phone.handshake();
+        phone.discover();
+        phone.settle();
+        phone.send(0, kPlain, bytes({0x00, 0x12, 0x08, 0x01}));  // audio focus request
+        phone.send(0, kPlain, bytes({0x00, 0x12, 0x08, 0x01}));
+        phone.send(6, kPlain, bytes({0x80, 0x00, 0x08, 0x03}));  // video setup
+        phone.settle();
+        phone.leave();
+        waitEnded(link.session);
+    }
+    fflush(stdout);
+    dup2(saved, 1);
+    close(saved);
+    std::string text;
+    char buf[4096];
+    ssize_t n;
+    lseek(file, 0, SEEK_SET);
+    while ((n = read(file, buf, sizeof(buf))) > 0) {
+        text.append(buf, static_cast<size_t>(n));
+    }
+    close(file);
+    unlink(path);
+    size_t named = 0;
+    for (size_t at = text.find("came in clear after TLS: handled"); at != std::string::npos;
+         at = text.find("came in clear after TLS: handled", at + 1)) {
+        ++named;
+    }
+    const size_t answers = std::count(log.begin(), log.end(), std::string("hu ch=0 fl=0b 0013 0801"));
+    const bool setup = std::find(log.begin(), log.end(), "hu ch=6 fl=0b 8003 0802100a1800") != log.end();
+    if (named != 2 || text.find("channel 0 message 0x0012 (4 bytes) came in clear after TLS") == std::string::npos ||
+        text.find("channel 6 message 0x8000 (4 bytes) came in clear after TLS") == std::string::npos ||
+        text.find("3 message(s) other than pings came in clear after TLS") == std::string::npos) {
+        return format("%u kinds named in the log, want the audio focus request and the video setup, then 3 counted",
+                      static_cast<unsigned>(named));
+    }
+    if (answers != 2 || !setup) {
+        return format("messages in clear no longer handled: %u audio focus answers, video setup answered=%d",
+                      static_cast<unsigned>(answers), setup ? 1 : 0);
+    }
+    return std::string();
+}
+
 void giveUpOnVideo(uint32_t, const uint8_t*, size_t, uint64_t, void* user) {
     static_cast<aa::AASession*>(user)->giveUp();
 }
@@ -1532,6 +1591,8 @@ int main(int argc, char** argv) {
     takeEvents();
     const std::string givenUp = writing ? std::string() : carGivesUp();
     takeEvents();
+    const std::string plainLogged = writing ? std::string() : plainAfterTls();
+    takeEvents();
     const std::string deferredFocus = writing ? std::string() : deferredFocusOnSetup();
     takeEvents();
     const bool oversized = writing || streamVideo(2);
@@ -1604,6 +1665,11 @@ int main(int argc, char** argv) {
         return 1;
     }
     puts("PASS session, given up by the car from its video callback: connection closed, ended, not a goodbye");
+    if (!plainLogged.empty()) {
+        printf("FAIL session, messages in clear after TLS: %s\n", plainLogged.c_str());
+        return 1;
+    }
+    puts("PASS session, messages in clear after TLS: still handled, logged once per kind, pings not logged");
     if (!oversized) {
         fprintf(stderr, "FAIL session, oversized fragmented video followed by small video\n");
         return 1;

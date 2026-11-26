@@ -126,6 +126,7 @@ private:
     bool sendSealed(uint8_t channel, const Message& message, uint8_t flags = frame::kSealed);
     bool askPhone(uint64_t silentMs);  // our own ping to a silent phone; false: not possible yet
     Received receive(uint8_t& channel, Message& wire, Message& plain, Message& message);
+    void notePlain(uint8_t channel, const Message& message);  // a message in clear once TLS is up: logged
 
     // Car input (aa_session.cpp).
     void sendCarInput();
@@ -198,6 +199,15 @@ private:
     unsigned keysLogged_, movesLogged_, navigationLogged_, pings_;
     unsigned pingsAsked_, pingAnswers_;  // our own pings, and the phone's answers to them
     uint32_t playbackState_;
+    // Messages other than pings that came in clear after TLS (notePlain), and the first kinds of them (channel << 16
+    // | id), each logged once.
+    static const unsigned kPlainKindsLogged = 16;
+    unsigned plainAfterTls_;
+    uint32_t plainKinds_[kPlainKindsLogged];
+    unsigned plainKindCount_;
+    bool plainKindsFull_;
+    // This session took the phone's VersionResponse and started TLS with it: a second one is ignored.
+    bool versionTaken_;
 };
 
 }  // namespace aa

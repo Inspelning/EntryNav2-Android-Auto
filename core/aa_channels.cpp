@@ -136,11 +136,17 @@ bool AASession::onControl(uint16_t id, const Message& message) {
     return true;
 }
 
-// The phone answered our version request: TLS starts, the head unit speaking first.
+// The phone answered our version request: TLS starts, the head unit speaking first. Once per session: another answer
+// would start TLS again, under the phone's own handshake or its established session.
 void AASession::onVersion(const Message& message) {
     if (message.size() < 8) {
         return;
     }
+    if (versionTaken_) {
+        printf("[AASession] another VersionResponse from the phone: ignored, TLS goes on\n");
+        return;
+    }
+    versionTaken_ = true;
     printf("[AASession] >>> VersionResponse: Major=%u, Minor=%u, Status=%u\n", (message[2] << 8) | message[3],
            (message[4] << 8) | message[5], (message[6] << 8) | message[7]);
     std::vector<uint8_t> hello;

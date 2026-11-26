@@ -125,6 +125,11 @@ QEMU with the car's libraries).
   sound and acknowledged, even on the control channel. Pictures and sound are only expected on the video and audio
   channels the car announces to the phone; another channel can no longer change the stream number Android Auto
   expects in the picture's acknowledgements. Tested on PC.
+- Android Auto session: the pieces of one message must be all encrypted or all in clear, otherwise the message is
+  dropped; a second version answer from the phone no longer starts the secure handshake (TLS) again in the middle of
+  a session. Once the session is secured, a message that comes in clear, other than a ping, is still handled as
+  before, but the service log notes it (once per kind of message), to learn whether real phones send any before
+  refusing them. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

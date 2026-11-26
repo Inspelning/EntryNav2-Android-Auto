@@ -29,6 +29,12 @@ aa::FrameHeader header(uint8_t channel, uint8_t position, uint16_t length, uint3
     return h;
 }
 
+// The same header, its frame not encrypted.
+aa::FrameHeader inClear(aa::FrameHeader h) {
+    h.flags = static_cast<uint8_t>(h.flags & ~aa::frame::kEncrypted);
+    return h;
+}
+
 void headers() {
     const uint8_t first[] = {0x06, 0x09, 0x12, 0x34, 0x00, 0x01, 0x02, 0x03};
     const aa::FrameHeader h = aa::decodeFrameHeader(first);
@@ -173,6 +179,18 @@ void lostMessages() {
     a.lose(header(6, aa::frame::kWhole, 30));
     CHECK(a.add(header(6, aa::frame::kLast, 30), Bytes({2}), m) == aa::MessageAssembler::kComplete);
     CHECK(m == Bytes({1, 2}));
+
+    // A fragment in clear after an encrypted FIRST, or encrypted after a FIRST in clear, is no part of that message:
+    // dropped, the rest of it skipped up to its LAST. A message all in clear is rebuilt as before.
+    CHECK(a.add(header(6, aa::frame::kFirst, 30, 2), Bytes({1}), m) == aa::MessageAssembler::kPending);
+    CHECK(a.add(inClear(header(6, aa::frame::kLast, 30)), Bytes({2}), m) == aa::MessageAssembler::kMixed);
+    CHECK(a.add(header(6, aa::frame::kLast, 30), Bytes({3}), m) == aa::MessageAssembler::kNoFirst);
+    CHECK(a.add(inClear(header(6, aa::frame::kFirst, 30, 3)), Bytes({1}), m) == aa::MessageAssembler::kPending);
+    CHECK(a.add(header(6, aa::frame::kMiddle, 30), Bytes({2}), m) == aa::MessageAssembler::kMixed);
+    CHECK(a.add(inClear(header(6, aa::frame::kLast, 30)), Bytes({3}), m) == aa::MessageAssembler::kRestOfLost);
+    CHECK(a.add(inClear(header(6, aa::frame::kFirst, 30, 2)), Bytes({4}), m) == aa::MessageAssembler::kPending);
+    CHECK(a.add(inClear(header(6, aa::frame::kLast, 30)), Bytes({5}), m) == aa::MessageAssembler::kComplete);
+    CHECK(m == Bytes({4, 5}));
 }
 
 // Every channel together keeps at most frame::kMaxPending bytes: a message that would pass it is dropped and the rest

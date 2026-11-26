@@ -77,7 +77,8 @@ AASession::AASession()
       unreadableInARow_(0),
       sendBroken_(false),
       mediaMessages_(0),
-      microphoneChunks_(0) {
+      microphoneChunks_(0),
+      versionTaken_(false) {
     pthread_mutex_init(&lifecycleLock_, nullptr);
     pthread_mutex_init(&socketLock_, nullptr);
     memset(mediaSessions_, 0, sizeof(mediaSessions_));
@@ -196,6 +197,8 @@ void AASession::resetCounters() {
     keysLogged_ = movesLogged_ = navigationLogged_ = pings_ = pingsAsked_ = pingAnswers_ = 0;
     playbackState_ = kNoField;
     memset(framesSeen_, 0, sizeof(framesSeen_));
+    plainAfterTls_ = plainKindCount_ = 0;
+    plainKindsFull_ = false;
 }
 
 bool AASession::start(int client_fd) {
@@ -237,6 +240,7 @@ bool AASession::start(int client_fd) {
     audioMessages_[0] = audioMessages_[1] = 0;
     lastReceivedMs_ = 0;  // the previous thread is joined
     givenUp_ = false;
+    versionTaken_ = false;
     longestSilenceMs_.store(0);
     goodbye_.store(false);  // after the ended callback of a session replaced above
     resetCounters();
@@ -293,6 +297,9 @@ void AASession::run() {
             printf("[AASession] The car gave the session up.\n");
             break;
         }
+    }
+    if (plainAfterTls_ > 0) {
+        printf("[AASession] %u message(s) other than pings came in clear after TLS in this session\n", plainAfterTls_);
     }
     printf("[AASession] Session loop terminated.\n");
     g_trail.stage = kTrailIdle;
@@ -529,6 +536,10 @@ AASession::Received AASession::receive(uint8_t& channel, Message& wire, Message&
             printf("[AASession] channel %u reassembled %u wire bytes, phone announced %u: dropping\n", channel,
                    assembler_.receivedBytes(), assembler_.announcedBytes());
             break;
+        case MessageAssembler::kMixed:
+            printf("[AASession] fragment on channel %u %s, unlike its FIRST: dropping its message\n", channel,
+                   encrypted ? "encrypted" : "in clear");
+            break;
     }
     if (outcome != MessageAssembler::kComplete) {
         if (outcome != MessageAssembler::kPending) {
@@ -547,7 +558,37 @@ AASession::Received AASession::receive(uint8_t& channel, Message& wire, Message&
     if (logged) {
         printHead(message);
     }
+    if (!encrypted && versionTaken_ && tls_.established()) {
+        notePlain(channel, message);
+    }
     return kMessage;
+}
+
+// Once TLS is up a phone encrypts what it sends; only its pings may come in clear (the fake phone of the tests pings
+// in clear; what real phones do is not known). Anything else in clear is still handled as before, only logged, once
+// per channel and id: car logs will tell whether real phones ever send any before such messages are refused.
+void AASession::notePlain(uint8_t channel, const Message& message) {
+    const uint16_t id = messageId(message);
+    if (channel == channel::kControl && (id == msg::kPingRequest || id == msg::kPingResponse)) {
+        return;
+    }
+    ++plainAfterTls_;
+    const uint32_t kind = (static_cast<uint32_t>(channel) << 16) | id;
+    for (unsigned i = 0; i < plainKindCount_; ++i) {
+        if (plainKinds_[i] == kind) {
+            return;
+        }
+    }
+    if (plainKindCount_ == kPlainKindsLogged) {
+        if (!plainKindsFull_) {
+            plainKindsFull_ = true;
+            printf("[AASession] more kinds of messages came in clear after TLS: no longer logged one by one\n");
+        }
+        return;
+    }
+    plainKinds_[plainKindCount_++] = kind;
+    printf("[AASession] channel %u message 0x%04X (%u bytes) came in clear after TLS: handled as before\n", channel, id,
+           static_cast<unsigned>(message.size()));
 }
 
 // ---- car input ----------------------------------------------------------------------------------------------------
