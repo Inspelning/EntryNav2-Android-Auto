@@ -274,7 +274,7 @@ struct Message {
 
 class FakePort : public VmostPort {
 public:
-    FakePort() : refuseSends(false), now(0) {}
+    FakePort() : refuseSends(false), now(0), ackTarget(nullptr), ackSent(0) {}
     int send(VmostMsgOut& m) override {
         if (refuseSends) {
             return -1;
@@ -290,12 +290,30 @@ public:
         shadows.push_back((on ? 0x10000 : 0) | (fblock << 8) | inst);
         return 0;
     }
-    void pump(int) override {}
+    void pump(int) override {
+        if (!ackTarget) {
+            return;
+        }
+        while (ackSent < sent.size()) {
+            const Message& m = sent[ackSent++];
+            VmostMsgView v;
+            v.addr = m.out.addr;
+            v.fblock = m.out.fblock;
+            v.inst = m.out.inst;
+            v.fkt = m.out.fkt;
+            v.op = kMostOpResultAck;
+            v.len = 0;
+            v.data = nullptr;
+            ackTarget->onMessage(v);
+        }
+    }
     std::vector<Message> sent;
     std::vector<uint32_t> at;  // when each was sent
     std::vector<int> shadows;
     bool refuseSends;
     uint32_t now;
+    MostHud* ackTarget;
+    size_t ackSent;
 };
 
 VmostMsgView answer(uint8_t fblock, uint16_t fkt, uint32_t op, const Bytes& data, uint16_t addr = 0x0101) {
@@ -771,17 +789,66 @@ void staleMarker() {
 }
 
 void finishClears() {
-    Place place;
-    MostHud hud(place.config());
-    FakePort port;
-    Car car;
-    uint32_t now = 0;
-    tell(hud, 8, "Rue A", 300, "300", kUnitMetres);
-    run(hud, port, car, now, 2000);
-    CHECK(hud.showing() && place.marked());
-    const size_t before = port.sent.size();
-    hud.finish(port);
-    CHECK(port.sent.size() == before + 6 && port.sent[before].data == hudShow(1, false).data && !place.marked());
+    {  // Cluster acknowledges every clear call during finish(): marker is removed.
+        Place place;
+        MostHud hud(place.config());
+        FakePort port;
+        Car car;
+        uint32_t now = 0;
+        tell(hud, 8, "Rue A", 300, "300", kUnitMetres);
+        run(hud, port, car, now, 2000);
+        CHECK(hud.showing() && place.marked());
+        const size_t before = port.sent.size();
+        port.ackSent = before;
+        port.ackTarget = &hud;
+        hud.finish(port);
+        CHECK(port.sent.size() == before + 6 && port.sent[before].data == hudShow(1, false).data && !place.marked());
+    }
+    {  // Cluster silent during finish(): the clears went out without a refusal, the marker goes, and the stop does
+       // not wait for answers a cold cluster gives seconds late.
+        Place place;
+        MostHud hud(place.config());
+        FakePort port;
+        Car car;
+        uint32_t now = 0;
+        tell(hud, 8, "Rue A", 300, "300", kUnitMetres);
+        run(hud, port, car, now, 2000);
+        CHECK(hud.showing() && place.marked());
+        const size_t before = port.sent.size();
+        hud.finish(port);
+        CHECK(port.sent.size() == before + 6 && !place.marked());
+    }
+}
+
+void stoppedBeforeSizesAndHighClock() {
+    {  // Stopped while still reading sizes: next session re-reads sizes instead of jumping to kReady unverified.
+        Place place;
+        MostHud hud(place.config());
+        FakePort port;
+        Car car;
+        uint32_t now = 0;
+        tell(hud, 8, "Rue A", 300, "300", kUnitMetres);
+        run(hud, port, car, now, 30);  // registry answered, kSizes entered
+        port.refuseSends = true;       // vmostd refuses the 5 size reads -> kStopped with layout unverified
+        run(hud, port, car, now, 1000);
+        CHECK(hud.phase() == MostHud::kStopped && !hud.showing());
+        port.refuseSends = false;
+        hud.onSessionEnded();
+        tell(hud, 8, "Rue A", 300, "300", kUnitMetres);
+        const size_t before = port.sent.size();
+        run(hud, port, car, now, 2000);
+        CHECK(hud.phase() == MostHud::kReady && hud.showing() && countFkt(port, kHudSize, before) == 6);
+    }
+    {  // Uptime past 2^31 ms (24.85 days): no sentinel-0 freeze on lookup, send pacing, or foreign timeout.
+        Place place;
+        MostHud hud(place.config());
+        FakePort port;
+        Car car;
+        uint32_t now = 0x80001000U;
+        tell(hud, 8, "Rue A", 300, "300", kUnitMetres);
+        run(hud, port, car, now, 2000);
+        CHECK(hud.phase() == MostHud::kReady && hud.showing() && place.marked());
+    }
 }
 
 void refusedSends() {
@@ -818,6 +885,7 @@ int main() {
     otherClientAndEchoes();
     staleMarker();
     finishClears();
+    stoppedBeforeSizesAndHighClock();
     refusedSends();
     printf(
         "PASS kombi most: registry, sizes, calls, pictures, views, presenter, neighbours, drawing and clearing, "

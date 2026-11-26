@@ -253,10 +253,12 @@ private:
     HudView view_;
     HudPresenter presenter_;
     Phase phase_;
+    bool layoutVerified_;
     bool shadowed_;
     uint16_t address_;
     int lookupTries_;
     uint32_t lookupAt_, retryAt_;
+    bool retryArmed_;
     bool registryIn_;
     std::vector<uint8_t> registry_;
     FieldSize sizes_[kHudFields];
@@ -280,9 +282,11 @@ private:
     bool refused_;  // a drawing call was refused since the last tick
     unsigned refusals_, slowAnswers_, lateAnswers_;
     uint32_t lastSendAt_;
+    bool sentOnce_;
     int missed_;
     std::deque<Sent> recent_;  // our last calls: their copies on the shadow are not another client
     uint32_t foreignUntil_;
+    bool foreignActive_;
     bool foreignLogged_;
     bool shown_, unsure_, marked_, staleMarker_, firstAcked_;
     HudView shownView_;

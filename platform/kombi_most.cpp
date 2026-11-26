@@ -275,8 +275,8 @@ bool layoutFits(const FieldSize sizes[kHudFields], std::string* why) {
         problem = "a field is 0x0: they were never set up (the BMW navigation does it)";
     } else if (a.w != b.w || a.h != b.h) {
         problem = "the two picture buffers differ";
-    } else if (a.w < kMinPictureW || a.h < kMinPictureH) {
-        problem = "picture too small for an arrow";
+    } else if (a.w < kMinPictureW || a.h < kMinPictureH || a.w > 32767 || a.h > 32767) {
+        problem = "picture size unusable for an arrow";
     } else if (street.w < 60 || street.h < 12 || distance.w < 24 || distance.h < 12 || unit.w < 12 || unit.h < 12) {
         problem = "a text field too small";
     }
@@ -641,11 +641,13 @@ MostHud::MostHud(const MostHudConfig& config)
       wantOn_(false),
       presenter_(config.guide),
       phase_(kIdle),
+      layoutVerified_(false),
       shadowed_(false),
       address_(0xFFFF),
       lookupTries_(0),
       lookupAt_(0),
       retryAt_(0),
+      retryArmed_(false),
       registryIn_(false),
       sizesWaiting_(false),
       sizesAskedAt_(0),
@@ -664,8 +666,10 @@ MostHud::MostHud(const MostHudConfig& config)
       slowAnswers_(0),
       lateAnswers_(0),
       lastSendAt_(0),
+      sentOnce_(false),
       missed_(0),
       foreignUntil_(0),
+      foreignActive_(false),
       foreignLogged_(false),
       shown_(false),
       unsure_(false),
@@ -737,12 +741,20 @@ void MostHud::readInputs(uint32_t now) {
         seenGeneration_ = generation;
         presenter_.reset();
         if (phase_ == kStopped) {
-            phase_ = kReady;
             missed_ = 0;
             // The last session's calls no longer count against this one.
             givenUp_.insert(givenUp_.end(), waiting_.begin(), waiting_.end());
             waiting_.clear();
-            ELOG(kTag, "new Android Auto session: the cluster may be drawn on again");
+            if (layoutVerified_) {
+                phase_ = kReady;
+                ELOG(kTag, "new Android Auto session: the cluster may be drawn on again");
+            } else {
+                phase_ = kSizes;
+                sizeTries_ = 0;
+                retryArmed_ = false;
+                askSizes(false);
+                ELOG(kTag, "new Android Auto session: reading the cluster's fields' sizes again");
+            }
         }
     }
     if (messages != seenMessages_) {
@@ -931,6 +943,7 @@ void MostHud::onMessage(const VmostMsgView& m) {
                 foreignLogged_ = true;
             }
             foreignUntil_ = now + kForeignMs;
+            foreignActive_ = true;
         }
         return;
     }
@@ -951,7 +964,7 @@ int MostHud::dueInMs(uint32_t nowMs) const {
     }
     int32_t due = 100;
     if (!queue_.empty() && room() > 0) {
-        due = std::min(due, static_cast<int32_t>(lastSendAt_ + kGapMs - nowMs));
+        due = sentOnce_ ? std::min(due, static_cast<int32_t>(lastSendAt_ + kGapMs - nowMs)) : 0;
     }
     if (!waiting_.empty()) {
         due = std::min(due, static_cast<int32_t>(waiting_.front().at + kAnswerMs - nowMs));
@@ -976,7 +989,7 @@ void MostHud::tick(uint32_t now, VmostPort& port) {
         stop("five calls in a row without an answer");
     }
     if (!queue_.empty()) {
-        if (room() > 0 && static_cast<int32_t>(now - lastSendAt_) >= static_cast<int32_t>(kGapMs)) {
+        if (room() > 0 && (!sentOnce_ || static_cast<int32_t>(now - lastSendAt_) >= static_cast<int32_t>(kGapMs))) {
             sendNext(now, port);
         }
         return;
@@ -993,7 +1006,8 @@ void MostHud::tick(uint32_t now, VmostPort& port) {
     switch (phase_) {
         case kIdle:
             if (wantOn_ && now - wantSince_ >= static_cast<uint32_t>(config_.ethernetFirstS * 1000) &&
-                static_cast<int32_t>(now - retryAt_) >= 0) {
+                (!retryArmed_ || static_cast<int32_t>(now - retryAt_) >= 0)) {
+                retryArmed_ = false;
                 startLookup(now, port);
             }
             break;
@@ -1012,6 +1026,7 @@ void MostHud::tick(uint32_t now, VmostPort& port) {
                     ELOG(kTag, "the MOST registry did not answer: asked again in %u s", kRetryMs / 1000);
                     phase_ = kIdle;
                     retryAt_ = now + kRetryMs;
+                    retryArmed_ = true;
                 }
             }
             break;
@@ -1112,7 +1127,8 @@ void MostHud::checkSizes(uint32_t now) {
     if (sizesWaiting_ && (sizesComplete() || now - sizesAskedAt_ >= kSizeWaitMs)) {
         sizesWaiting_ = false;
         onSizes(now);
-    } else if (!sizesWaiting_ && static_cast<int32_t>(now - retryAt_) >= 0) {
+    } else if (!sizesWaiting_ && (!retryArmed_ || static_cast<int32_t>(now - retryAt_) >= 0)) {
+        retryArmed_ = false;
         askSizes(!sizesComplete());  // unusable sizes: all again; missing ones: those only
     }
 }
@@ -1133,6 +1149,7 @@ void MostHud::onSizes(uint32_t now) {
     }
     if (why.empty()) {
         ELOG(kTag, "guidance fields ready: Android Auto's next maneuver goes to the cluster when the phone guides");
+        layoutVerified_ = true;
         phase_ = kReady;
         return;
     }
@@ -1140,6 +1157,7 @@ void MostHud::onSizes(uint32_t now) {
         ELOG(kTag, "these fields are not the ones drawn here yet (%s): asked again in %u s", why.c_str(),
              kRetryMs / 1000);
         retryAt_ = now + kRetryMs;
+        retryArmed_ = true;
         return;
     }
     ELOG(kTag, "these fields are not the ones drawn here (%s, %d tries): no Android Auto picture on the cluster",
@@ -1151,7 +1169,7 @@ void MostHud::onSizes(uint32_t now) {
 // it names (it may repeat the same one many times a second). Only its own message: the navigation answers on the same
 // function.
 void MostHud::onGuidanceMoved(const VmostMsgView& m) {
-    if (m.fkt != kGuidanceMovedFkt || m.inst != kGuidanceInstance || m.addr != address_ ||
+    if (m.fkt != kGuidanceMovedFkt || m.inst != kGuidanceInstance || m.addr != address_ || !layoutVerified_ ||
         (phase_ != kReady && phase_ != kStopped)) {
         return;
     }
@@ -1166,7 +1184,10 @@ void MostHud::onGuidanceMoved(const VmostMsgView& m) {
 void MostHud::decide(uint32_t now) {
     const bool has = has_, allowed = allowed_, bmw = bmwNow_;
     const HudView& view = view_;
-    const bool foreign = static_cast<int32_t>(foreignUntil_ - now) > 0;
+    if (foreignActive_ && static_cast<int32_t>(foreignUntil_ - now) <= 0) {
+        foreignActive_ = false;
+    }
+    const bool foreign = foreignActive_;
     if (!foreign) {
         foreignLogged_ = false;
     }
@@ -1211,7 +1232,9 @@ void MostHud::decide(uint32_t now) {
         return;
     }
     const FieldSize picture = sizes_[a - 1];
-    const bool fits = picture.w >= kMinPictureW && picture.h >= kMinPictureH;
+    const FieldSize pictureB = sizes_[b - 1];
+    const bool fits = picture.w >= kMinPictureW && picture.h >= kMinPictureH && picture.w <= 32767 &&
+                      picture.h <= 32767 && picture.w == pictureB.w && picture.h == pictureB.h;
     if (!has || !allowed || !fits) {
         if (shown_) {
             ELOG(kTag, "picture cleared (%s)",
@@ -1274,6 +1297,7 @@ void MostHud::sendNext(uint32_t now, VmostPort& port) {
         recent_.pop_front();
     }
     lastSendAt_ = now;
+    sentOnce_ = true;
     const int rc = port.send(m);
     if (rc == 0) {
         if (call.fkt == kHudSize) {
@@ -1348,7 +1372,7 @@ void MostHud::mark(bool up) {
         return;
     }
     if (up) {
-        const int fd = open(config_.markerFile.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        const int fd = open(config_.markerFile.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW | O_CLOEXEC, 0644);
         if (fd >= 0) {
             close(fd);
         }
@@ -1373,7 +1397,7 @@ void MostHud::finish(VmostPort& port) {
     queue_.clear();
     givenUp_.insert(givenUp_.end(), waiting_.begin(), waiting_.end());  // not waited for any more
     waiting_.clear();
-    if ((phase_ == kReady || phase_ == kStopped) && mayBeUp && !bmw) {
+    if (layoutVerified_ && (phase_ == kReady || phase_ == kStopped) && mayBeUp && !bmw) {
         HudCalls calls;
         clearCalls(config_.layout, calls);
         const unsigned refusalsBefore = refusals_;
@@ -1396,6 +1420,8 @@ void MostHud::finish(VmostPort& port) {
             }
             port.pump(static_cast<int>(kGapMs));
         }
+        // No longer wait for every answer: a cold cluster answers seconds late (#177), and the stop of Android Auto
+        // waits on this thread. Sent without a refusal is cleared.
         waiting_.clear();
         const bool refusedOrFailed = failed > 0 || refusals_ != refusalsBefore;
         ELOG(kTag, "service stopping: picture cleared%s",
