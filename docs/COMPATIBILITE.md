@@ -213,10 +213,11 @@ testeur sur une F52 au compteur 6WA ([#79](https://github.com/Jiraiya43/EntryNav
 - Le fichier `kombi-off` coupe aussi ces flèches.
 
 Les lignes `[KombiMost]` du journal du service disent ce qui s'est passé : registre MOST, tailles des champs, première
-image prise par le compteur, refus. Après un guidage BMW, une ligne `the BMW navigation on the cluster` résume ce que la
-navigation a fait de chaque champ (numéros, nombres d'appels, sortes de textes, tailles) et ce qui a été appris ou ce
-qui manque. Une réponse du compteur qui ne se rattache à rien (une lecture de taille refusée, par exemple) est écrite
-une fois, avec ses premiers octets.
+image envoyée sans appel refusé, refus. Le service ne peut pas savoir si l'image se voit : si le compteur accepte tout
+sans rien montrer, c'est son codage de la navigation qu'il faut regarder (voir plus haut). Après un guidage BMW, une
+ligne `the BMW navigation on the cluster` résume ce que la navigation a fait de chaque champ (numéros, nombres
+d'appels, sortes de textes, tailles) et ce qui a été appris ou ce qui manque. Une réponse du compteur qui ne se
+rattache à rien (une lecture de taille refusée, par exemple) est écrite une fois, avec ses premiers octets.
 
 ## Double appui sur MEDIA
 

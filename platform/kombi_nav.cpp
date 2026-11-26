@@ -79,6 +79,7 @@ Arrows::Arrows(const ArrowsConfig& config)
       linkFailures_(0),
       marked_(false),
       most_(nullptr),
+      mostOwns_(false),
       bmwGuiding_(false),
       watching_(false) {
     pthread_mutex_init(&mu_, nullptr);
@@ -291,6 +292,16 @@ void Arrows::tick(double now) {
         markArrow(guide_.showing() || guide_.sentAny());
         return;
     }
+    // An F-series car: the cluster is on MOST, nobody answers at the Ethernet KOMBI's address (a try waits seconds).
+    if (!mostOwns_ && most_ && most_->fieldsReady() && !guide_.showing() && !guide_.sentAny()) {
+        mostOwns_ = true;
+        ELOG(kTag,
+             "the cluster's guidance fields answered over MOST: the Ethernet KOMBI %s is not tried again this run",
+             config_.clusterAddress.c_str());
+    }
+    if (mostOwns_) {
+        return;
+    }
     if (offUntilNextSession_ || now < retryAt_) {
         return;
     }
@@ -331,8 +342,9 @@ void Arrows::tick(double now) {
                  config_.clusterAddress.c_str(), static_cast<unsigned>(config_.clusterPort), linkFailures_);
             offUntilNextSession_ = true;
         } else {
+            // From the end of the send: it may have waited seconds for the connection (now is the tick's start).
             ELOG(kTag, "KOMBI link failed: retrying in %.0f s", kRetryLinkS);
-            retryAt_ = now + kRetryLinkS;
+            retryAt_ = upSec() + kRetryLinkS;
         }
     }
     markArrow(guide_.showing() || guide_.sentAny());

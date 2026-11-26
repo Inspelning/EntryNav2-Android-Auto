@@ -187,6 +187,10 @@ QEMU with the car's libraries).
   BMWs). iDrive ignored the request for the app's menu while its option panel was open, and nothing brought the
   picture back once the panel closed: it took a second BACK then *Open Android Auto*. A choice in the panel leaves
   Android Auto aside as before; phone gone meanwhile: the app's menu. Tested on PC.
+- Arrows on the F-series cluster (MOST): once the cluster's fields are found, the service no longer tries the G-series
+  Ethernet cluster, each try of which made it wait a few seconds; and the log line of the first picture no longer
+  suggests a fault when the arrow shows ([#79](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/79)). Tested
+  on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

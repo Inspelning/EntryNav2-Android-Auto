@@ -637,6 +637,7 @@ MostHud::MostHud(const MostHudConfig& config)
       generation_(0),
       bmw_(false),
       ethernet_(false),
+      fieldsReady_(false),
       clock_(0),
       started_(false),
       startedAt_(0),
@@ -1330,6 +1331,7 @@ void MostHud::onSizes(uint32_t now) {
     if (why.empty()) {
         ELOG(kTag, "guidance fields ready: Android Auto's next maneuver goes to the cluster when the phone guides");
         layoutVerified_ = true;
+        fieldsReady_ = true;
         visible_ = layout_.pictureB;
         phase_ = kReady;
         return;
@@ -1385,6 +1387,7 @@ void MostHud::onLearnedSizes() {
         keptPicture_ = size;
         visible_ = layout_.pictureB;
         layoutVerified_ = true;
+        fieldsReady_ = true;
         phase_ = kReady;
         ELOG(kTag,
              "guidance fields ready, as the BMW navigation uses them: Android Auto's next maneuver goes to the cluster "
@@ -1586,10 +1589,10 @@ void MostHud::endBatch() {
             drawnPicture_ = pendingPicture_;
             ++drawn_;
             if (!firstAcked_) {
+                // Every call answered is all that is known: whether the picture shows is not.
                 firstAcked_ = true;
-                ELOG(kTag,
-                     "first picture taken by the cluster; nothing on it? its coding may not show the navigation's "
-                     "guidance");
+                ELOG(kTag, "first picture sent to the cluster, no call refused (%ux%u)", drawnPicture_.w,
+                     drawnPicture_.h);
             }
             break;
         case kClearBatch:

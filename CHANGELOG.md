@@ -192,6 +192,10 @@ QEMU avec les bibliothèques de la voiture).
   ramenait l'image une fois le panneau fermé : il fallait un second BACK puis *Ouvrir Android Auto*. Un choix dans
   le panneau laisse Android Auto en retrait comme avant ; téléphone parti entre-temps : le menu de l'appli. Testé
   sur PC.
+- Flèches au compteur des Série F (MOST) : une fois les champs du compteur trouvés, le service n'essaie plus le
+  compteur Ethernet des Série G, qui faisait attendre quelques secondes à chaque essai ; et la ligne de journal de la
+  première image ne fait plus croire à une panne quand la flèche s'affiche
+  ([#79](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/79)). Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

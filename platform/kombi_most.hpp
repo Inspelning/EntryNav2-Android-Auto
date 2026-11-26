@@ -42,10 +42,14 @@
 // table, and the MOST registry is asked only after the guidance wanted a picture for ethernetFirstS (the Ethernet
 // KOMBI answers within a quarter of a second). Not while the setting (kombi-off) is off, nor while the BMW navigation
 // guides (its D-Bus state, or another client drawing on the fields): the fields are left to it, uncleared. A marker
-// file says a picture may be up; the next start clears it.
+// file says a picture may be up; the next start clears it. The other way round, once the cluster's guidance fields
+// answered (fieldsReady(), never cleared: the car does not change), the Ethernet arrows stop trying the KOMBI's address
+// for the rest of the run. The first picture's log line says only that no call was refused: whether it shows on the
+// cluster cannot be known here.
 //
-// Threads: onNavStatus() and onSessionEnded() on the session's, setBmwGuiding() and setEthernetSeen() on the Ethernet
-// arrows', everything else on the controller reader's thread, whose vmostd connection this rides on (evo_knob.hpp).
+// Threads: onNavStatus() and onSessionEnded() on the session's, setBmwGuiding(), setEthernetSeen() and fieldsReady() on
+// the Ethernet arrows', everything else on the controller reader's thread, whose vmostd connection this rides on
+// (evo_knob.hpp).
 #ifndef ENTRY_AAD_PLATFORM_KOMBI_MOST_HPP
 #define ENTRY_AAD_PLATFORM_KOMBI_MOST_HPP
 
@@ -178,6 +182,8 @@ public:
     // From the Ethernet arrows: the BMW navigation guides; the Ethernet KOMBI took an arrow (for good).
     void setBmwGuiding(bool guiding) { bmw_ = guiding; }
     void setEthernetSeen() { ethernet_ = true; }
+    // To the Ethernet arrows: the cluster's guidance fields answered over MOST, this is an F-series car (for good).
+    bool fieldsReady() const { return fieldsReady_; }
 
     // VmostPeer
     bool wants(const VmostMsgView& m) const override;
@@ -254,6 +260,8 @@ private:
     unsigned messages_, generation_;
     // From the Ethernet arrows
     std::atomic<bool> bmw_, ethernet_;
+    // To the Ethernet arrows: set with layoutVerified_ the first time, never cleared
+    std::atomic<bool> fieldsReady_;
 
     // The controller reader's thread
     uint32_t clock_;  // the last tick's time, for the messages that arrive between ticks
