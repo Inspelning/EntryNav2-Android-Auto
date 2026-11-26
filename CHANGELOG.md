@@ -149,6 +149,8 @@ QEMU avec les bibliothèques de la voiture).
   passent en clair (version, TLS, ping, au revoir), 64 Kio au plus ; tout autre message est refusé et noté une fois.
   La liaison TLS n'accepte plus de renégociation demandée par le téléphone, ne propose plus de chiffrements anciens
   et libère sa mémoire à la fin de chaque séance. Testé sur PC.
+- Séance Android Auto : la connexion du téléphone est lue par blocs (moins d'appels au système par image), le toucher
+  et la molette restant prioritaires. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

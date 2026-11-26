@@ -146,6 +146,8 @@ QEMU with the car's libraries).
   (version, TLS, ping, goodbye), 64 KiB at most; any other message is refused and noted once. The TLS link no longer
   accepts a renegotiation asked by the phone, no longer offers old ciphers, and frees its memory at the end of each
   session. Tested on PC.
+- Android Auto session: the phone's connection is read in blocks (fewer system calls per picture), touch and the
+  controller keeping priority. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

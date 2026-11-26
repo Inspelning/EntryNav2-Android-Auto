@@ -58,7 +58,7 @@ MessageAssembler::Outcome MessageAssembler::add(const FrameHeader& header, const
             return kOverflow;
         }
         Pending& pending = pending_[header.channel];
-        pending.data = payload;
+        pending.data.assign(payload.begin(), payload.end());
         pending.lostTail = false;
         pending.encrypted = header.encrypted();
         pending.size = header.totalSize;

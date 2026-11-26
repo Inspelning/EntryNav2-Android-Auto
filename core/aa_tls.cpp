@@ -206,7 +206,10 @@ bool TlsClient::open(const uint8_t* records, size_t size, std::vector<uint8_t>& 
         endForGood("read input");
         return false;
     }
-    uint8_t chunk[4096];
+    if (plain.capacity() < size) {
+        plain.reserve(size);
+    }
+    uint8_t chunk[16384];
     int n;
     while ((n = SSL_read(connection_.get(), chunk, sizeof(chunk))) > 0) {
         // A frame brings 64 KiB of records at most: more data than a whole message from one call is no phone's.
@@ -242,11 +245,20 @@ void TlsClient::endForGood(const char* step) {
 
 bool TlsClient::takeOutput(std::vector<uint8_t>& records) {
     records.clear();
-    uint8_t chunk[4096];
-    int n;
-    while ((n = BIO_read(toPhone_, chunk, sizeof(chunk))) > 0) {
-        records.insert(records.end(), chunk, chunk + n);
+    const size_t pending = static_cast<size_t>(BIO_ctrl_pending(toPhone_));
+    if (pending == 0) {
+        return false;
     }
+    records.resize(pending);
+    size_t got = 0;
+    while (got < pending) {
+        const int n = BIO_read(toPhone_, &records[got], static_cast<int>(pending - got));
+        if (n <= 0) {
+            break;
+        }
+        got += static_cast<size_t>(n);
+    }
+    records.resize(got);
     return !records.empty();
 }
 

@@ -3,7 +3,7 @@
 // The session's thread and wire: start and stop, frames in and out, the silence limit, the car input sent out.
 #include "aa_session.hpp"
 
-#include <sys/select.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <unistd.h>
@@ -89,7 +89,9 @@ AASession::AASession()
       sendBroken_(false),
       mediaMessages_(0),
       microphoneChunks_(0),
-      versionTaken_(false) {
+      versionTaken_(false),
+      rxPos_(0),
+      rxEnd_(0) {
     pthread_mutex_init(&lifecycleLock_, nullptr);
     pthread_mutex_init(&socketLock_, nullptr);
     memset(mediaSessions_, 0, sizeof(mediaSessions_));
@@ -255,6 +257,10 @@ bool AASession::start(int client_fd) {
     lastReceivedMs_ = 0;  // the previous thread is joined
     givenUp_ = false;
     versionTaken_ = false;
+    rxBuf_.resize(kRxBufferSize);
+    rxPos_ = rxEnd_ = 0;
+    txRecords_.clear();
+    txFrame_.clear();
     longestSilenceMs_.store(0);
     goodbye_.store(false);  // after the ended callback of a session replaced above
     resetCounters();
@@ -347,39 +353,58 @@ bool AASession::receiveExactly(uint8_t* to, size_t size) {
     const int wakeFd = inbox_.wakeFd();
     // The car input and our pings are sent from this loop: a send that fails there ends it too.
     while (got < size && running() && !sendBroken_) {
-        const int fd = socket_;
-        if (fd < 0) {
-            return false;
-        }
         // Checked at every turn, data or not: bytes that trickle in keep the silence from ever counting.
         if (!tls_.established() && locationClockMs() - connectedMs_ >= kTlsDeadlineMs) {
             printf("[AASession] TLS still not established %u s after the connection: session ends.\n",
                    static_cast<unsigned>(kTlsDeadlineMs / 1000));
             return false;
         }
-        fd_set readable;
-        FD_ZERO(&readable);
-        FD_SET(fd, &readable);
-        int highest = fd;
-        if (wakeFd >= 0) {
-            FD_SET(wakeFd, &readable);
-            highest = wakeFd > highest ? wakeFd : highest;
+        // Car input (touches, rotary, mic, focus) preempts buffered frames so it never waits behind a Wi-Fi burst.
+        if (inbox_.hasPending()) {
+            inbox_.emptyWake();
+            sendCarInput();
+            if (!running() || sendBroken_) {
+                return false;
+            }
         }
-        timeval wait;
-        wait.tv_sec = 1;
-        wait.tv_usec = 0;
-        const int ready = select(highest + 1, &readable, nullptr, nullptr, &wait);
+        if (rxPos_ < rxEnd_) {
+            const size_t avail = rxEnd_ - rxPos_;
+            const size_t take = (size - got) < avail ? (size - got) : avail;
+            memcpy(to + got, &rxBuf_[rxPos_], take);
+            rxPos_ += take;
+            got += take;
+            continue;
+        }
+        const int fd = socket_;
+        if (fd < 0) {
+            return false;
+        }
+        struct pollfd fds[2];
+        fds[0].fd = fd;
+        fds[0].events = POLLIN;
+        fds[0].revents = 0;
+        nfds_t nfds = 1;
+        if (wakeFd >= 0) {
+            fds[1].fd = wakeFd;
+            fds[1].events = POLLIN;
+            fds[1].revents = 0;
+            nfds = 2;
+        }
+        const int ready = poll(fds, nfds, 1000);
         if (ready < 0) {
             if (errno == EINTR) {
                 continue;
             }
             return false;
         }
-        if (ready > 0 && wakeFd >= 0 && FD_ISSET(wakeFd, &readable)) {
+        if (ready > 0 && nfds == 2 && (fds[1].revents & POLLIN)) {
             inbox_.emptyWake();
             sendCarInput();
+            if (!running() || sendBroken_) {
+                return false;
+            }
         }
-        if (ready == 0 || !FD_ISSET(fd, &readable)) {
+        if (ready == 0 || !(fds[0].revents & (POLLIN | POLLERR | POLLHUP | POLLNVAL))) {
             // Silence is measured on the clock: car input wakes this loop far more often than once a second.
             const uint64_t nowMs = locationClockMs();
             const uint64_t silentMs = nowMs - lastDataMs;
@@ -396,19 +421,25 @@ bool AASession::receiveExactly(uint8_t* to, size_t size) {
             }
             continue;
         }
-        lastDataMs = locationClockMs();
-        if (lastReceivedMs_ && lastDataMs - lastReceivedMs_ > longestSilenceMs_.load()) {
-            longestSilenceMs_.store(static_cast<uint32_t>(lastDataMs - lastReceivedMs_));
-        }
-        lastReceivedMs_ = lastDataMs;
-        const ssize_t n = recv(fd, to + got, size - got, 0);
+        const bool direct = (size - got) >= rxBuf_.size();
+        const ssize_t n = direct ? recv(fd, to + got, size - got, 0) : recv(fd, &rxBuf_[0], rxBuf_.size(), 0);
         if (n < 0 && errno == EINTR) {
             continue;
         }
         if (n <= 0) {
             return false;
         }
-        got += static_cast<size_t>(n);
+        lastDataMs = locationClockMs();
+        if (lastReceivedMs_ && lastDataMs - lastReceivedMs_ > longestSilenceMs_.load()) {
+            longestSilenceMs_.store(static_cast<uint32_t>(lastDataMs - lastReceivedMs_));
+        }
+        lastReceivedMs_ = lastDataMs;
+        if (direct) {
+            got += static_cast<size_t>(n);
+        } else {
+            rxPos_ = 0;
+            rxEnd_ = static_cast<size_t>(n);
+        }
     }
     return got == size;
 }
@@ -429,7 +460,7 @@ bool AASession::sendExactly(const uint8_t* data, size_t size) {
         if (fd < 0) {
             return false;
         }
-        const ssize_t n = send(fd, data + sent, size - sent, 0);
+        const ssize_t n = send(fd, data + sent, size - sent, MSG_NOSIGNAL);
         if (n < 0 && errno == EINTR) {
             continue;
         }
@@ -453,8 +484,11 @@ bool AASession::sendExactly(const uint8_t* data, size_t size) {
 }
 
 bool AASession::sendFrame(uint8_t channel, uint8_t flags, const uint8_t* payload, size_t size) {
-    std::vector<uint8_t> frame;
-    return encodeFrame(channel, flags, payload, size, frame) && sendExactly(&frame[0], frame.size());
+    const bool ok = encodeFrame(channel, flags, payload, size, txFrame_) && sendExactly(&txFrame_[0], txFrame_.size());
+    if (txFrame_.capacity() > kMaxRetainedTx) {
+        std::vector<uint8_t>().swap(txFrame_);
+    }
+    return ok;
 }
 
 bool AASession::sendPlain(uint8_t channel, const Message& message) {
@@ -462,11 +496,14 @@ bool AASession::sendPlain(uint8_t channel, const Message& message) {
 }
 
 bool AASession::sendSealed(uint8_t channel, const Message& message, uint8_t flags) {
-    std::vector<uint8_t> records;
-    if (!tls_.seal(&message[0], message.size(), records)) {
+    if (!tls_.seal(&message[0], message.size(), txRecords_)) {
         return false;
     }
-    if (!sendFrame(channel, flags, &records[0], records.size())) {
+    const bool ok = sendFrame(channel, flags, &txRecords_[0], txRecords_.size());
+    if (txRecords_.capacity() > kMaxRetainedTx) {
+        std::vector<uint8_t>().swap(txRecords_);
+    }
+    if (!ok) {
         // tls_.seal() already moved the TLS sequence on: the wire can no longer match the engine.
         sendBroken_ = true;
         return false;

@@ -210,6 +210,14 @@ private:
     bool plainKindsFull_;
     // This session took the phone's VersionResponse and started TLS with it: a second one is ignored.
     bool versionTaken_;
+    // Reusable wire buffers (session thread only): drains the kernel TCP buffer in chunks instead of 4-byte header
+    // syscalls, and avoids per-ack/per-input heap allocations on the Wi-Fi hot path.
+    static const size_t kRxBufferSize = 32u * 1024u;
+    static const size_t kMaxRetainedTx = 64u * 1024u;
+    std::vector<uint8_t> rxBuf_;
+    size_t rxPos_, rxEnd_;
+    std::vector<uint8_t> txRecords_;
+    std::vector<uint8_t> txFrame_;
 };
 
 }  // namespace aa
