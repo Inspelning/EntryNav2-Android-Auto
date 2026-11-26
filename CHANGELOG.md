@@ -186,6 +186,12 @@ QEMU avec les bibliothèques de la voiture).
 - Journaux : le journal du service n'écrit plus le nom des rues du guidage d'Android Auto (ni dans les lignes des
   flèches au compteur, ni dans les octets des messages de navigation du téléphone), seulement leur longueur. Ce
   journal est souvent publié dans les tickets, et une rue dit où se trouve le conducteur. Testé sur PC.
+- Appli iDrive : après OPTION puis BACK (ou l'inclinaison à gauche), Android Auto revient de lui-même au lieu d'une
+  page vide ([#137](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/137), MINI F54 ; même logiciel que
+  les BMW). L'iDrive ignorait la demande du menu de l'appli tant que son panneau d'options était ouvert, et rien ne
+  ramenait l'image une fois le panneau fermé : il fallait un second BACK puis *Ouvrir Android Auto*. Un choix dans
+  le panneau laisse Android Auto en retrait comme avant ; téléphone parti entre-temps : le menu de l'appli. Testé
+  sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

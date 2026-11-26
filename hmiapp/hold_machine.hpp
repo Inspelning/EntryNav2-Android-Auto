@@ -48,6 +48,11 @@
 //   opened, event 52 at once so the knob does not act on that hidden screen.
 // - Android Auto steps aside by itself (exit icon, signal lost) over the blank state: event 50 (iDrive main menu), or
 //   event 51 when OPTION opened iDrive's option panel over it. Nothing in reverse or after a hard key.
+// - iDrive ignores that event 51 for as long as its option panel is open (seen on a MINI F54, the same software as the
+//   BMWs, #137): BACK, tilt left or a touch at the left edge then close the panel and give the focus back to the blank
+//   state, with nothing on it. Android Auto is asked to the front at that moment ("show"), as when iDrive goes back to
+//   the blank state by itself; event 51 instead if the session is gone meanwhile. Our menu taking the focus (event 51
+//   performed) or a choice in the panel (the blank state hidden) cancels it. Not during a call or in reverse.
 // - Open row, but Android Auto never came up (session dropped): after 3 s on the blank state, event 51 (menu back).
 // - iDrive back on the blank state by itself while Android Auto is minimized (BACK walks its history): "show", like
 //   CarPlay.
@@ -166,6 +171,7 @@ private:
     bool appKeyRecent();
     bool keepForAppKey(const char* why, long now);
     bool winBackRadioPage(long now);
+    void backFromOptionPanel();
     void flushGear(const char* why);
     void leaveParkAssist(const char* why);
     void updatePopupPeek(bool covered, long now);
@@ -196,6 +202,7 @@ private:
     int unfocusedPolls_;  // polls with the blank state shown but unfocused
     long leftSeen_;       // first poll that saw iDrive away from the blank state (hard key), 0: none
     int64_t menuHoldMs_;  // last event 52 fired by our menu's focus
+    bool optionPanel_;    // Android Auto stepped aside for iDrive's option panel: its event 51 may have been ignored
 
     // Android Auto aside until iDrive opens our menu
     bool waiting_;

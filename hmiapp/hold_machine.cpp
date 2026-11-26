@@ -30,6 +30,7 @@ HoldMachine::HoldMachine(HoldIo& io)
       unfocusedPolls_(0),
       leftSeen_(0),
       menuHoldMs_(-1000),
+      optionPanel_(false),
       waiting_(false),
       unheld_(false),
       popupOpen_(false),
@@ -195,6 +196,7 @@ void HoldMachine::showAndHold(const char* why, long now) {
     leaveParkAssist("Android Auto chosen over it");
     waiting_ = false;
     unheld_ = false;
+    optionPanel_ = false;
     closeOwnPopup();  // our menu opened by itself meanwhile
     io_.send("show");
     prevOverlay_ = false;  // the coming overlay is new
@@ -208,6 +210,7 @@ void HoldMachine::showAndHold(const char* why, long now) {
 void HoldMachine::requestShow() {
     waiting_ = false;
     unheld_ = false;
+    optionPanel_ = false;
     closeOwnPopup();
     io_.send("show");
     prevOverlay_ = false;  // the coming overlay is new: hold iDrive on the blank state
@@ -302,11 +305,40 @@ void HoldMachine::aaFocus(bool focused) {
         }
     }
     say("hold: state %u focus -> %d", kAaState, static_cast<int>(focused));
+    if (focused && optionPanel_) {
+        backFromOptionPanel();
+    }
+}
+
+// OPTION under Android Auto: the service stepped aside, iDrive opened its option panel over the blank state, and the
+// app asked for its menu (event 51, poll). iDrive ignores that event for as long as the panel is open (MINI F54, #137,
+// 14 times out of 14); BACK, tilt left or a touch at the left edge close it and give the focus back to the blank state,
+// still visible under it, with nothing on it. That focus is the answer: Android Auto to the front, as CarPlay does and
+// as when iDrive goes back to the blank state by itself (aaVisible). The phone gone meanwhile: our menu, accepted now
+// that the panel is closed, rather than a blank page.
+void HoldMachine::backFromOptionPanel() {
+    optionPanel_ = false;
+    if (inCall_ || cameraWins()) {
+        return;  // iDrive's call screen or the camera: nothing over them
+    }
+    const ServiceState d = io_.readService();
+    if (d.pid > 0 && d.is("connected")) {
+        if (!d.onScreen()) {
+            say("hold: OPTION panel closed, iDrive back on the Android Auto page: asking the service to come to the "
+                "front");
+            requestShow();
+        }
+        return;
+    }
+    io_.triggerEvent(kEvOpenMenu);
+    say("hold: OPTION panel closed, no phone connected (%s): event %u -> Android Auto menu", d.state, kEvOpenMenu);
 }
 
 void HoldMachine::aaVisible(bool visible, long now) {
     aaVisible_ = visible;
-    if (visible) {
+    if (!visible) {
+        optionPanel_ = false;  // a choice in the option panel took iDrive elsewhere: Android Auto stays aside
+    } else {
         if (popupOpen_) {
             // Shown under our popup, which has the focus: what refused our pages may still be on top of the blank
             // state once it is closed, as after event 52 under it.
@@ -338,6 +370,7 @@ void HoldMachine::menuFocus(unsigned state, bool focused, long now, int64_t nowM
     menuFocused_ = focused;
     if (focused) {
         aaFocused_ = false;
+        optionPanel_ = false;  // event 51 was performed: the menu is where the driver is
         closeOwnPopup();
         flushGear("our menu has the focus");
     }
@@ -531,8 +564,10 @@ void HoldMachine::poll(const ServiceState& service, long now) {
         // give the driver the iDrive main menu. Not in reverse, not when a hard key already took iDrive elsewhere.
         if (blank && !aaFocused_ && !cameraWins()) {
             // OPTION while Android Auto is on screen (the service stepped aside, iDrive opened its option panel over
-            // our blank state): the app's menu (Open / Stop / start automatically).
+            // our blank state): the app's menu (Open / Stop / start automatically). iDrive may ignore it under its
+            // panel: the focus back on the blank state then brings Android Auto back (backFromOptionPanel).
             io_.triggerEvent(kEvOpenMenu);
+            optionPanel_ = true;
             say("hold: OPTION: event %u -> Android Auto menu", kEvOpenMenu);
         } else if (blank && !hideSent_ && !cameraWins()) {
             io_.triggerEvent(kEvGoHome);

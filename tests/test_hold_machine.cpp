@@ -1064,6 +1064,103 @@ void stepsAsideByItself() {
     }
 }
 
+// OPTION under Android Auto: the service steps aside, iDrive opens its option panel over the blank state (still
+// visible, no longer focused), and the app asks for its menu. iDrive ignores that event under its panel (MINI F54,
+// #137); BACK then gives the focus back to the blank state.
+void optionPanel(Car& c) {
+    heldOnBlank(c);
+    c.blankFocus(false);
+    c.overlay(0);
+    c.poll();
+    CHECK_OUT(c, "event 51");
+    CHECK(c.logged("hold: OPTION: event 51 -> Android Auto menu"));
+}
+
+void optionPanelThenBack() {
+    {  // BACK closes the panel: Android Auto back at once, not a blank page
+        Car c;
+        optionPanel(c);
+        c.polls(12);  // the event is ignored for as long as the panel is open: nothing more meanwhile
+        CHECK_OUT(c, "");
+        c.blankFocus(true);  // BACK, tilt left or a touch at the left edge
+        CHECK_OUT(c, "show");
+        CHECK(c.logged("hold: OPTION panel closed, iDrive back on the Android Auto page"));
+        c.overlay(1);
+        c.poll();
+        CHECK_OUT(c, "");  // the blank state is already shown and focused: nothing more
+        CHECK(c.hold.holding() && c.hold.blankShown());
+        c.polls(5);
+        CHECK_OUT(c, "");
+        c.blankVisible(false);
+        c.menu(true);              // the next BACK
+        CHECK_OUT(c, "event 52");  // held again: back to the blank state
+    }
+    {  // event 51 performed (a BMW): our menu, as before; its focus cancels the show
+        Car c;
+        optionPanel(c);
+        c.menu(true);
+        CHECK_OUT(c, "");
+        c.menu(false);
+        c.blankFocus(true);
+        c.polls(3);
+        CHECK_OUT(c, "");
+    }
+    {  // a choice in the panel took iDrive elsewhere: Android Auto stays aside
+        Car c;
+        optionPanel(c);
+        c.blankVisible(false);
+        c.polls(3);
+        CHECK_OUT(c, "");
+        c.blankFocus(true);
+        c.polls(3);
+        CHECK_OUT(c, "");
+        CHECK(!c.hold.holding());
+    }
+    {  // the phone's exit icon, then an iDrive popup that opens and closes over the blank state: no show
+        Car c;
+        heldOnBlank(c);
+        c.overlay(0);
+        c.poll();
+        CHECK_OUT(c, "event 50");
+        c.blankFocus(false);
+        c.poll();
+        c.blankFocus(true);
+        c.polls(3);
+        CHECK_OUT(c, "");
+    }
+    {  // a call came meanwhile: iDrive's call screen is not fought
+        Car c;
+        optionPanel(c);
+        c.call(true);
+        c.blankFocus(true);
+        c.polls(3);
+        CHECK_OUT(c, "");
+        c.call(false);
+        c.blankFocus(false);
+        c.blankFocus(true);  // the panel already counted once: no show later either
+        CHECK_OUT(c, "");
+    }
+    {  // reverse gear meanwhile: the camera wins
+        Car c;
+        optionPanel(c);
+        CHECK(c.gear(2));
+        c.blankFocus(true);
+        c.polls(3);
+        CHECK_OUT(c, "");
+    }
+    {  // the phone gone meanwhile: our menu, accepted now that the panel is closed, instead of a blank page
+        Car c;
+        optionPanel(c);
+        c.service("running", 42, 0);
+        c.blankFocus(true);
+        CHECK_OUT(c, "event 51");
+        CHECK(c.logged("hold: OPTION panel closed, no phone connected (running): event 51 -> Android Auto menu"));
+        c.menu(true);
+        c.polls(3);
+        CHECK_OUT(c, "");
+    }
+}
+
 void backToBlankWhileMinimized() {
     Car c;
     heldOnBlank(c);
@@ -1414,6 +1511,7 @@ int main() {
     radioPage();
     hardKeys();
     stepsAsideByItself();
+    optionPanelThenBack();
     backToBlankWhileMinimized();
     startWhileRunning();
     serviceRestart();
@@ -1424,7 +1522,7 @@ int main() {
     puts(
         "PASS hold machine: clocks and file dates, manual open, automatic start through the menu, refusals, waiting "
         "aside, recall over an iDrive screen, our own popup closed, BACK, popups, driving mode, "
-        "reverse, park assist, calls, app keys, radio page raised by iDrive, hard keys, stepping aside, service "
-        "restart");
+        "reverse, park assist, calls, app keys, radio page raised by iDrive, hard keys, stepping aside, OPTION "
+        "panel then BACK, service restart");
     return 0;
 }

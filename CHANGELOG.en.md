@@ -182,6 +182,11 @@ QEMU with the car's libraries).
 - Logs: the service's log no longer writes the street names of Android Auto's guidance (neither in the cluster arrow
   lines nor in the bytes of the phone's navigation messages), only their length. This log is often posted in issues,
   and a street tells where the driver is. Tested on PC.
+- iDrive app: after OPTION then BACK (or tilt left), Android Auto comes back by itself instead of a blank page
+  ([#137](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/137), MINI F54; the same software as the
+  BMWs). iDrive ignored the request for the app's menu while its option panel was open, and nothing brought the
+  picture back once the panel closed: it took a second BACK then *Open Android Auto*. A choice in the panel leaves
+  Android Auto aside as before; phone gone meanwhile: the app's menu. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
