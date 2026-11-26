@@ -115,6 +115,9 @@ QEMU avec les bibliothèques de la voiture).
   Seuls leurs premiers 32 Kio sont maintenant gardés (une étape en prend quelques centaines d'octets), au plus 16
   voies et 16 directions par voie sont lues, et les messages ne sont recopiés et relus que quand un nouveau est
   arrivé. Testé sur PC.
+- Câble USB : un téléphone qui acceptait la demande de passer en mode accessoire sans jamais le faire était
+  sollicité à nouveau toutes les 5 à 6 secondes, sans fin. Après 5 demandes restées sans suite, il est maintenant
+  laissé tranquille jusqu'à ce qu'il soit débranché puis rebranché, et le journal le dit. Testé sur PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

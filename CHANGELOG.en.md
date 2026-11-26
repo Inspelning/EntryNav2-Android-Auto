@@ -114,6 +114,9 @@ QEMU with the car's libraries).
   four times a second, by the Ethernet arrows' thread and by the MOST cluster's alike. Only their first 32 KiB are
   now kept (a step takes a few hundred bytes), at most 16 lanes and 16 directions per lane are read, and the
   messages are copied and read again only when a new one has come. Tested on PC.
+- USB cable: a phone that accepted the request to switch to accessory mode but never did was asked again every 5 to
+  6 seconds, for ever. After 5 requests with no result, it is now left alone until it is unplugged and plugged in
+  again, and the log says so. Tested on PC.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

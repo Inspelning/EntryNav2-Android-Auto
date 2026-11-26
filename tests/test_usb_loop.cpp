@@ -56,6 +56,7 @@ struct Run {
         setup.open = openFake;
         setup.turnMs = 50;
         setup.afterResetMs = 100;
+        setup.returnMs = 200;
         g_refused = 0;
         CHECK(pthread_create(&thread, nullptr, main, this) == 0);
     }
@@ -161,6 +162,27 @@ void heldInterface() {
     run.end();
 }
 
+// A phone that takes the request to start as an accessory but never becomes one: asked 5 times, then left alone until
+// it is plugged in again, without a reset. Before, it was asked again after each wait, for ever.
+void neverSwitches() {
+    fake::Bus bus;
+    fake::Phone phone;
+    phone.staysPut = true;
+    g_phones.assign(1, &phone);
+    phone.plug(bus, "1-1");
+    Run run(bus);
+    CHECK(fake::within(5000, [&]() { return phone.count(&fake::Phone::started) == 5; }));
+    usleep(1000000);
+    CHECK(phone.count(&fake::Phone::started) == 5 && phone.count(&fake::Phone::resets) == 0 && run.host.handed == 0);
+    // Plugged in again, at another address: asked again, and this time it switches.
+    phone.set(&fake::Phone::staysPut, false);
+    bus.remove("1-1");
+    phone.address = 30;
+    phone.plug(bus, "1-1");
+    CHECK(run.handed(1) && phone.count(&fake::Phone::started) == 6);
+    run.end();
+}
+
 // A session is running (wired or not): the bus is not touched.
 void busyService() {
     fake::Bus bus;
@@ -191,11 +213,12 @@ int main() {
     otherDevices();
     onePortOnly();
     heldInterface();
+    neverSwitches();
     busyService();
     fflush(stdout);
     dup2(console, 1);
     puts(
         "PASS USB loop: switch and hand-over, stale accessory reset, other devices untouched, one port, held "
-        "interface, busy service");
+        "interface, a phone that never switches left alone, busy service");
     return 0;
 }
