@@ -171,6 +171,13 @@ QEMU avec les bibliothèques de la voiture).
   de l'iDrive depuis une tâche différée. Chez nous ces lectures (codage, réglage de la fenêtre du mode de conduite) ne
   se font qu'au démarrage de l'appli et à un changement de mode ; elles sont maintenant refusées dans une tâche
   différée, pour qu'un ajout futur ne puisse pas refaire cette erreur. Rien ne change en voiture. Testé sur PC.
+- Flèches au compteur des Série F par MOST : quand le compteur ne répond pas aux champs connus (ceux du compteur 6WA),
+  rien n'était dessiné ([#88](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/88), MINI F56 : aucune des six
+  tailles lues). Le service apprend maintenant les champs du compteur en écoutant la navigation BMW pendant un guidage,
+  et les garde dans le fichier `kombi-most-layout` : un seul guidage BMW suffit, Android Auto les utilise ensuite. Sans
+  rien envoyer au compteur pendant ce guidage, sans jamais garder ni écrire dans le journal le nom d'une rue. Le
+  journal résume ce que la navigation fait de chaque champ, et dit une fois chaque réponse du compteur qui ne se
+  rattache à rien (une lecture de taille refusée, par exemple). Testé sur PC, pas encore en voiture.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 

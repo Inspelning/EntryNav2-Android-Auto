@@ -86,6 +86,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `kombi_display`, `kombi_graph` | Codes et tables du compteur, dessin des manœuvres et des voies |
 | `kombi_client`, `kombi_someip` | Liaison SOME/IP avec le compteur (service `0xB006`) |
 | `kombi_most` | Prochaine manœuvre sur le compteur des Série F, par MOST (bloc `HUD_Terminal`, `0x82`), par la connexion vMOST du lecteur de molette ; seulement sans compteur Ethernet (testé sur PC) |
+| `kombi_most_layout` | Champs de ce compteur appris en écoutant la navigation BMW pendant un guidage (images, cadre, textes classés sans être gardés), et leur fichier `kombi-most-layout` (testé sur PC) |
 | `evo_bmw_guidance` | Détection de la navigation BMW en cours, qui garde la priorité |
 
 ## `hmiapp/` : l'appli de l'iDrive

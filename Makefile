@@ -35,7 +35,8 @@ CORE_SRC = core/aa_session.cpp core/aa_channels.cpp core/aa_messages.cpp core/ca
 CORE_OBJ = $(CORE_SRC:.cpp=.o)
 # The cluster guidance (platform/kombi_*), in the service and in its tests.
 KOMBI_SRC = platform/kombi_phone.cpp platform/kombi_display.cpp platform/kombi_someip.cpp platform/kombi_graph.cpp \
-            platform/kombi_client.cpp platform/kombi_guide.cpp platform/kombi_nav.cpp platform/kombi_most.cpp
+            platform/kombi_client.cpp platform/kombi_guide.cpp platform/kombi_nav.cpp platform/kombi_most.cpp \
+            platform/kombi_most_layout.cpp
 KOMBI_OBJ = $(KOMBI_SRC:.cpp=.o)
 # Android Auto over a USB cable: the kernel's usbfs, the accessory switch, the bridge to the session, the loop.
 USB_SRC = platform/usb_devfs.cpp platform/usb_accessory.cpp platform/usb_bridge.cpp platform/usb_loop.cpp

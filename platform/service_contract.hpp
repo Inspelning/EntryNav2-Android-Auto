@@ -27,6 +27,8 @@ constexpr char kPhoneGps[] = "/var/local/data/AA/gps-telephone";      // present
 constexpr char kVehicle[] = "/var/local/data/AA/vehicle";             // model= year= side= fuel=, told to the phone
 // An Android Auto picture may still be on the cluster of an F-series car (over MOST, kombi_most.hpp).
 constexpr char kKombiMostShown[] = "/var/local/data/AA/kombi-most.shown";
+// That cluster's address and the fields the BMW navigation uses on it, learned while it guides (kombi_most_layout.hpp).
+constexpr char kKombiMostLayout[] = "/var/local/data/AA/kombi-most-layout";
 // Present: send only the next maneuver's graph to the cluster.
 constexpr char kKombiSingle[] = "/var/local/data/AA/kombi-single-maneuver";
 // Present: Android Auto over a USB cable instead of wireless. Empty, or the one USB port to use ("1-1").

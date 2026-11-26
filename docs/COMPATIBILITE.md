@@ -189,6 +189,17 @@ testeur sur une F52 au compteur 6WA ([#79](https://github.com/Jiraiya43/EntryNav
 - Seulement là où aucun compteur Ethernet ne répond : une Série G n'est pas concernée.
 - Rien n'est créé sur le compteur. Si ses champs n'existent pas ou n'ont pas les tailles du compteur 6WA, rien n'est
   dessiné et le journal donne les tailles lues.
+- Tous les compteurs n'ont pas les champs du 6WA : sur une MINI F56
+  ([#88](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/88)), aucun ne répondait. Le service apprend alors
+  ceux que la navigation BMW utilise, en l'écoutant pendant un guidage (rien n'est envoyé au compteur pendant ce temps) :
+  les deux images qu'elle échange, le cadre qu'elle affiche, et ses textes classés par leur contenu (des chiffres pour
+  la distance, une unité, le reste pour la rue). Le nom d'une rue n'est jamais gardé ni écrit dans le journal. La taille
+  des images est celle que le compteur a donnée à la navigation, sinon celle qu'il répond au service ; sans taille,
+  rien n'est dessiné. Ce qui est appris va dans le fichier `kombi-most-layout` ([maintenance](MAINTENANCE.md)) : **un
+  seul guidage de la navigation BMW suffit**, ensuite Android Auto dessine sur ces champs, le cadre affiché avant
+  d'écrire les textes, comme le fait la navigation. Il faut que le service ait trouvé le compteur au moins une fois
+  (5 s de guidage Android Auto) : il écoute ensuite jusqu'à son arrêt, puis dès chaque démarrage. **Jamais essayé en
+  voiture.**
 - La navigation BMW garde la priorité : quand elle guide, ou qu'un autre programme dessine sur ces champs, Android Auto
   les lui laisse sans les effacer.
 - Pendant quelques minutes après un démarrage à froid de l'iDrive, le compteur répond à chaque appel, mais 1 à 7,5 s
@@ -202,7 +213,10 @@ testeur sur une F52 au compteur 6WA ([#79](https://github.com/Jiraiya43/EntryNav
 - Le fichier `kombi-off` coupe aussi ces flèches.
 
 Les lignes `[KombiMost]` du journal du service disent ce qui s'est passé : registre MOST, tailles des champs, première
-image prise par le compteur, refus.
+image prise par le compteur, refus. Après un guidage BMW, une ligne `the BMW navigation on the cluster` résume ce que la
+navigation a fait de chaque champ (numéros, nombres d'appels, sortes de textes, tailles) et ce qui a été appris ou ce
+qui manque. Une réponse du compteur qui ne se rattache à rien (une lecture de taille refusée, par exemple) est écrite
+une fois, avec ses premiers octets.
 
 ## Double appui sur MEDIA
 

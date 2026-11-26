@@ -167,6 +167,13 @@ QEMU with the car's libraries).
   posted task. Ours reads them (coding, driving mode popup setting) only as the app starts and when the driving mode
   changes; they are now refused inside a posted task, so that a later addition cannot make that mistake. Nothing
   changes in the car. Tested on PC.
+- Arrows on the F-series cluster over MOST: when the cluster did not answer on the known fields (the 6WA cluster's),
+  nothing was drawn ([#88](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/88), MINI F56: none of the six
+  sizes read). The service now learns the cluster's fields by listening to the BMW navigation during a route, and keeps
+  them in the `kombi-most-layout` file: one BMW route is enough, Android Auto uses them afterwards. Nothing is sent to
+  the cluster during that route, and a street name is never kept nor written to the log. The log sums up what the
+  navigation does with each field, and says once each answer from the cluster that belongs to nothing (a refused size
+  read, for instance). Tested on PC, not yet in a car.
 
 ## [0.13.0-rc.10] - 2026-11-24 · PC
 
