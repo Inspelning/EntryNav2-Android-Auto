@@ -323,46 +323,6 @@ bool continues(const WifiStation& now, const WifiStation& before) {
            (now.connectedS == kNoFigure || before.connectedS == kNoFigure || now.connectedS >= before.connectedS);
 }
 
-// The chip's counters, in the order of the log line.
-struct ChipField {
-    int64_t ChipCounters::*value;
-    const char* format;
-};
-const ChipField kChipFields[] = {
-    {&ChipCounters::dataRetries, "%lld data retries"},
-    {&ChipCounters::expired, "%lld expired"},
-    {&ChipCounters::psPollTimeouts, "%lld PS-Poll timeouts"},
-    {&ChipCounters::upsdTimeouts, "%lld U-APSD timeouts"},
-};
-const size_t kChipFieldCount = sizeof(kChipFields) / sizeof(kChipFields[0]);
-
-// "140 data retries, 0 expired, 0 PS-Poll timeouts, 12 U-APSD timeouts", counted from the earlier ones when given.
-std::string chipFigures(const ChipCounters& now, const ChipCounters* since) {
-    std::string s;
-    for (size_t i = 0; i < kChipFieldCount; ++i) {
-        const int64_t value = now.*kChipFields[i].value;
-        if (value != kNoFigure) {
-            add(s, ", ", kChipFields[i].format, value - (since ? since->*kChipFields[i].value : 0));
-        }
-    }
-    return s;
-}
-
-// The firmware's statistics have only grown since the earlier sample: it did not start again in between. A restart
-// counted by the driver says so even when the new figures already went past the old ones.
-bool chipContinues(const ChipCounters& now, const ChipCounters& before) {
-    if (now.recoveries != before.recoveries) {
-        return false;
-    }
-    for (size_t i = 0; i < kChipFieldCount; ++i) {
-        const int64_t a = now.*kChipFields[i].value, b = before.*kChipFields[i].value;
-        if ((a == kNoFigure) != (b == kNoFigure) || a < b) {
-            return false;
-        }
-    }
-    return true;
-}
-
 // A small file of /sys or debugfs, read whole; false when it cannot be opened.
 bool readSmallFile(const std::string& path, std::string& out, size_t max) {
     const int fd = open(path.c_str(), O_RDONLY | O_CLOEXEC);
@@ -397,12 +357,7 @@ WifiStation::WifiStation()
     memset(mac, 0, sizeof(mac));
 }
 
-ChipCounters::ChipCounters()
-    : dataRetries(kNoFigure),
-      expired(kNoFigure),
-      psPollTimeouts(kNoFigure),
-      upsdTimeouts(kNoFigure),
-      recoveries(kNoFigure) {}
+ChipCounters::ChipCounters() : recoveries(kNoFigure) {}
 
 WifiSample::WifiSample()
     : atMs(0), radio(false), mhz(0), stations(0), hasStation(false), hasTcp(false), hasChip(false) {
@@ -497,24 +452,15 @@ bool readChipCounters(const std::string& interface, ChipCounters& out) {
     if (phy.empty() || phy.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789_-") != std::string::npos) {
         return false;
     }
-    const std::string base = "/sys/kernel/debug/ieee80211/" + phy + "/wlcore/";
-    static const char* const kFiles[kChipFieldCount] = {"tx_tx_retry_data", "tx_tx_exch_expiry",
-                                                        "ps_poll_ps_poll_timeouts", "ps_poll_upsd_timeouts"};
-    bool any = false;
+    // Never wl18xx/fw_stats: see wifi_link.hpp.
     std::string text;
-    for (size_t i = 0; i < kChipFieldCount; ++i) {
-        int64_t value = 0;
-        if (readSmallFile(base + "wl18xx/fw_stats/" + kFiles[i], text, 64) && parseChipCounter(text, value)) {
-            out.*kChipFields[i].value = value;
-            any = true;
-        }
-    }
     int64_t recoveries = 0;
-    if (readSmallFile(base + "driver_state", text, 16384) && parseRecoveryCount(text, recoveries)) {
-        out.recoveries = recoveries;
-        any = true;
+    if (!readSmallFile("/sys/kernel/debug/ieee80211/" + phy + "/wlcore/driver_state", text, 16384) ||
+        !parseRecoveryCount(text, recoveries)) {
+        return false;
     }
-    return any;
+    out.recoveries = recoveries;
+    return true;
 }
 
 ChipCounterReader::ChipCounterReader(Read read)
@@ -654,17 +600,6 @@ std::string describeWifiLink(const WifiSample& now, const WifiSample* before) {
         }
     }
     if (now.hasChip) {
-        const bool same = before && before->hasChip && chipContinues(now.chip, before->chip);
-        const std::string counted = chipFigures(now.chip, same ? &before->chip : nullptr);
-        if (!counted.empty()) {
-            if (same) {
-                add(line, "; ", "chip in %lld s: ", (now.atMs - before->atMs + 500) / 1000);
-            } else {
-                line += line.empty() ? "" : "; ";
-                line += "chip since its firmware started: ";
-            }
-            line += counted;
-        }
         const int64_t restarts = now.chip.recoveries;
         if (restarts != kNoFigure) {
             const bool known = before && before->hasChip && before->chip.recoveries != kNoFigure &&
@@ -802,8 +737,8 @@ void WifiLinkLog::sample(uint32_t nowMs) {
         } else if (++chipFailures_ >= kChipTries) {
             chipGone_ = true;
             ELOG("WifiLink",
-                 "no WL18xx counters from debugfs for %s (not mounted, another chip, or the driver slow to "
-                 "answer): the lines go on without them",
+                 "no WL18xx driver state from debugfs for %s (not mounted, another chip, or the driver slow to "
+                 "answer): the lines go on without it",
                  interface_.c_str());
         }
     }

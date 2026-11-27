@@ -77,7 +77,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `update_car.cpp` | La même sur la voiture : `/proc/mounts`, remontage du système comme à l'installation, chargeur de l'unité, redémarrage, verrous ; `aa-supervisor --reboot`. Seul fichier qui lance `/sbin/reboot`, jamais dans un test |
 | `evo_reboot` | Redémarrage de l'unité : demandé proprement au processeur de l'unité (Cortex-M4) par vMOST, comme un outil de diagnostic BMW, sinon le redémarrage d'avant (`/sbin/reboot`) ; décisions sur une fausse voiture dans les tests |
 | `ap_uapsd.hpp` | Point d'accès de la voiture sans U-APSD pour le téléphone qui le rejoint (réglage en mémoire de hostapd, balise reconstruite une fois par démarrage du point d'accès, appareils déjà connectés compris) |
-| `wifi_link` | Qualité de la liaison Wi-Fi avec le téléphone, lue dans le noyau pour les journaux : entrée du téléphone (nl80211), compteurs de la puce WL18xx (debugfs, lus sur un fil à part), TCP, et l'état du lien Bluetooth des BMW Apps (testé sur PC) |
+| `wifi_link` | Qualité de la liaison Wi-Fi avec le téléphone, lue dans le noyau pour les journaux : entrée du téléphone (nl80211), redémarrages de la puce WL18xx comptés par son pilote (debugfs, lus sur un fil à part, jamais `fw_stats`), TCP, et l'état du lien Bluetooth des BMW Apps (testé sur PC) |
 | `alps_spp`, `evo_spp_snapshot` | Pile Bluetooth de la voiture : commandes, et lecture de son état en mémoire |
 | `evo_elf.hpp` | Symboles exportés par une bibliothèque de la voiture, lus dans son fichier |
 | `evo_control`, `control_address.hpp` | Commandes de l'appli vers le service, par un socket Unix au nom abstrait (ni fichier ni port réseau) |
@@ -134,7 +134,7 @@ Le protocole Android Auto côté voiture, sans rien de propre à BMW.
 | `tests/test_peek_timing.cpp`, `tests/test_wireless_lifecycle.cpp` | Effacement de l'image, cycle de vie Bluetooth puis Wi-Fi du service |
 | `tests/test_volume_state.cpp` | Pastille du volume : niveau d'une autre source ignoré, répétitions, touches, sourdine |
 | `tests/test_evo_mic.cpp` | Micro de la voiture sur une fausse libasound (`tests/fake_libasound.c`) : son transmis, arrêt immédiat avec un micro muet ou en panne, réouverture espacée |
-| `tests/test_wifi_link.cpp` | Qualité du Wi-Fi : messages du noyau, compteurs de la puce et leur fil de lecture, ligne de journal, connexion rendue en fin de session |
+| `tests/test_wifi_link.cpp` | Qualité du Wi-Fi : messages du noyau, redémarrages de la puce et leur fil de lecture, ligne de journal, connexion rendue en fin de session |
 | `tests/test_pending_restart.cpp` | Redémarrage d'Android Auto quand la case du câble USB change en marche |
 | `tests/test_guard_file.cpp` | Garde-fous : démarrages d'autres jours ignorés, boucle de plantages, date qui recule, ligne coupée, fichier remplacé d'un coup |
 | `tests/test_hold_machine.cpp` | Page vide de l'iDrive : ouverture, démarrage automatique, fenêtres, modes, appels, touches |

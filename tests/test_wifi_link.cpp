@@ -227,17 +227,14 @@ void logLines() {
     CHECK(evo::describeWifiLink(appsAlone, nullptr) == "BMW Apps Bluetooth link idle");
 }
 
-evo::ChipCounters chip(int64_t retries, int64_t expired, int64_t psPoll, int64_t upsd, int64_t recoveries) {
+evo::ChipCounters chip(int64_t recoveries) {
     evo::ChipCounters c;
-    c.dataRetries = retries;
-    c.expired = expired;
-    c.psPollTimeouts = psPoll;
-    c.upsdTimeouts = upsd;
     c.recoveries = recoveries;
     return c;
 }
 
-// The WL18xx's own counters: its debugfs files, and their part of the line, after TCP and before BMW Apps.
+// The WL18xx driver's count of firmware restarts: its driver_state file, and its part of the line, after TCP and
+// before BMW Apps.
 void chipCounters() {
     int64_t value = -1;
     CHECK(evo::parseChipCounter("1234\n", value) && value == 1234);
@@ -252,8 +249,8 @@ void chipCounters() {
     CHECK(!evo::parseRecoveryCount("recovery_count = many\n", value));
     CHECK(!evo::parseRecoveryCount("recovery_count_old = 2\n", value));
     // No such interface: nothing read, no counter given.
-    evo::ChipCounters none = chip(1, 1, 1, 1, 1);
-    CHECK(!evo::readChipCounters("entry-aad-no-such-interface", none) && none.dataRetries == evo::kNoFigure);
+    evo::ChipCounters none = chip(1);
+    CHECK(!evo::readChipCounters("entry-aad-no-such-interface", none) && none.recoveries == evo::kNoFigure);
 
     const std::string tcpLine = "TCP round trip 0.9 ms, 0 segment(s) sent again since it opened";
     evo::WifiSample first;
@@ -262,57 +259,33 @@ void chipCounters() {
     first.tcp.roundTripUs = 950;
     first.tcp.resent = 0;
     first.hasChip = true;
-    first.chip = chip(1200, 3, 0, 40, 0);
-    CHECK(evo::describeWifiLink(first, nullptr) ==
-          tcpLine +
-              "; chip since its firmware started: 1200 data retries, 3 expired, 0 PS-Poll timeouts, "
-              "40 U-APSD timeouts");
-    // Ten seconds later: what the chip did in between.
+    first.chip = chip(0);
+    // No restart: nothing written about the chip.
+    CHECK(evo::describeWifiLink(first, nullptr) == tcpLine);
+    // Ten seconds later, one restart in between: written, before BMW Apps.
     evo::WifiSample second = first;
     second.atMs = 11000;
-    second.tcp.resent = 0;
-    second.chip = chip(1340, 3, 0, 52, 0);
+    second.chip = chip(1);
     second.apps.read = true;
     second.apps.state = 1;
     CHECK(evo::describeWifiLink(second, &first) ==
-          "TCP round trip 0.9 ms, 0 segment(s) sent again; chip in 10 s: 140 data retries, 0 expired, "
-          "0 PS-Poll timeouts, 12 U-APSD timeouts; BMW Apps Bluetooth link idle");
-    // The driver restarted the firmware: its statistics start again, nothing is subtracted.
+          "TCP round trip 0.9 ms, 0 segment(s) sent again; chip firmware restarted 1 time(s); BMW Apps Bluetooth "
+          "link idle");
+    // None since: nothing.
     evo::WifiSample third = second;
     third.atMs = 21000;
-    third.chip = chip(15, 0, 0, 0, 1);
-    third.apps.read = false;
-    CHECK(evo::describeWifiLink(third, &second) ==
-          "TCP round trip 0.9 ms, 0 segment(s) sent again; chip since its firmware started: 15 data retries, "
-          "0 expired, 0 PS-Poll timeouts, 0 U-APSD timeouts; chip firmware restarted 1 time(s)");
+    CHECK(evo::describeWifiLink(third, &second).find("restarted") == std::string::npos);
     // Restarts before the first line: written once, with their total.
     evo::WifiSample restarted = first;
-    restarted.chip = chip(evo::kNoFigure, evo::kNoFigure, evo::kNoFigure, 7, 2);
+    restarted.chip = chip(2);
     CHECK(evo::describeWifiLink(restarted, nullptr) ==
-          tcpLine +
-              "; chip since its firmware started: 7 U-APSD timeouts; chip firmware restarted 2 time(s) since "
-              "the unit started");
-    evo::WifiSample still = restarted;
-    still.atMs = 11000;
-    still.chip.upsdTimeouts = 9;
-    CHECK(evo::describeWifiLink(still, &restarted).find("restarted") == std::string::npos);
-    // A restart in between, its new statistics already past the old ones: never subtracted from them.
-    evo::WifiSample after = second;
-    after.atMs = 21000;
-    after.chip = chip(1500, 4, 0, 60, 1);
-    after.apps.read = false;
-    CHECK(evo::describeWifiLink(after, &second) ==
-          "TCP round trip 0.9 ms, 0 segment(s) sent again; chip since its firmware started: 1500 data retries, "
-          "4 expired, 0 PS-Poll timeouts, 60 U-APSD timeouts; chip firmware restarted 1 time(s)");
-    // Counters missing on one side are never subtracted from the other's.
-    evo::WifiSample fewer = second;
-    fewer.chip.expired = evo::kNoFigure;
-    CHECK(evo::describeWifiLink(fewer, &first).find("chip since its firmware started: 1340 data retries") !=
-          std::string::npos);
+          tcpLine + "; chip firmware restarted 2 time(s) since the unit started");
+    // The line before had no count (not read): the total again, as on a first line.
+    evo::WifiSample unread = first;
+    unread.hasChip = false;
+    CHECK(evo::describeWifiLink(restarted, &unread).find("2 time(s) since the unit started") != std::string::npos);
     // Nothing read: no chip part at all.
-    evo::WifiSample absent = first;
-    absent.hasChip = false;
-    CHECK(evo::describeWifiLink(absent, nullptr) == tcpLine);
+    CHECK(evo::describeWifiLink(unread, nullptr) == tcpLine);
 }
 
 // Fake reads for the reader thread, which counts them.
@@ -320,7 +293,7 @@ std::atomic<unsigned> chipReads(0);
 bool fastChipRead(const std::string& interface, evo::ChipCounters& out) {
     CHECK(interface == "wlan0");
     ++chipReads;
-    out = chip(10, 0, 1, 2, 0);
+    out = chip(3);
     return true;
 }
 bool failingChipRead(const std::string&, evo::ChipCounters&) {
@@ -330,7 +303,7 @@ bool failingChipRead(const std::string&, evo::ChipCounters&) {
 bool slowChipRead(const std::string&, evo::ChipCounters& out) {
     ++chipReads;
     usleep(1500000);  // the driver's lock held by a stuck firmware command, longer than its 2 s timeout here
-    out = chip(5, 0, 0, 0, 0);
+    out = chip(5);
     return true;
 }
 
@@ -346,7 +319,7 @@ void chipReader() {
         // Waits of a few seconds: a new thread under QEMU and load may take a while to run.
         evo::ChipCounterReader reader(fastChipRead);
         evo::ChipCounters c;
-        CHECK(reader.ask("wlan0", 3000000, c) && c.dataRetries == 10 && c.upsdTimeouts == 2);
+        CHECK(reader.ask("wlan0", 3000000, c) && c.recoveries == 3);
         CHECK(reader.ask("wlan0", 3000000, c) && chipReads == 2);
     }
     {
@@ -366,7 +339,7 @@ void chipReader() {
         CHECK(!reader.ask("wlan0", 3000000, c));  // still under way: not asked again, and not waited for
         CHECK(elapsedMs(start) < 700 && chipReads <= 1);
         usleep(2500000);
-        CHECK(reader.ask("wlan0", 5000000, c) && c.dataRetries == 5 && chipReads == 2);
+        CHECK(reader.ask("wlan0", 5000000, c) && c.recoveries == 5 && chipReads == 2);
         CHECK(!reader.ask("wlan0", 1000, c));  // maybe under way at its end: the destructor waits for it
     }
     CHECK(chipReads == 2 || chipReads == 3);

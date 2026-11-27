@@ -113,7 +113,7 @@ les 10 secondes jusqu'à la fin de la session :
 ```text
 [WifiLink] 2462 MHz; signal -52 dBm (average -51); from the phone 65.0 Mbit/s;
 in 10 s: 812 frames sent, 0 lost; on the Wi-Fi for 135 s; TCP round trip 4.2 ms, 0 segment(s) sent again;
-chip in 10 s: 140 data retries, 0 expired, 0 PS-Poll timeouts, 12 U-APSD timeouts; BMW Apps Bluetooth link idle
+BMW Apps Bluetooth link idle
 ```
 
 | Partie | Sens |
@@ -124,12 +124,11 @@ chip in 10 s: 140 data retries, 0 expired, 0 PS-Poll timeouts, 12 U-APSD timeout
 | `frames sent, lost` | Trames envoyées au téléphone depuis la ligne précédente, puis abandonnées (jamais acquittées). Le nombre de trames réémises n'est pas écrit : le pilote de la puce Wi-Fi des EntryNav2 compte un seul envoi par trame, ce nombre valait toujours 0 |
 | `on the Wi-Fi for` | Temps depuis que le téléphone a rejoint le Wi-Fi. S'il repart de zéro, le téléphone l'a quitté puis rejoint |
 | `TCP round trip`, `sent again` | Temps d'aller-retour de la connexion Android Auto, et morceaux qu'il a fallu renvoyer |
-| `chip in 10 s` | Compteurs de la puce Wi-Fi elle-même (WL18xx, lus dans debugfs), pour tout ce qui est connecté au Wi-Fi de la voiture : `data retries`, trames réémises par la puce (radio encombrée, Bluetooth sur la même antenne, signal faible) ; `expired`, trames abandonnées faute de temps ; `PS-Poll timeouts` et `U-APSD timeouts`, fois où un téléphone en économie d'énergie n'est pas venu chercher ses trames à temps. `chip since its firmware started` : les compteurs depuis le démarrage du micrologiciel, sur la première ligne d'une connexion ou quand ils n'ont pas pu être soustraits de la ligne d'avant (micrologiciel redémarré, lecture manquée) ; seul `chip firmware restarted` dit que la puce a redémarré |
-| `chip firmware restarted` | Le pilote a redémarré le micrologiciel de la puce (transmission bloquée, chien de garde) depuis la ligne précédente, ou depuis le démarrage de l'unité sur la première ligne |
+| `chip firmware restarted` | Le pilote a redémarré le micrologiciel de la puce Wi-Fi (transmission bloquée, chien de garde) depuis la ligne précédente, ou depuis le démarrage de l'unité sur la première ligne. Lu dans l'état du pilote (`driver_state` dans debugfs), sans rien demander à la puce. Absent quand il n'y en a pas eu |
 | `BMW Apps Bluetooth link` | Lien Bluetooth des BMW Apps (My BMW, AAIdrive, option *Apps* du téléphone dans les réglages de la voiture) : `connected` quand un téléphone le tient, `idle` sinon ; un autre état est écrit en chiffres (`slot state`, `link state`). Il passe par la même puce que le Wi-Fi |
 
 Une partie que le Wi-Fi de la voiture ne donne pas est absente de la ligne. Ces chiffres sont lus dans le noyau, comme
-le fait la commande `iw` : rien n'est réglé, et l'adresse du téléphone n'est pas écrite. Pour donner ses compteurs, le pilote les demande à la puce, une fois par seconde au plus. L'état du lien BMW
+le fait la commande `iw` : rien n'est réglé, et l'adresse du téléphone n'est pas écrite. Les statistiques de la puce Wi-Fi elle-même (`fw_stats` dans debugfs) ne sont pas lues : le pilote les demande à la puce, et sur une X1 F48 deux lectures à 5 s d'écart ont été suivies de deux redémarrages de son micrologiciel ([#256](https://github.com/Jiraiya43/EntryNav2-Android-Auto/pull/256)). Ne les lisez pas non plus à la main. L'état du lien BMW
 Apps est lu dans la mémoire de la pile Bluetooth BMW, comme au démarrage, sans rien y changer ; il manque quand Android
 Auto occupe lui-même l'emplacement des BMW Apps (`takes SPP 0` dans le journal du superviseur). Par câble USB, il n'y a
 pas de ligne `[WifiLink]`.

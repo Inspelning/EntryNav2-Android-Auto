@@ -10,8 +10,10 @@
 //     1 Mbit/s on every car, the reference G20 included, whatever was sent. So is the entry's retry count: the wl18xx
 //     driver gets one status byte per frame from the firmware, with no retry count, and reports one try for every
 //     frame ("no data about retries" in its source, a constant 1 in the car's wl18xx.ko), so it was always 0.
-//   - the WL18xx chip's own counters, in debugfs (ChipCounters): what the firmware sent again or gave up, and the
-//     times a phone saving power did not come for its frames in time.
+//   - the WL18xx driver's state, in debugfs (ChipCounters): how often it restarted the chip's firmware. The firmware's
+//     own statistics (fw_stats: frames sent again, power save timeouts) are not read: the driver gets them by sending
+//     the firmware a command, and on an X1 F48 two reads 5 s apart were followed by two firmware restarts 4.9 s apart
+//     (#256); driver_state is the driver's memory only, nothing is asked of the chip.
 //   - TCP_INFO on the Android Auto connection: round trip time and segments sent again.
 // Next to them, given by the service: whether a phone holds BMW Apps' Bluetooth link, which shares the radio chip.
 // Nothing identifies the phone in the log: no address is written.
@@ -63,23 +65,18 @@ struct AppsSlot {
     AppsSlot() : read(false), connected(false), state(0), transport(0) {}
 };
 
-// The WL18xx chip's own counters, for all the stations of the radio together, from debugfs: the firmware's
-// statistics (fw_stats, which start again from 0 when the firmware does) and the driver's state. kNoFigure: not given.
+// What the WL18xx driver tells of the chip, from its driver_state file in debugfs. kNoFigure: not given.
 struct ChipCounters {
-    int64_t dataRetries;     // fw_stats/tx_tx_retry_data: data frames the chip sent again
-    int64_t expired;         // fw_stats/tx_tx_exch_expiry: frames given up when their time ran out
-    int64_t psPollTimeouts;  // fw_stats/ps_poll_ps_poll_timeouts: a phone saving power did not fetch its frames in time
-    int64_t upsdTimeouts;    // fw_stats/ps_poll_upsd_timeouts: the same, for a phone using U-APSD
-    int64_t recoveries;      // driver_state recovery_count: firmware restarts by the driver since the unit started
+    int64_t recoveries;  // recovery_count: firmware restarts by the driver since the unit started (stuck, watchdog)
     ChipCounters();
 };
-// One fw_stats file ("1234\n"): false unless it holds a number alone.
+// A number alone ("1234\n", " 0 "): false for anything else.
 bool parseChipCounter(const std::string& text, int64_t& out);
 // recovery_count among the lines of the driver_state file ("recovery_count = 4").
 bool parseRecoveryCount(const std::string& driverState, int64_t& out);
-// The counters of the interface's radio (/sys/class/net/<interface>/phy80211/name), under
-// /sys/kernel/debug/ieee80211/<phy>/wlcore/. True when at least one was read. Blocks while the driver holds its lock,
-// which a stuck firmware command keeps up to its 2 s timeout.
+// The driver's state for the interface's radio (/sys/class/net/<interface>/phy80211/name), in
+// /sys/kernel/debug/ieee80211/<phy>/wlcore/driver_state. Asks the chip nothing, but blocks while the driver holds its
+// lock, which a stuck firmware command keeps up to its 2 s timeout.
 bool readChipCounters(const std::string& interface, ChipCounters& out);
 
 // readChipCounters on a thread of its own: the main loop never waits for the driver longer than it asks.
