@@ -12,6 +12,13 @@ QEMU avec les bibliothèques de la voiture).
 
 - Sans-fil : un téléphone déjà sur le Wi-Fi de la voiture quand Android Auto démarre (réseau connu rejoint tout seul, téléphone revenu après une séance perdue) gardait l'économie d'énergie U-APSD toute la séance : le point d'accès ne reconstruisait sa balise sans U-APSD que si personne n'y était connecté. Sur une F52, c'était le cas des quatre séances sur quatre ([#203](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/203)). La balise est maintenant reconstruite une fois par démarrage du point d'accès, même avec un appareil connecté : il est déconnecté une fois et rejoint aussitôt le Wi-Fi sans U-APSD, juste avant que le téléphone reçoive sa demande de démarrage. Un autre appareil sur ce Wi-Fi (ordinateur, iPhone en CarPlay) est déconnecté une fois aussi. U-APSD retiré a fait disparaître les à-coups sur une X1 F48 ([#138](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/138)) ; il n'est pas la seule cause de lenteur sans fil. Testé sur PC.
 - Journaux : la ligne `[WifiLink]` écrivait `0 retried` sur toutes les voitures, ce qui laissait croire que la puce Wi-Fi n'avait jamais à réémettre. Son pilote ne donne pas ce nombre (une seule tentative par trame, « no data about retries » dans son code) : il n'est plus écrit. La ligne donne à la place, toutes les 10 s, les compteurs de la puce elle-même lus dans debugfs : trames réémises, trames abandonnées, fois où un téléphone en économie d'énergie n'est pas venu chercher ses trames à temps (PS-Poll, U-APSD), et redémarrages de son micrologiciel par le pilote. Un journal suffit alors à séparer une radio encombrée, un téléphone qui économise son énergie et une puce qui redémarre, sans commande SSH ([#203](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/203)). Lecture seule, sur un fil à part : la boucle principale n'attend jamais le pilote plus de 200 ms. Testé sur PC.
+- Sans-fil : les images qui arrivent par paires sont toujours espacées avant d'aller au décodeur, mais le fil qui lit
+  le téléphone n'attend plus cet espacement. Ses accusés de réception et ses réponses aux pings du téléphone ne
+  prennent donc plus jusqu'à 25 ms de retard par image retenue pendant les rafales d'images. En sans-fil, les images
+  vont maintenant au décodeur par un seul fil, réservé à cela, dans leur ordre et chacune à son heure ; l'image
+  retenue attend dans sa mémoire vidéo. Le fil qui lit le téléphone n'attend plus que lorsque les mémoires vidéo du
+  décodeur sont toutes prises (rafale plus longue qu'elles), le temps qu'une se libère, comme avant. Le mode USB ne
+  change pas. Testé sur PC.
 
 ## [0.13.0-rc.11] - 2026-11-26 · PC
 

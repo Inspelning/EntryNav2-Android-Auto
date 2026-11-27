@@ -17,6 +17,12 @@ QEMU with the car's libraries).
 
 - Wireless: a phone already on the car's Wi-Fi when Android Auto started (a known network it joined by itself, a phone back after a lost session) kept U-APSD power saving for the whole session: the access point only rebuilt its beacon without U-APSD when nobody was connected. On an F52, that was the case of four sessions out of four ([#203](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/203)). The beacon is now rebuilt once per start of the access point, even with a device connected: it is disconnected once and joins the Wi-Fi again at once without U-APSD, just before the phone gets its start request. Another device on that Wi-Fi (a laptop, an iPhone on CarPlay) is disconnected once too. Removing U-APSD made the stutter go on an X1 F48 ([#138](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/138)); it is not the only cause of wireless lag. Tested on PC.
 - Logs: the `[WifiLink]` line wrote `0 retried` on every car, which suggested the Wi-Fi chip never had to send a frame again. Its driver does not give that number (one try per frame, "no data about retries" in its source): it is no longer written. Instead the line gives, every 10 s, the chip's own counters read from debugfs: frames sent again, frames given up, the times a phone saving power did not come for its frames in time (PS-Poll, U-APSD), and the driver's restarts of its firmware. One log is then enough to tell a crowded radio, a phone saving power and a chip that restarts apart, without SSH commands ([#203](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/203)). Read only, on a thread of its own: the main loop never waits for the driver longer than 200 ms. Tested on PC.
+- Wireless: pictures that arrive in pairs are still spread before going to the decoder, but the thread that reads the
+  phone no longer waits for that spacing. Its acknowledgements and its answers to the phone's pings therefore no
+  longer get up to 25 ms late per held picture during bursts of pictures. Over wireless, pictures now reach the
+  decoder from a single thread of their own, in their order and each at its time; the held picture waits in its video
+  buffer. The thread that reads the phone now waits only when the decoder's video buffers are all taken (a burst
+  longer than they are), until one is free again, as before. USB mode is unchanged. Tested on PC.
 
 ## [0.13.0-rc.11] - 2026-11-26 · PC
 
