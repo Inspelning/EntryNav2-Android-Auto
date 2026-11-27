@@ -137,10 +137,12 @@ U-APSD, une économie d'énergie du téléphone, et écrit une ligne `car access
 
 | Fin de la ligne | Sens |
 |---|---|
-| `beacon rebuilt` | Fait : le téléphone rejoint le Wi-Fi sans U-APSD |
-| `beacon already rebuilt for this hostapd start` | Déjà fait depuis le dernier démarrage du point d'accès : le réglage seul, sans reconstruire la balise une seconde fois |
-| `a station is associated` | Un appareil était déjà sur le Wi-Fi de la voiture (téléphone revenu, iPhone en CarPlay) : personne n'est déconnecté, et cet appareil garde U-APSD jusqu'à sa prochaine connexion |
-| `RELOAD refused` | hostapd a pris le réglage mais pas la reconstruction de sa balise : le téléphone peut encore demander U-APSD |
+| `beacon rebuilt: the phone joins without it` | Fait : le téléphone rejoint le Wi-Fi sans U-APSD |
+| `disconnected once and joins again without it` | Fait : un appareil était déjà sur le Wi-Fi de la voiture (téléphone qui l'a rejoint tout seul, téléphone revenu, ordinateur, iPhone en CarPlay) ; il est déconnecté une fois et le rejoint aussitôt sans U-APSD |
+| `beacon already rebuilt for this hostapd start` | Déjà fait depuis le dernier démarrage du point d'accès, même par un service arrêté puis relancé depuis : le réglage seul, sans reconstruire la balise une seconde fois |
+| `beacon left, nobody disconnected` | Un appareil était déjà sur le Wi-Fi, mais le démarrage du point d'accès n'a pas pu être reconnu : personne n'est déconnecté (sinon ce serait à chaque échange), et cet appareil garde U-APSD jusqu'à sa prochaine connexion |
+| `RELOAD refused` | hostapd a pris le réglage mais refusé de reconstruire sa balise, sans déconnecter personne : le téléphone peut encore demander U-APSD ; redemandé au prochain échange |
+| `RELOAD not answered` | hostapd n'a pas répondu à temps : la balise a pu être reconstruite ; pas redemandé avant le prochain démarrage du point d'accès, pour ne pas déconnecter le téléphone à chaque échange |
 | `left on` | hostapd a refusé le réglage ou n'a pas répondu : rien n'a changé |
 
 Le réglage est fait dans la mémoire de hostapd, jamais dans un fichier de la voiture : un redémarrage de l'unité, ou

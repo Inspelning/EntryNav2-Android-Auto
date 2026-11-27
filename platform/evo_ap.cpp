@@ -15,8 +15,10 @@
 #include <cstring>
 #include <fstream>
 
+#include "atomic_file.hpp"
 #include "evo_log.hpp"
 #include "evo_process.hpp"
+#include "service_contract.hpp"
 
 namespace evo {
 // One hostapd_cli command on the car's access point (wlan0); false when it could not run or ended in error.
@@ -40,16 +42,30 @@ static HostapdStart currentHostapdStart() {
     }
     return start;
 }
+// The hostapd start whose beacon was rebuilt, from its file: kept across the service's processes, gone at power-up.
+static HostapdStart rebuiltStart() {
+    char text[64];
+    const ssize_t n = readRegularTextFile(contract::kUapsdBeaconFile, text, sizeof(text) - 1, true);
+    HostapdStart start;
+    if (n > 0) {
+        parseHostapdStart(std::string(text, static_cast<size_t>(n)), start);
+    }
+    return start;
+}
 // The wireless loop's thread only.
 UapsdOffer withdrawAccessPointUapsd(bool (*stopping)(void*), void* user) {
-    static HostapdStart rebuiltFor;  // the hostapd start whose beacon was rebuilt
     const HostapdStart now = currentHostapdStart();
     const UapsdOffer offer =
         withdrawUapsd([](const std::vector<std::string>& command,
                          std::string& reply) { return callHostapd(command, reply, kChangeTimeoutMs); },
-                      [stopping, user]() { return stopping(user); }, now.same(rebuiltFor));
-    if (offer == UapsdOffer::kWithdrawn) {
-        rebuiltFor = now;
+                      [stopping, user]() { return stopping(user); }, now.same(rebuiltStart()), now.known);
+    if (now.known &&
+        (offer == UapsdOffer::kWithdrawn || offer == UapsdOffer::kRejoined || offer == UapsdOffer::kReloadUnanswered)) {
+        const std::string text = formatHostapdStart(now);
+        if (!writeAtomicFile(contract::kUapsdBeaconFile, text.data(), text.size())) {
+            ELOG("AccessPoint", "%s not written: the next service process may rebuild the beacon again",
+                 contract::kUapsdBeaconFile);
+        }
     }
     return offer;
 }

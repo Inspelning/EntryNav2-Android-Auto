@@ -13,6 +13,10 @@ QEMU with the car's libraries).
 
 ## [Unreleased]
 
+### Fixed
+
+- Wireless: a phone already on the car's Wi-Fi when Android Auto started (a known network it joined by itself, a phone back after a lost session) kept U-APSD power saving for the whole session: the access point only rebuilt its beacon without U-APSD when nobody was connected. On an F52, that was the case of four sessions out of four ([#203](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/203)). The beacon is now rebuilt once per start of the access point, even with a device connected: it is disconnected once and joins the Wi-Fi again at once without U-APSD, just before the phone gets its start request. Another device on that Wi-Fi (a laptop, an iPhone on CarPlay) is disconnected once too. Removing U-APSD made the stutter go on an X1 F48 ([#138](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/138)); it is not the only cause of wireless lag. Tested on PC.
+
 ## [0.13.0-rc.11] - 2026-11-26 · PC
 
 Release candidate before 1.0. It brings the complete code review (audit of 25/11), the F-series head-up display

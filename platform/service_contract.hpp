@@ -62,6 +62,8 @@ constexpr char kDriverSideFile[] = "/tmp/entry-aad-driver-side";  // "left" or "
 // The car's series as iDrive is coded ("G20"), written by the app; the model told to the phone without one in vehicle.
 constexpr char kSeriesFile[] = "/tmp/entry-aad-series";
 constexpr char kWirelessLock[] = "/tmp/entry-aad-wireless.lock";  // one wireless start at a time
+// "<device> <inode>" of the hostapd control socket whose start had its beacon rebuilt without U-APSD (ap_uapsd.hpp).
+constexpr char kUapsdBeaconFile[] = "/tmp/entry-aad-uapsd-beacon";
 // One-shot double-MEDIA recall request: process id and monotonic timestamp, checked by the iDrive app.
 constexpr char kMediaRecallFile[] = "/tmp/entry-aad-media-recall";
 // One update from a USB stick at a time, the programs it holds for the car's loader to check, and the archive the last

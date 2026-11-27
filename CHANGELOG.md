@@ -8,6 +8,10 @@ QEMU avec les bibliothèques de la voiture).
 
 ## [Non publié]
 
+### Corrigé
+
+- Sans-fil : un téléphone déjà sur le Wi-Fi de la voiture quand Android Auto démarre (réseau connu rejoint tout seul, téléphone revenu après une séance perdue) gardait l'économie d'énergie U-APSD toute la séance : le point d'accès ne reconstruisait sa balise sans U-APSD que si personne n'y était connecté. Sur une F52, c'était le cas des quatre séances sur quatre ([#203](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/203)). La balise est maintenant reconstruite une fois par démarrage du point d'accès, même avec un appareil connecté : il est déconnecté une fois et rejoint aussitôt le Wi-Fi sans U-APSD, juste avant que le téléphone reçoive sa demande de démarrage. Un autre appareil sur ce Wi-Fi (ordinateur, iPhone en CarPlay) est déconnecté une fois aussi. U-APSD retiré a fait disparaître les à-coups sur une X1 F48 ([#138](https://github.com/Jiraiya43/EntryNav2-Android-Auto/issues/138)) ; il n'est pas la seule cause de lenteur sans fil. Testé sur PC.
+
 ## [0.13.0-rc.11] - 2026-11-26 · PC
 
 Version candidate avant la 1.0. Elle reprend la relecture complète du code (audit du 25/11), la tête haute des
