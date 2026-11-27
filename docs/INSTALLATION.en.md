@@ -38,7 +38,7 @@ the one in its archive (in 0.10.0, the supervisor is called `evo-trial`, not `aa
 From the PC, in the archive's folder:
 
 ```sh
-scp entrynav2-android-auto-0.13.0-rc.11-armhf.tar root@169.254.1.0:/tmp/
+scp entrynav2-android-auto-0.13.0-rc.12-armhf.tar root@169.254.1.0:/tmp/
 ssh root@169.254.1.0
 ```
 
@@ -50,7 +50,7 @@ flash memory yet.
 Nothing is changed during this step.
 
 ```sh
-V=0.13.0-rc.11
+V=0.13.0-rc.12
 cd /tmp && rm -rf entrynav2-android-auto-$V && tar -xf entrynav2-android-auto-$V-armhf.tar && cd entrynav2-android-auto-$V
 md5sum -c MD5SUMS
 head -n 1 /etc/version

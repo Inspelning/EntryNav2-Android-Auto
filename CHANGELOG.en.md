@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > This is a translation of the authoritative [French changelog](CHANGELOG.md), based on
-> [`v0.13.0-rc.10`](https://github.com/Jiraiya43/EntryNav2-Android-Auto/blob/v0.13.0-rc.10/CHANGELOG.md).
+> [`v0.13.0-rc.12`](https://github.com/Jiraiya43/EntryNav2-Android-Auto/blob/v0.13.0-rc.12/CHANGELOG.md).
 > It may become outdated; consult the French changelog for the source of truth.
 
 All notable changes to this project. Format inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
@@ -12,6 +12,13 @@ Each version states whether it was **tried in a car** or only **tested on a PC**
 QEMU with the car's libraries).
 
 ## [Unreleased]
+
+## [0.13.0-rc.12] - 2026-11-27 · PC
+
+Release candidate for wireless: U-APSD power saving also taken away from a phone that joined the car's Wi-Fi
+by itself, the thread that reads the phone no longer waiting for the spacing of the pictures, and a
+`[WifiLink]` line without a misleading figure, which says when the Wi-Fi chip restarts. Installs from a USB
+stick since 0.13.0-rc.10. Tested on PC and under QEMU, **not tried in a car yet**.
 
 ### Fixed
 
